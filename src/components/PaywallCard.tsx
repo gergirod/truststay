@@ -138,34 +138,24 @@ export function PaywallCard({
           City Pass — {cityName}
         </p>
         <h2 className="mt-3 text-lg font-semibold text-bark">
-          Unlock the full setup
+          Unlock ratings, hours, and details
         </h2>
         <p className="mt-2 text-sm leading-6 text-umber">
-          You&rsquo;re seeing the free preview. The full city pass unlocks
-          everything.
+          You can see all the places above. Unlock to get ratings, opening
+          hours, Wi‑Fi confidence, and Google Maps links for every one.
         </p>
+
+        {hookLine && (
+          <p className="mt-3 text-sm font-medium text-bark">{hookLine}</p>
+        )}
 
         {totalLocked > 0 && (
           <div className="mt-4">
-            {hookLine && (
-              <p className="mb-3 text-sm font-medium text-bark">{hookLine}</p>
-            )}
             <ul className="space-y-1.5">
-              {lockedCounts.work > 0 && (
-                <LockedItem
-                  label={`+${lockedCounts.work} more work spot${lockedCounts.work !== 1 ? "s" : ""}`}
-                />
-              )}
-              {lockedCounts.coffeeMeals > 0 && (
-                <LockedItem
-                  label={`+${lockedCounts.coffeeMeals} more coffee & meal spot${lockedCounts.coffeeMeals !== 1 ? "s" : ""}`}
-                />
-              )}
-              {lockedCounts.training > 0 && (
-                <LockedItem
-                  label={`+${lockedCounts.training} more training spot${lockedCounts.training !== 1 ? "s" : ""}`}
-                />
-              )}
+              <LockedItem label="Ratings and review counts from Google" />
+              <LockedItem label="Opening hours and open/closed status" />
+              <LockedItem label="Wi‑Fi confidence and noise signals" />
+              <LockedItem label="Direct Google Maps links" />
             </ul>
           </div>
         )}

@@ -6,10 +6,32 @@ interface Props {
   subtitle?: string;
   places: Place[];
   emptyMessage?: string;
-  // Free/locked split — omit both to show all places (default, Task 03 behavior).
-  // When both are provided: show freeCount items freely, lock the rest.
   freeCount?: number;
   isUnlocked?: boolean;
+}
+
+function categoryLabel(category: Place["category"]): string {
+  switch (category) {
+    case "coworking": return "Coworking space";
+    case "cafe": return "Café";
+    case "food": return "Restaurant";
+    case "gym": return "Gym";
+    default: return category;
+  }
+}
+
+function LockedTeaser({ place }: { place: Place }) {
+  return (
+    <div className="flex items-center justify-between rounded-2xl border border-dune bg-white px-4 py-3.5">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium text-bark/70">{place.name}</p>
+        <p className="mt-0.5 text-xs text-umber/60">{categoryLabel(place.category)}</p>
+      </div>
+      <span className="ml-3 flex-shrink-0 rounded-full border border-dune bg-cream px-2.5 py-1 text-xs text-umber/60">
+        Locked
+      </span>
+    </div>
+  );
 }
 
 export function PlaceSection({
@@ -20,10 +42,9 @@ export function PlaceSection({
   freeCount,
   isUnlocked = false,
 }: Props) {
-  const applyLock =
-    !isUnlocked && freeCount !== undefined && places.length > freeCount;
-  const visiblePlaces = applyLock ? places.slice(0, freeCount) : places;
-  const lockedCount = applyLock ? places.length - freeCount! : 0;
+  const applyLock = !isUnlocked && freeCount !== undefined;
+  const freePlaces = applyLock ? places.slice(0, freeCount) : places;
+  const lockedPlaces = applyLock ? places.slice(freeCount!) : [];
 
   return (
     <section>
@@ -40,19 +61,12 @@ export function PlaceSection({
         </div>
       ) : (
         <div className="space-y-3">
-          {visiblePlaces.map((place) => (
+          {freePlaces.map((place) => (
             <PlaceCard key={place.id} place={place} />
           ))}
-
-          {lockedCount > 0 && (
-            <div className="flex items-center gap-3 py-2">
-              <div className="h-px flex-1 bg-dune" />
-              <p className="text-xs text-umber">
-                +{lockedCount} more &middot; unlock with City Pass
-              </p>
-              <div className="h-px flex-1 bg-dune" />
-            </div>
-          )}
+          {lockedPlaces.map((place) => (
+            <LockedTeaser key={place.id} place={place} />
+          ))}
         </div>
       )}
     </section>

@@ -20,8 +20,8 @@ import { discoverNeighborhoods } from "@/lib/neighborhoodDiscovery";
 import type { City } from "@/types";
 
 // Free tier limits — per merged section
-const FREE_WORK = 3;        // coworkings + work cafes combined
-const FREE_COFFEE_MEALS = 2; // food + break cafes combined
+const FREE_WORK = 1;        // 1 full card — rest shown as locked name teasers
+const FREE_COFFEE_MEALS = 1; // 1 full card — rest shown as locked name teasers
 const FREE_TRAINING = 1;
 
 // ── Café routing ────────────────────────────────────────────────────────────
@@ -354,7 +354,7 @@ async function AutoNeighborhoodOrContent({
       neighborhoods,
     };
     // No bundlePrice for auto-discovered cities — bundle is only for curated ones
-    return <CityNeighborhoodGrid config={config} />;
+    return <CityNeighborhoodGrid config={config} bundlePrice={undefined} />;
   }
 
   // Not enough neighborhood data — fire analytics and show normal city page
