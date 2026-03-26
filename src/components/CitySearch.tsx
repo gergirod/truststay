@@ -233,7 +233,7 @@ export function CitySearch() {
           disabled={!query.trim() || isLoading}
           className="w-full rounded-xl bg-teal px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-deep-teal disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:min-w-[110px]"
         >
-          {isLoading ? "Searching…" : "Find setup"}
+          {isLoading ? "Searching…" : "Map my routine"}
         </button>
       </form>
 
