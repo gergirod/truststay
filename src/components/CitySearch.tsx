@@ -2,44 +2,85 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import type { City } from "@/types";
+
+type Status = "idle" | "loading" | "error";
 
 export function CitySearch() {
   const [query, setQuery] = useState("");
+  const [status, setStatus] = useState<Status>("idle");
+  const [errorMsg, setErrorMsg] = useState("");
   const router = useRouter();
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const trimmed = query.trim();
     if (!trimmed) return;
-    // Temporary slug — real geocoding replaces this in Task 02
-    const slug = trimmed
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9\s-]/g, "")
-      .trim()
-      .replace(/\s+/g, "-");
-    router.push(`/city/${slug}`);
+
+    setStatus("loading");
+    setErrorMsg("");
+
+    try {
+      const res = await fetch(
+        `/api/geocode?q=${encodeURIComponent(trimmed)}`
+      );
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        setStatus("error");
+        setErrorMsg(
+          res.status === 404
+            ? "City not found. Try a different name or spelling."
+            : "Something went wrong. Please try again."
+        );
+        return;
+      }
+
+      const city: City = data.city;
+      const params = new URLSearchParams({
+        lat: city.lat.toString(),
+        lon: city.lon.toString(),
+        name: city.name,
+        country: city.country,
+      });
+
+      router.push(`/city/${city.slug}?${params.toString()}`);
+    } catch {
+      setStatus("error");
+      setErrorMsg("Could not reach the geocoding service. Please try again.");
+    }
   }
 
+  const isLoading = status === "loading";
+
   return (
-    <form onSubmit={handleSubmit} className="flex w-full max-w-lg gap-2">
-      <input
-        type="text"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="e.g. Lisbon, Medellín, Chiang Mai"
-        className="flex-1 rounded-lg border border-stone-200 bg-white px-4 py-3 text-base text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-300"
-        autoComplete="off"
-        spellCheck={false}
-      />
-      <button
-        type="submit"
-        disabled={!query.trim()}
-        className="rounded-lg bg-stone-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        Find setup
-      </button>
-    </form>
+    <div className="w-full max-w-lg">
+      <form onSubmit={handleSubmit} className="flex gap-2">
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            if (status === "error") setStatus("idle");
+          }}
+          placeholder="e.g. Lisbon, Medellín, Chiang Mai"
+          disabled={isLoading}
+          className="flex-1 rounded-lg border border-stone-200 bg-white px-4 py-3 text-base text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-300 disabled:opacity-60"
+          autoComplete="off"
+          spellCheck={false}
+        />
+        <button
+          type="submit"
+          disabled={!query.trim() || isLoading}
+          className="min-w-[110px] rounded-lg bg-stone-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {isLoading ? "Searching…" : "Find setup"}
+        </button>
+      </form>
+
+      {status === "error" && (
+        <p className="mt-3 text-sm text-red-600">{errorMsg}</p>
+      )}
+    </div>
   );
 }
