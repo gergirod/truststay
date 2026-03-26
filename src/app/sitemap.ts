@@ -2,10 +2,31 @@ import type { MetadataRoute } from "next";
 import { CURATED_NEIGHBORHOODS } from "@/data/neighborhoods";
 
 const KNOWN_CITY_SLUGS = [
+  // Major multi-neighborhood cities
   "lisbon", "medellin", "bali", "mexico-city", "buenos-aires",
   "chiang-mai", "berlin", "barcelona", "amsterdam", "ho-chi-minh-city",
-  "tbilisi", "budapest", "prague", "bansko", "playa-del-carmen",
-  "oaxaca", "bogota", "san-jose", "taipei", "kuala-lumpur",
+  "tbilisi", "budapest", "prague", "bansko", "bogota",
+  "taipei", "kuala-lumpur",
+  // Mexico
+  "playa-del-carmen", "oaxaca", "puerto-escondido", "sayulita",
+  // El Salvador
+  "el-tunco", "el-zonte",
+  // Nicaragua
+  "san-juan-del-sur", "popoyo",
+  // Costa Rica
+  "santa-teresa", "nosara", "tamarindo", "puerto-viejo",
+  // Panama
+  "bocas-del-toro", "boquete",
+  // Guatemala
+  "antigua-guatemala",
+  // Ecuador
+  "montanita", "olon", "banos",
+  // Colombia
+  "minca",
+  // Peru
+  "mancora",
+  // Brazil
+  "florianopolis", "itacare", "jericoacoara",
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

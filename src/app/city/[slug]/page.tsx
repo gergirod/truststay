@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { geocodeCity, reverseGeocodeArea, toSlug } from "@/lib/geocode";
-import { fetchPlaces, sortByDistance, sortEnrichedFirst, haversineKm } from "@/lib/overpass";
+import { fetchPlaces, sortByDistance, haversineKm } from "@/lib/overpass";
 import { computeCitySummary, computeBaseCentroid } from "@/lib/scoring";
 import { enrichPlaces } from "@/lib/enrichment";
 import type { Place } from "@/types";
@@ -61,10 +61,31 @@ function isCafeWorkSection(place: Place): boolean {
 
 /** Popular remote-work cities pre-rendered at build time for fast first load. */
 const KNOWN_CITY_SLUGS = [
+  // Major multi-neighborhood cities
   "lisbon", "medellin", "bali", "mexico-city", "buenos-aires",
   "chiang-mai", "berlin", "barcelona", "amsterdam", "ho-chi-minh-city",
-  "tbilisi", "budapest", "prague", "bansko", "playa-del-carmen",
-  "oaxaca", "bogota", "san-jose", "taipei", "kuala-lumpur",
+  "tbilisi", "budapest", "prague", "bansko", "bogota",
+  "taipei", "kuala-lumpur",
+  // Mexico
+  "playa-del-carmen", "oaxaca", "puerto-escondido", "sayulita",
+  // El Salvador
+  "el-tunco", "el-zonte",
+  // Nicaragua
+  "san-juan-del-sur", "popoyo",
+  // Costa Rica
+  "santa-teresa", "nosara", "tamarindo", "puerto-viejo",
+  // Panama
+  "bocas-del-toro", "boquete",
+  // Guatemala
+  "antigua-guatemala",
+  // Ecuador
+  "montanita", "olon", "banos",
+  // Colombia
+  "minca",
+  // Peru
+  "mancora",
+  // Brazil
+  "florianopolis", "itacare", "jericoacoara",
 ];
 
 export async function generateStaticParams() {
@@ -332,8 +353,8 @@ async function AutoNeighborhoodOrContent({
       citySlug: city.slug,
       neighborhoods,
     };
-    const bundlePrice = process.env.NEXT_PUBLIC_CITY_BUNDLE_PRICE ?? "15";
-    return <CityNeighborhoodGrid config={config} bundlePrice={bundlePrice} />;
+    // No bundlePrice for auto-discovered cities — bundle is only for curated ones
+    return <CityNeighborhoodGrid config={config} />;
   }
 
   // Not enough neighborhood data — fire analytics and show normal city page
@@ -468,21 +489,53 @@ async function CityContent({
       ? "limited"
       : "none";
 
-  // ── Section grouping ─────────────────────────────────────────────────────
-  // Work: all coworkings + cafes where work suitability is clear
-  // Coffee & meals: food places + cafes better suited for breaks or meals
-  // Training: all gyms
-  // Enriched places bubble to the top within each section so the first
-  // cards a user sees are the ones with ratings, hours, and Maps links.
-  const workPlaces = sortEnrichedFirst([
+  // ── Section grouping + quality sorting ──────────────────────────────────
+  // Each section is sorted by how well a place fulfills the section's purpose:
+  //
+  // Work:          coworkings first, then cafes; within each tier sort by
+  //                workFit signal → Google rating → distance from base
+  // Coffee & meals: sort by Google rating → routineSupport → distance
+  // Training:      sort by distance from base (closest gym wins)
+
+  function workScore(p: Place): number {
+    // Coworkings always beat cafes
+    const categoryBonus = p.category === "coworking" ? 100 : 0;
+    // workFit signal
+    const workFitBonus =
+      p.confidence.workFit === "high" ? 30 :
+      p.confidence.workFit === "medium" ? 15 : 0;
+    // wifi signal
+    const wifiBonus =
+      p.confidence.wifiConfidence === "verified" ? 10 :
+      p.confidence.wifiConfidence === "medium" ? 5 : 0;
+    // Google rating (0–5 scaled to 0–20)
+    const ratingBonus = (p.google?.rating ?? p.rating ?? 0) * 4;
+    // Distance penalty (closer = better, max 10 point swing)
+    const distPenalty = Math.min((p.distanceFromBasekm ?? p.distanceKm ?? 5) * 2, 10);
+    return categoryBonus + workFitBonus + wifiBonus + ratingBonus - distPenalty;
+  }
+
+  function coffeeMealsScore(p: Place): number {
+    // Google rating (0–5 scaled to 0–25)
+    const ratingBonus = (p.google?.rating ?? p.rating ?? 0) * 5;
+    // routineSupport signal
+    const routineBonus =
+      p.confidence.routineSupport === "high" ? 15 :
+      p.confidence.routineSupport === "medium" ? 7 : 0;
+    // Distance penalty
+    const distPenalty = Math.min((p.distanceFromBasekm ?? p.distanceKm ?? 5) * 2, 10);
+    return ratingBonus + routineBonus - distPenalty;
+  }
+
+  const workPlaces = [
     ...places.filter((p) => p.category === "coworking"),
     ...places.filter((p) => p.category === "cafe" && isCafeWorkSection(p)),
-  ]).slice(0, 20);
+  ].sort((a, b) => workScore(b) - workScore(a)).slice(0, 20);
 
-  const coffeeMealsPlaces = sortEnrichedFirst([
+  const coffeeMealsPlaces = [
     ...places.filter((p) => p.category === "food"),
     ...places.filter((p) => p.category === "cafe" && !isCafeWorkSection(p)),
-  ]).slice(0, 20);
+  ].sort((a, b) => coffeeMealsScore(b) - coffeeMealsScore(a)).slice(0, 20);
 
   const trainingPlaces = sortByDistance(
     places.filter((p) => p.category === "gym")
