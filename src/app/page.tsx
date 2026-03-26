@@ -127,7 +127,7 @@ export default function HomePage() {
 
                   <p className="mt-5 max-w-md text-base leading-7 text-umber">
                     Find a base area, places to work, nearby coffee and meal
-                    spots, and training options that fit your day — without
+                    spots, and wellbeing options that fit your day — without
                     wasting your first days figuring it all out.
                   </p>
 
@@ -140,9 +140,9 @@ export default function HomePage() {
                   </p>
                 </div>
 
-                {/* Right — product preview (desktop only) ───── */}
-                <div className="hidden lg:flex items-center justify-center border-l border-dune bg-cream px-8 py-12">
-                  <RoutinePreview />
+                {/* Right — live map preview (desktop only) ───── */}
+                <div className="hidden lg:block border-l border-dune overflow-hidden">
+                  <HeroMapImage />
                 </div>
 
               </div>
@@ -345,101 +345,64 @@ export default function HomePage() {
   );
 }
 
-// ── Decorative product preview ───────────────────────────────────────────────
-// Static "mini city report" — communicates the product output at a glance.
-// Intentionally uses fixed Lisbon example data.
+// ── Hero map image — Mapbox Static Images API ─────────────────────────────
+// Server component — zero JS, just an <img> pointing at the Static API.
+// Shows a real Mapbox light map of Lisbon with brand-colored demo pins.
 
-function RoutinePreview() {
+function HeroMapImage() {
+  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+  if (!token) return null;
+
+  // Demo pins around Bairro Alto / Príncipe Real, Lisbon
+  // Colors use Truststay brand palette (hex without #)
+  const markers = [
+    "pin-l+2e2a26(-9.1433,38.7115)",  // base area — dark bark
+    "pin-s+8fb7b3(-9.1503,38.7161)",  // work — teal
+    "pin-s+8fb7b3(-9.1391,38.7107)",  // work — teal
+    "pin-s+c07a58(-9.1400,38.7157)",  // coffee & meals — terracotta
+    "pin-s+c07a58(-9.1354,38.7199)",  // coffee & meals — terracotta
+    "pin-s+b99b6b(-9.1543,38.7139)",  // wellbeing — amber
+    "pin-s+c8c3bc(-9.1516,38.7073)",  // locked — grey
+    "pin-s+c8c3bc(-9.1333,38.7177)",  // locked — grey
+  ].join(",");
+
+  const src =
+    `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/` +
+    `${markers}/-9.143,38.715,13.2,0/360x480@2x?access_token=${token}`;
+
   return (
-    <div className="w-full max-w-[270px] rounded-2xl border border-dune bg-white shadow-xl overflow-hidden">
-      {/* Top teal accent bar */}
-      <div className="h-[3px] bg-teal" />
+    <div className="relative h-full min-h-[420px]">
+      <img
+        src={src}
+        alt="Routine map preview — Lisbon"
+        className="w-full h-full object-cover"
+        loading="eager"
+      />
 
-      {/* City header */}
-      <div className="flex items-center justify-between border-b border-dune bg-cream px-4 py-3">
-        <div>
-          <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-umber">
-            City setup
-          </p>
-          <p className="mt-0.5 text-sm font-bold text-bark">Lisbon</p>
-        </div>
-        <div className="text-right">
-          <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-umber">
-            Routine
-          </p>
-          <p className="mt-0.5 text-sm font-bold text-teal">84 / 100</p>
-        </div>
+      {/* City label — top-left */}
+      <div className="absolute top-4 left-4 rounded-lg border border-dune bg-white/90 backdrop-blur-sm px-3 py-1.5">
+        <p className="text-[10px] font-semibold text-bark leading-none">Lisbon</p>
+        <p className="mt-0.5 text-[9px] text-umber leading-none">live example</p>
       </div>
 
-      {/* Suggested base strip */}
-      <div className="border-b border-dune bg-white px-4 py-2">
-        <p className="text-[10px] text-umber">
-          Base area:{" "}
-          <span className="font-semibold text-bark">Bairro Alto</span>
-        </p>
+      {/* Category legend — bottom-left */}
+      <div className="absolute bottom-4 left-4 flex items-center gap-3 rounded-xl border border-dune bg-white/90 backdrop-blur-sm px-3 py-2">
+        <HeroLegendDot color="#8FB7B3" label="Work" />
+        <HeroLegendDot color="#C07A58" label="Coffee & meals" />
+        <HeroLegendDot color="#B99B6B" label="Wellbeing" />
       </div>
+    </div>
+  );
+}
 
-      {/* Work spots */}
-      <div className="px-4 pt-3">
-        <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-teal">
-          Work spots
-        </p>
-      </div>
-      <div className="px-3 pb-3 pt-1.5">
-        <div className="rounded-xl border border-dune bg-white p-2.5">
-          <p className="text-[11px] font-semibold text-bark">
-            Fabrica Coffee Roasters
-          </p>
-          <p className="mt-0.5 text-[9px] text-umber">
-            Café · 0.3 km · ★ 4.8
-          </p>
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            <span className="inline-flex items-center rounded border border-teal/30 bg-mist px-1.5 py-0.5 text-[8px] font-medium text-teal">
-              Wi-Fi: likely
-            </span>
-            <span className="inline-flex items-center rounded border border-dune bg-cream px-1.5 py-0.5 text-[8px] text-umber">
-              Quiet
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Eat & reset */}
-      <div className="border-t border-dune px-4 pt-3">
-        <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-umber">
-          Eat & reset
-        </p>
-      </div>
-      <div className="px-3 pb-3 pt-1.5">
-        <div className="rounded-xl border border-dune bg-white p-2.5">
-          <p className="text-[11px] font-semibold text-bark">
-            Time Out Market
-          </p>
-          <p className="mt-0.5 text-[9px] text-umber">
-            Food ·{" "}
-            <span className="font-semibold text-coral">$$</span>
-            {" "}· 0.5 km
-          </p>
-          <div className="mt-1.5">
-            <span className="inline-flex items-center rounded border border-dune bg-cream px-1.5 py-0.5 text-[8px] text-umber">
-              Good for quick meal
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Training */}
-      <div className="border-t border-dune px-4 pt-3 pb-3.5">
-        <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-umber">
-          Training
-        </p>
-        <div className="mt-1.5 rounded-xl border border-dune bg-white p-2.5">
-          <p className="text-[11px] font-semibold text-bark">
-            Holmes Place Gym
-          </p>
-          <p className="mt-0.5 text-[9px] text-umber">Gym · 0.6 km from base</p>
-        </div>
-      </div>
+function HeroLegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <div
+        className="flex-shrink-0 rounded-full"
+        style={{ width: 8, height: 8, background: color }}
+      />
+      <span className="text-[10px] leading-none text-umber">{label}</span>
     </div>
   );
 }
