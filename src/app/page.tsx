@@ -62,7 +62,7 @@ export default function HomePage() {
       <header className="border-b border-dune bg-white">
         <div className="mx-auto max-w-4xl px-6 py-4 flex items-center justify-between">
           <span className="text-base font-bold tracking-tight text-bark">
-            Trust<span className="text-teal">ay</span>
+            Trusts<span className="text-teal">tay</span>
           </span>
           <span className="hidden sm:block text-xs text-umber">
             Remote worker city setup
