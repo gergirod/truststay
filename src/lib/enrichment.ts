@@ -275,7 +275,7 @@ function upgradeFoodConfidenceFromGoogle(place: Place): Place {
  */
 function googlePlaceToPlace(
   g: RawGooglePlace,
-  category: "coworking" | "cafe" | "food",
+  category: "coworking" | "cafe" | "food" | "gym",
   cityLat: number,
   cityLon: number
 ): Place | null {
@@ -312,6 +312,15 @@ function googlePlaceToPlace(
     };
     bestFor = rating && rating >= 4.3 ? ["backup_work", "short_session"] : ["coffee_break"];
     explanation = "Café — details from Google Places.";
+  } else if (category === "gym") {
+    confidence = {
+      routineSupport: rating && rating >= 4.0 && reviews >= 10 ? "high" : "medium",
+    };
+    bestFor = ["routine_support"];
+    explanation = "Gym — details from Google Places.";
+    if (rating && rating >= 4.5 && reviews >= 20) {
+      explanation += " Well-rated by visitors.";
+    }
   } else {
     // food
     confidence = {
@@ -362,14 +371,15 @@ export async function enrichPlaces(
   if (!apiKey) return places;
 
   try {
-    const [googleCafes, googleCoworks, googleFood] = await Promise.all([
+    const [googleCafes, googleCoworks, googleFood, googleGyms] = await Promise.all([
       searchNearbyPlaces(cityLat, cityLon, "cafe", apiKey, 20),
       searchNearbyPlaces(cityLat, cityLon, "coworking_space", apiKey, 10),
       searchNearbyPlaces(cityLat, cityLon, "restaurant", apiKey, 20),
+      searchNearbyPlaces(cityLat, cityLon, "gym", apiKey, 10),
     ]);
 
     console.log(
-      `[enrichment] Google results — cafes: ${googleCafes.length}, coworks: ${googleCoworks.length}, food: ${googleFood.length}`
+      `[enrichment] Google results — cafes: ${googleCafes.length}, coworks: ${googleCoworks.length}, food: ${googleFood.length}, gyms: ${googleGyms.length}`
     );
 
     let matchCount = 0;
@@ -380,7 +390,8 @@ export async function enrichPlaces(
       if (
         place.category !== "cafe" &&
         place.category !== "coworking" &&
-        place.category !== "food"
+        place.category !== "food" &&
+        place.category !== "gym"
       ) {
         return place;
       }
@@ -392,6 +403,8 @@ export async function enrichPlaces(
           ? googleCafes
           : place.category === "coworking"
           ? googleCoworks
+          : place.category === "gym"
+          ? googleGyms
           : [...googleFood, ...googleCafes];
 
       if (place.name.trim().length < MIN_OSM_NAME_LENGTH) return place;
@@ -423,6 +436,17 @@ export async function enrichPlaces(
     const isDuplicate = (lat: number, lon: number): boolean =>
       enriched.some((p) => haversineKm(p.lat, p.lon, lat, lon) < DEDUP_DISTANCE_KM) ||
       googleOnlyPlaces.some((p) => haversineKm(p.lat, p.lon, lat, lon) < DEDUP_DISTANCE_KM);
+
+    // Always add unmatched gyms — gym is heavily under-tagged in OSM in beach towns
+    for (const g of googleGyms) {
+      if (matchedGoogleIds.has(g.id) || !g.location) continue;
+      const { latitude, longitude } = g.location;
+      const dist = haversineKm(cityLat, cityLon, latitude, longitude);
+      if (dist > MAX_GOOGLE_ONLY_DISTANCE_KM) continue;
+      if (isDuplicate(latitude, longitude)) continue;
+      const p = googlePlaceToPlace(g, "gym", cityLat, cityLon);
+      if (p) googleOnlyPlaces.push(p);
+    }
 
     // Always add unmatched coworkings — coworking_space is heavily under-tagged in OSM
     for (const g of googleCoworks) {

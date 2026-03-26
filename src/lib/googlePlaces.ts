@@ -77,7 +77,7 @@ const FIELD_MASK = [
 export async function searchNearbyPlaces(
   lat: number,
   lon: number,
-  type: "cafe" | "coworking_space" | "restaurant",
+  type: "cafe" | "coworking_space" | "restaurant" | "gym",
   apiKey: string,
   maxResults: number
 ): Promise<RawGooglePlace[]> {
