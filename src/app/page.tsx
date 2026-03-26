@@ -1,5 +1,6 @@
 import { CitySearch } from "@/components/CitySearch";
 import { AnalyticsEvent } from "@/components/AnalyticsEvent";
+import { HeroMap } from "@/components/HeroMap";
 
 const POPULAR_CITIES = [
   { label: "Medellín", slug: "medellin" },
@@ -140,9 +141,9 @@ export default function HomePage() {
                   </p>
                 </div>
 
-                {/* Right — live map preview (desktop only) ───── */}
-                <div className="hidden lg:block border-l border-dune overflow-hidden">
-                  <HeroMapImage />
+                {/* Map — bottom strip on mobile, right column on desktop */}
+                <div className="h-56 border-t border-dune lg:h-auto lg:border-t-0 lg:border-l overflow-hidden">
+                  <HeroMap />
                 </div>
 
               </div>
@@ -345,64 +346,3 @@ export default function HomePage() {
   );
 }
 
-// ── Hero map image — Mapbox Static Images API ─────────────────────────────
-// Server component — zero JS, just an <img> pointing at the Static API.
-// Shows a real Mapbox light map of Lisbon with brand-colored demo pins.
-
-function HeroMapImage() {
-  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-  if (!token) return null;
-
-  // Demo pins around Bairro Alto / Príncipe Real, Lisbon
-  // Colors use Truststay brand palette (hex without #)
-  const markers = [
-    "pin-l+2e2a26(-9.1433,38.7115)",  // base area — dark bark
-    "pin-s+8fb7b3(-9.1503,38.7161)",  // work — teal
-    "pin-s+8fb7b3(-9.1391,38.7107)",  // work — teal
-    "pin-s+c07a58(-9.1400,38.7157)",  // coffee & meals — terracotta
-    "pin-s+c07a58(-9.1354,38.7199)",  // coffee & meals — terracotta
-    "pin-s+b99b6b(-9.1543,38.7139)",  // wellbeing — amber
-    "pin-s+c8c3bc(-9.1516,38.7073)",  // locked — grey
-    "pin-s+c8c3bc(-9.1333,38.7177)",  // locked — grey
-  ].join(",");
-
-  const src =
-    `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/` +
-    `${markers}/-9.143,38.715,13.2,0/360x480@2x?access_token=${token}`;
-
-  return (
-    <div className="relative h-full min-h-[420px]">
-      <img
-        src={src}
-        alt="Routine map preview — Lisbon"
-        className="w-full h-full object-cover"
-        loading="eager"
-      />
-
-      {/* City label — top-left */}
-      <div className="absolute top-4 left-4 rounded-lg border border-dune bg-white/90 backdrop-blur-sm px-3 py-1.5">
-        <p className="text-[10px] font-semibold text-bark leading-none">Lisbon</p>
-        <p className="mt-0.5 text-[9px] text-umber leading-none">live example</p>
-      </div>
-
-      {/* Category legend — bottom-left */}
-      <div className="absolute bottom-4 left-4 flex items-center gap-3 rounded-xl border border-dune bg-white/90 backdrop-blur-sm px-3 py-2">
-        <HeroLegendDot color="#8FB7B3" label="Work" />
-        <HeroLegendDot color="#C07A58" label="Coffee & meals" />
-        <HeroLegendDot color="#B99B6B" label="Wellbeing" />
-      </div>
-    </div>
-  );
-}
-
-function HeroLegendDot({ color, label }: { color: string; label: string }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <div
-        className="flex-shrink-0 rounded-full"
-        style={{ width: 8, height: 8, background: color }}
-      />
-      <span className="text-[10px] leading-none text-umber">{label}</span>
-    </div>
-  );
-}

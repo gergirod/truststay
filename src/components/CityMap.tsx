@@ -3,6 +3,12 @@
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useRef } from "react";
 import type { Place } from "@/types";
+import {
+  MAP_COLORS,
+  createBaseMarker,
+  createPlaceMarker,
+  createLockedMarker,
+} from "@/lib/mapMarkers";
 
 interface CityMapProps {
   places: Place[];
@@ -15,109 +21,6 @@ interface CityMapProps {
   /** Total place count shown in the header chip */
   totalPlaces?: number;
 }
-
-// ── Inline SVG icons (14×14 viewport) ─────────────────────────────────────
-
-const ICON_WORK = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect x="1" y="2" width="12" height="8" rx="1.5" stroke="white" stroke-width="1.5"/>
-  <path d="M0 12h14" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-</svg>`;
-
-const ICON_COFFEE = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M2 5h8v5a3 3 0 01-3 3H5a3 3 0 01-3-3V5z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
-  <path d="M10 6h1a1.5 1.5 0 010 3h-1" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-  <path d="M4 3c0-1 1.5-1 1.5-2M7.5 3c0-1 1.5-1 1.5-2" stroke="white" stroke-width="1" stroke-linecap="round"/>
-</svg>`;
-
-// Stick figure with arms raised — works for gym, yoga, sports
-const ICON_WELLBEING = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="7" cy="2.5" r="1.5" fill="white"/>
-  <line x1="7" y1="4" x2="7" y2="9" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="7" y1="6" x2="4" y2="4" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="7" y1="6" x2="10" y2="4" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="7" y1="9" x2="5" y2="13" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="7" y1="9" x2="9" y2="13" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-</svg>`;
-
-const ICON_BASE = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M8 1l1.6 3.3L14 5.1l-3 2.9.7 4.1L8 10.4l-3.7 1.7.7-4.1L2 5.1l4.4-.8L8 1z" fill="white"/>
-</svg>`;
-
-// ── Colors aligned with Truststay palette ─────────────────────────────────
-
-const COLOR = {
-  work: "#8FB7B3",       // teal — same as --color-teal in globals.css
-  coffee: "#C07A58",     // warm terracotta for coffee/meals
-  wellbeing: "#B99B6B",  // warm amber for gyms / yoga / sports
-  base: "#2E2A26",       // bark — darkest brand colour
-  locked: "#C8C3BC",     // dune — muted neutral
-} as const;
-
-// ── Marker factory functions ───────────────────────────────────────────────
-
-function createBaseMarker(): HTMLElement {
-  const el = document.createElement("div");
-  Object.assign(el.style, {
-    width: "40px",
-    height: "40px",
-    background: COLOR.base,
-    borderRadius: "50%",
-    border: "3px solid white",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.3)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "default",
-  });
-  el.innerHTML = ICON_BASE;
-  return el;
-}
-
-function createPlaceMarker(category: string): HTMLElement {
-  const color =
-    category === "coworking" ? COLOR.work :
-    category === "cafe"      ? COLOR.work :
-    category === "food"      ? COLOR.coffee :
-    category === "gym"       ? COLOR.wellbeing :
-    COLOR.work;
-
-  const icon =
-    category === "food"      ? ICON_COFFEE :
-    category === "gym"       ? ICON_WELLBEING :
-    ICON_WORK;
-
-  const el = document.createElement("div");
-  Object.assign(el.style, {
-    width: "30px",
-    height: "30px",
-    background: color,
-    borderRadius: "50%",
-    border: "2.5px solid white",
-    boxShadow: "0 1px 6px rgba(0,0,0,0.2)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-  });
-  el.innerHTML = icon;
-  return el;
-}
-
-function createLockedMarker(): HTMLElement {
-  const el = document.createElement("div");
-  Object.assign(el.style, {
-    width: "12px",
-    height: "12px",
-    background: COLOR.locked,
-    borderRadius: "50%",
-    border: "2px solid white",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
-    cursor: "pointer",
-  });
-  return el;
-}
-
-// ── Component ──────────────────────────────────────────────────────────────
 
 export function CityMap({
   places,
@@ -145,7 +48,6 @@ export function CityMap({
     let cancelled = false;
 
     async function init() {
-      // Dynamic import avoids SSR window-reference errors
       const mapboxgl = (await import("mapbox-gl")).default;
       if (cancelled || !containerRef.current) return;
 
@@ -283,10 +185,10 @@ export function CityMap({
 
         {/* Category legend */}
         <div className="absolute bottom-3 left-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-dune bg-white/90 backdrop-blur-sm px-3 py-2">
-          <LegendDot color={COLOR.work} label="Work" />
-          <LegendDot color={COLOR.coffee} label="Coffee & meals" />
-          <LegendDot color={COLOR.wellbeing} label="Wellbeing" />
-          {!isUnlocked && <LegendDot color={COLOR.locked} label="Locked" />}
+          <LegendDot color={MAP_COLORS.work} label="Work" />
+          <LegendDot color={MAP_COLORS.coffee} label="Coffee & meals" />
+          <LegendDot color={MAP_COLORS.wellbeing} label="Wellbeing" />
+          {!isUnlocked && <LegendDot color={MAP_COLORS.locked} label="Locked" />}
         </div>
       </div>
     </div>
