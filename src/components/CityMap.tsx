@@ -12,6 +12,8 @@ interface CityMapProps {
   /** IDs of places shown as full cards in the free tier */
   freePlaceIds: string[];
   cityName: string;
+  /** Total place count shown in the header chip */
+  totalPlaces?: number;
 }
 
 // ── Inline SVG icons (14×14 viewport) ─────────────────────────────────────
@@ -124,6 +126,7 @@ export function CityMap({
   isUnlocked,
   freePlaceIds,
   cityName,
+  totalPlaces,
 }: CityMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -255,16 +258,36 @@ export function CityMap({
 
   if (!token) return null;
 
-  return (
-    <div className="relative rounded-2xl overflow-hidden border border-dune">
-      <div ref={containerRef} className="w-full" style={{ height: "280px" }} />
+  const placeCount = totalPlaces ?? places.length;
 
-      {/* Category legend */}
-      <div className="absolute bottom-3 left-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-dune bg-white/90 backdrop-blur-sm px-3 py-2">
-        <LegendDot color={COLOR.work} label="Work" />
-        <LegendDot color={COLOR.coffee} label="Coffee & meals" />
-        <LegendDot color={COLOR.wellbeing} label="Wellbeing" />
-        {!isUnlocked && <LegendDot color={COLOR.locked} label="Locked" />}
+  return (
+    <div>
+      {/* Header row */}
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-sm font-semibold text-bark">Routine map</p>
+        {placeCount > 0 && (
+          <span className="rounded-full border border-dune bg-white px-2.5 py-0.5 text-xs text-umber">
+            {placeCount} place{placeCount !== 1 ? "s" : ""}
+            {!isUnlocked ? " · some locked" : ""}
+          </span>
+        )}
+      </div>
+
+      {/* Map container */}
+      <div className="relative rounded-2xl overflow-hidden border border-dune">
+        <div
+          ref={containerRef}
+          className="w-full"
+          style={{ height: "clamp(260px, 40vw, 380px)" }}
+        />
+
+        {/* Category legend */}
+        <div className="absolute bottom-3 left-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-dune bg-white/90 backdrop-blur-sm px-3 py-2">
+          <LegendDot color={COLOR.work} label="Work" />
+          <LegendDot color={COLOR.coffee} label="Coffee & meals" />
+          <LegendDot color={COLOR.wellbeing} label="Wellbeing" />
+          {!isUnlocked && <LegendDot color={COLOR.locked} label="Locked" />}
+        </div>
       </div>
     </div>
   );

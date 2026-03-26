@@ -624,22 +624,12 @@ async function CityContent({
         }}
       />
 
-      {/* Summary cards — always visible */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <RoutineSummaryCard summary={summary} />
-        <RecommendedAreaCard
-          summary={summary}
-          centroidLat={baseCentroid?.lat}
-          centroidLon={baseCentroid?.lon}
-        />
-      </div>
-
       {/* Data coverage notice — only shown for partial/limited data */}
       {dataCoverage !== "good" && dataCoverage !== "none" && (
         <CoverageNotice city={city.name} level={dataCoverage} />
       )}
 
-      {/* Routine map — shows all places; locked ones appear as grey dots */}
+      {/* Routine map — first thing the user sees; locked places as grey dots */}
       {(baseCentroid || places.length > 0) && (
         <CityMap
           places={[...workPlaces, ...coffeeMealsPlaces, ...wellbeingPlaces]}
@@ -652,8 +642,19 @@ async function CityContent({
             wellbeingPlaces[0]?.id,
           ].filter((id): id is string => Boolean(id))}
           cityName={city.name}
+          totalPlaces={workPlaces.length + coffeeMealsPlaces.length + wellbeingPlaces.length}
         />
       )}
+
+      {/* Summary cards — score + base area */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <RoutineSummaryCard summary={summary} />
+        <RecommendedAreaCard
+          summary={summary}
+          centroidLat={baseCentroid?.lat}
+          centroidLon={baseCentroid?.lon}
+        />
+      </div>
 
       <PlaceSection
         title="Work"
