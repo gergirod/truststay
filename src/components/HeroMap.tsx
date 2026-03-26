@@ -56,7 +56,7 @@ export function HeroMap() {
 
       map = new mapboxgl.Map({
         container: containerRef.current,
-        style: "mapbox://styles/mapbox/light-v11",
+        style: "mapbox://styles/mapbox/streets-v12",
         center: [DEMO_BASE.lon, DEMO_BASE.lat],
         zoom: 14.2,           // tight zoom — pins fill the frame
         interactive: false,   // hero preview — no pan / zoom
