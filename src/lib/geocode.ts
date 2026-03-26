@@ -178,6 +178,8 @@ interface NominatimResult {
   type?: string;
   /** [minlat, maxlat, minlon, maxlon] — note Nominatim's non-standard order */
   boundingbox?: string[];
+  /** Nominatim relevance score 0–1 — higher = more significant place */
+  importance?: number;
   address?: {
     city?: string;
     town?: string;
