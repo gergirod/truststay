@@ -29,7 +29,14 @@ function classifyCategory(tags: Record<string, string>): PlaceCategory | null {
 
   if (office === "coworking" || amenity === "coworking_space") return "coworking";
   if (amenity === "cafe") return "cafe";
-  if (leisure === "fitness_centre" || amenity === "gym") return "gym";
+  if (
+    leisure === "fitness_centre" ||
+    amenity === "gym" ||
+    leisure === "yoga" ||
+    leisure === "sports_centre" ||
+    amenity === "yoga_studio" ||
+    leisure === "dance"
+  ) return "gym";
   if (
     amenity === "restaurant" ||
     amenity === "fast_food" ||
@@ -84,6 +91,11 @@ export async function fetchPlaces(city: City): Promise<Place[]> {
   node["leisure"="fitness_centre"](${bbox});
   way["leisure"="fitness_centre"](${bbox});
   node["amenity"="gym"](${bbox});
+  node["leisure"="yoga"](${bbox});
+  way["leisure"="yoga"](${bbox});
+  node["amenity"="yoga_studio"](${bbox});
+  node["leisure"="sports_centre"](${bbox});
+  way["leisure"="sports_centre"](${bbox});
   node["amenity"="restaurant"](${bbox});
   way["amenity"="restaurant"](${bbox});
   node["amenity"="fast_food"](${bbox});

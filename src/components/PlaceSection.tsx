@@ -20,7 +20,7 @@ function tierLabel(place: Place): string {
     return "Café";
   }
   if (place.category === "food") return "Coffee & meals spot";
-  if (place.category === "gym") return "Training spot";
+  if (place.category === "gym") return "Wellbeing spot";
   return "Place";
 }
 
@@ -71,7 +71,9 @@ export function PlaceSection({
       ) : (
         <div className="space-y-3">
           {freePlaces.map((place) => (
-            <PlaceCard key={place.id} place={place} />
+            <div key={place.id} id={`place-${place.id}`}>
+              <PlaceCard place={place} />
+            </div>
           ))}
           {lockedPlaces.map((place) => (
             <LockedTeaser key={place.id} place={place} />

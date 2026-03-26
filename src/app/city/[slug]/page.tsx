@@ -13,6 +13,7 @@ import { PlaceSection } from "@/components/PlaceSection";
 import { PaywallCard } from "@/components/PaywallCard";
 import { AnalyticsEvent } from "@/components/AnalyticsEvent";
 import { CheckoutSuccessTracker } from "@/components/CheckoutSuccessTracker";
+import { CityMap } from "@/components/CityMap";
 import CityNeighborhoodGrid from "@/components/CityNeighborhoodGrid";
 import { CURATED_NEIGHBORHOODS } from "@/data/neighborhoods";
 import type { CityNeighborhoodConfig } from "@/data/neighborhoods";
@@ -20,9 +21,9 @@ import { discoverNeighborhoods } from "@/lib/neighborhoodDiscovery";
 import type { City } from "@/types";
 
 // Free tier limits — per merged section
-const FREE_WORK = 1;        // 1 full card — rest shown as locked name teasers
-const FREE_COFFEE_MEALS = 1; // 1 full card — rest shown as locked name teasers
-const FREE_TRAINING = 1;
+const FREE_WORK = 1;          // 1 full card — rest shown as locked name teasers
+const FREE_COFFEE_MEALS = 1;  // 1 full card — rest shown as locked name teasers
+const FREE_WELLBEING = 1;
 
 // ── Café routing ────────────────────────────────────────────────────────────
 // Decides whether a café belongs in the "Work" section (work-oriented) or the
@@ -342,7 +343,7 @@ export default async function CityPage({ params, searchParams }: Props) {
               </p>
               <p className="mt-3 max-w-xl text-sm leading-6 text-umber">
                 Find a base area, places to work, nearby coffee and meals, and
-                training spots — so you can settle into {city.name} without
+                wellbeing spots — so you can settle into {city.name} without
                 losing your routine.
               </p>
             </div>
@@ -566,21 +567,21 @@ async function CityContent({
     ...places.filter((p) => p.category === "cafe" && !isCafeWorkSection(p)),
   ].sort((a, b) => coffeeMealsScore(b) - coffeeMealsScore(a)).slice(0, 20);
 
-  const trainingPlaces = sortByDistance(
+  const wellbeingPlaces = sortByDistance(
     places.filter((p) => p.category === "gym")
   ).slice(0, 10);
 
   const lockedCounts = {
     work: Math.max(workPlaces.length - FREE_WORK, 0),
     coffeeMeals: Math.max(coffeeMealsPlaces.length - FREE_COFFEE_MEALS, 0),
-    training: Math.max(trainingPlaces.length - FREE_TRAINING, 0),
+    training: Math.max(wellbeingPlaces.length - FREE_WELLBEING, 0),
   };
   const hasLockedContent = Object.values(lockedCounts).some((n) => n > 0);
 
   // Generate a qualitative hook line based on what is hidden behind the paywall.
   const lockedWorkPlaces = workPlaces.slice(FREE_WORK);
   const lockedCoffeeMealsPlaces = coffeeMealsPlaces.slice(FREE_COFFEE_MEALS);
-  const lockedTrainingPlaces = trainingPlaces.slice(FREE_TRAINING);
+  const lockedWellbeingPlaces = wellbeingPlaces.slice(FREE_WELLBEING);
 
   let hookLine: string | undefined;
   const hasLockedCoworking = lockedWorkPlaces.some(
@@ -596,15 +597,15 @@ async function CityContent({
 
   if (hasLockedContent) {
     if (allCategoriesLocked) {
-      hookLine = "Full setup — work spots, meals, and training options.";
+      hookLine = "Full setup — work spots, meals, and wellbeing options.";
     } else if (hasLockedCoworking) {
       hookLine = "Includes dedicated coworking spaces with verified hours.";
     } else if (hasLockedEnrichedMeals) {
       hookLine = "Places with ratings, hours, and menu links available.";
     } else if (lockedCounts.work > 0) {
       hookLine = "More work-friendly cafés and spots near your base.";
-    } else if (lockedTrainingPlaces.length > 0) {
-      hookLine = "More training options to help you keep your routine.";
+    } else if (lockedWellbeingPlaces.length > 0) {
+      hookLine = "More wellbeing options to help you keep your routine.";
     }
   }
 
@@ -638,6 +639,22 @@ async function CityContent({
         <CoverageNotice city={city.name} level={dataCoverage} />
       )}
 
+      {/* Routine map — shows all places; locked ones appear as grey dots */}
+      {(baseCentroid || places.length > 0) && (
+        <CityMap
+          places={[...workPlaces, ...coffeeMealsPlaces, ...wellbeingPlaces]}
+          baseLat={baseCentroid?.lat}
+          baseLon={baseCentroid?.lon}
+          isUnlocked={isUnlocked}
+          freePlaceIds={[
+            workPlaces[0]?.id,
+            coffeeMealsPlaces[0]?.id,
+            wellbeingPlaces[0]?.id,
+          ].filter((id): id is string => Boolean(id))}
+          cityName={city.name}
+        />
+      )}
+
       <PlaceSection
         title="Work"
         subtitle="Coworkings and work-friendly cafés near your base"
@@ -657,12 +674,12 @@ async function CityContent({
       />
 
       <PlaceSection
-        title="Training"
-        subtitle="Gyms and places that help you keep your routine"
-        places={trainingPlaces}
-        freeCount={FREE_TRAINING}
+        title="Wellbeing"
+        subtitle="Gyms, yoga, and places to keep your body in check"
+        places={wellbeingPlaces}
+        freeCount={FREE_WELLBEING}
         isUnlocked={isUnlocked}
-        emptyMessage="No training spots found near this base yet."
+        emptyMessage="No wellbeing spots found near this base yet."
       />
 
       {/* Paywall — shown only when locked and there is locked content */}
