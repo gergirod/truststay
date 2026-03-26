@@ -1,6 +1,37 @@
 import { CitySearch } from "@/components/CitySearch";
 import { AnalyticsEvent } from "@/components/AnalyticsEvent";
 
+const POPULAR_CITIES = [
+  { label: "Medellín", slug: "medellin" },
+  { label: "Lisbon", slug: "lisbon" },
+  { label: "Chiang Mai", slug: "chiang-mai" },
+  { label: "Bali", slug: "bali" },
+  { label: "Barcelona", slug: "barcelona" },
+  { label: "Mexico City", slug: "mexico-city" },
+  { label: "Buenos Aires", slug: "buenos-aires" },
+  { label: "Bangkok", slug: "bangkok" },
+  { label: "Berlin", slug: "berlin" },
+  { label: "Tbilisi", slug: "tbilisi" },
+];
+
+const SURF_NATURE_DESTINATIONS = [
+  { label: "Puerto Escondido", slug: "puerto-escondido" },
+  { label: "Santa Teresa", slug: "santa-teresa" },
+  { label: "Nosara", slug: "nosara" },
+  { label: "Popoyo", slug: "popoyo" },
+  { label: "Antigua Guatemala", slug: "antigua-guatemala" },
+  { label: "Boquete", slug: "boquete" },
+  { label: "Jericoacoara", slug: "jericoacoara" },
+  { label: "Itacaré", slug: "itacare" },
+  { label: "Montañita", slug: "montanita" },
+  { label: "Baños", slug: "banos" },
+  { label: "Minca", slug: "minca" },
+  { label: "Máncora", slug: "mancora" },
+  { label: "Sayulita", slug: "sayulita" },
+  { label: "El Zonte", slug: "el-zonte" },
+  { label: "Bocas del Toro", slug: "bocas-del-toro" },
+];
+
 const HOW_IT_WORKS = [
   {
     n: "01",
@@ -137,6 +168,54 @@ export default function HomePage() {
                   <p className="mt-2 text-sm leading-6 text-umber">{body}</p>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Popular destinations ── sand ─────────────────────── */}
+        <section className="border-b border-dune bg-sand">
+          <div className="mx-auto max-w-4xl px-6 py-20">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
+              Popular destinations
+            </p>
+            <p className="mt-2 text-sm text-umber">
+              Jump straight in — or search any city above.
+            </p>
+
+            {/* Cities */}
+            <div className="mt-8">
+              <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-umber/60">
+                Cities
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {POPULAR_CITIES.map(({ label, slug }) => (
+                  <a
+                    key={slug}
+                    href={`/city/${slug}`}
+                    className="rounded-full border border-dune bg-white px-3.5 py-1.5 text-sm font-medium text-bark transition-colors hover:border-teal/50 hover:bg-mist hover:text-teal"
+                  >
+                    {label}
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* Surf & nature */}
+            <div className="mt-7">
+              <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-umber/60">
+                Surf &amp; nature
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {SURF_NATURE_DESTINATIONS.map(({ label, slug }) => (
+                  <a
+                    key={slug}
+                    href={`/city/${slug}`}
+                    className="rounded-full border border-dune bg-white px-3.5 py-1.5 text-sm font-medium text-bark transition-colors hover:border-coral/50 hover:bg-[#FDF3EF] hover:text-coral"
+                  >
+                    {label}
+                  </a>
+                ))}
+              </div>
             </div>
           </div>
         </section>
