@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
+import { env } from "@/lib/env";
 import type Stripe from "stripe";
 
 // Per cursor rule 02-unlock-persistence.mdc:
@@ -9,10 +10,11 @@ import type Stripe from "stripe";
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const sig = req.headers.get("stripe-signature") ?? "";
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const webhookSecret = env.stripe.webhookSecret;
 
   if (!webhookSecret) {
-    // Not configured — accept but warn. Useful during local dev without webhook forwarding.
+    // Not configured — accept but skip validation.
+    // Useful during local dev without a webhook forwarding tunnel.
     console.warn(
       "[webhook] STRIPE_WEBHOOK_SECRET not set — signature validation skipped"
     );

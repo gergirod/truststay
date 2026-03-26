@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { getStripe } from "@/lib/stripe";
-import { UNLOCK_COOKIE } from "@/lib/unlock";
+import { UNLOCK_COOKIE, parseSlugs, serializeSlugs } from "@/lib/unlock";
 
 export type VerifyResult =
   | { ok: true; citySlug: string }
@@ -40,23 +40,19 @@ export async function verifyAndUnlock(sessionId: string): Promise<VerifyResult> 
     };
   }
 
-  // Write unlock cookie — per cursor rule 02-unlock-persistence.mdc:
-  // signed cookie preferred, localStorage as fallback.
-  // Phase 1 uses an HttpOnly cookie keyed by city slug.
+  // Write unlock cookie.
+  // Per cursor rule 02-unlock-persistence.mdc: no database, cookie-based unlock only.
+  // Cookie is HMAC-signed when UNLOCK_SIGNING_KEY is configured.
   try {
     const cookieStore = await cookies();
-    const raw = cookieStore.get(UNLOCK_COOKIE)?.value;
-    const current: string[] = raw
-      ? (JSON.parse(raw) as unknown[]).filter(
-          (s): s is string => typeof s === "string"
-        )
-      : [];
+    const raw = cookieStore.get(UNLOCK_COOKIE)?.value ?? "";
+    const current = parseSlugs(raw);
 
     if (!current.includes(citySlug)) {
       current.push(citySlug);
     }
 
-    cookieStore.set(UNLOCK_COOKIE, JSON.stringify(current), {
+    cookieStore.set(UNLOCK_COOKIE, serializeSlugs(current), {
       httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
@@ -65,7 +61,7 @@ export async function verifyAndUnlock(sessionId: string): Promise<VerifyResult> 
     });
   } catch (err) {
     console.error("[verifyAndUnlock] Cookie write error:", err);
-    // Non-fatal — return success even if cookie write fails; user can refresh
+    // Non-fatal — return success even if cookie write fails; user can retry
   }
 
   return { ok: true, citySlug };

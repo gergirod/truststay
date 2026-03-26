@@ -1,25 +1,26 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
-import { verifyAndUnlock } from "./actions";
-import { RedirectToCity } from "./RedirectToCity";
 
 type Props = {
   searchParams: Promise<{ session_id?: string }>;
 };
 
+// This page's only job is to capture session_id from Stripe's redirect
+// and hand it to the /api/checkout/finalize Route Handler, which is the
+// correct context for setting cookies.
 export default async function CheckoutSuccessPage({ searchParams }: Props) {
   const { session_id } = await searchParams;
 
   if (!session_id) {
-    return <ErrorPage message="No session ID found. If you completed a purchase, please contact support." />;
+    return (
+      <ErrorPage message="No session ID found. If you completed a purchase, please contact support." />
+    );
   }
 
-  const result = await verifyAndUnlock(session_id);
-
-  if (!result.ok) {
-    return <ErrorPage message={result.error} />;
-  }
-
-  return <RedirectToCity citySlug={result.citySlug} />;
+  // Hard redirect to the Route Handler.
+  // The Route Handler verifies the session, sets the unlock cookie on its
+  // response, and redirects to the city page — all in one round-trip.
+  redirect(`/api/checkout/finalize?session_id=${encodeURIComponent(session_id)}`);
 }
 
 function ErrorPage({ message }: { message: string }) {
@@ -41,7 +42,9 @@ function ErrorPage({ message }: { message: string }) {
           <h1 className="mt-4 text-2xl font-semibold tracking-tight text-stone-900">
             We couldn&rsquo;t confirm your payment
           </h1>
-          <p className="mt-3 text-sm leading-relaxed text-stone-500">{message}</p>
+          <p className="mt-3 text-sm leading-relaxed text-stone-500">
+            {message}
+          </p>
           <div className="mt-8 flex flex-col items-center gap-3">
             <Link
               href="/"

@@ -55,7 +55,7 @@ export function CitySearch() {
 
   return (
     <div className="w-full max-w-lg">
-      <form onSubmit={handleSubmit} className="flex gap-2">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2 sm:flex-row">
         <input
           type="text"
           value={query}
@@ -72,7 +72,7 @@ export function CitySearch() {
         <button
           type="submit"
           disabled={!query.trim() || isLoading}
-          className="min-w-[110px] rounded-lg bg-stone-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-lg bg-stone-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[110px]"
         >
           {isLoading ? "Searching…" : "Find setup"}
         </button>

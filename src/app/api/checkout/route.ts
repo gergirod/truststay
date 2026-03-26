@@ -1,5 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
+import { env } from "@/lib/env";
+
+function resolveAppUrl(req: NextRequest): string {
+  if (env.app.url) return env.app.url;
+  // Derive from request headers — works on Vercel and most proxied deployments
+  const host = req.headers.get("host") ?? "localhost:3000";
+  const proto = env.app.isProduction
+    ? (req.headers.get("x-forwarded-proto") ?? "https")
+    : "http";
+  return `${proto}://${host}`;
+}
 
 export async function POST(req: NextRequest) {
   let body: { product?: string; citySlug?: string };
@@ -13,24 +24,19 @@ export async function POST(req: NextRequest) {
   }
 
   const { product, citySlug } = body;
-  if (!citySlug) {
+  if (!citySlug?.trim()) {
     return NextResponse.json(
       { ok: false, error: "Missing citySlug" },
       { status: 400 }
     );
   }
 
-  const priceId = process.env.CITY_PASS_PRICE_ID;
-  if (!priceId) {
+  if (!env.stripe.cityPassPriceId) {
     return NextResponse.json(
       { ok: false, error: "Checkout is not configured yet." },
       { status: 503 }
     );
   }
-
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ??
-    `https://${req.headers.get("host")}`;
 
   let stripe;
   try {
@@ -42,10 +48,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const appUrl = resolveAppUrl(req);
+
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [{ price: env.stripe.cityPassPriceId, quantity: 1 }],
       success_url: `${appUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/checkout/cancel?slug=${encodeURIComponent(citySlug)}`,
       metadata: {
