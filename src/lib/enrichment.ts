@@ -28,7 +28,7 @@ const MIN_OSM_NAME_LENGTH = 3;
 /** Maximum distance from city center for Google-only places to be included */
 const MAX_GOOGLE_ONLY_DISTANCE_KM = 6;
 /** Minimum reviews for a Google-only cafe/food to be included (avoids noise) */
-const MIN_GOOGLE_ONLY_REVIEWS = 15;
+const MIN_GOOGLE_ONLY_REVIEWS = 8;
 /** Skip Google-only place if an existing place is within this distance (dedup) */
 const DEDUP_DISTANCE_KM = 0.15;
 /** Max Google-only places to add per category (caps noise in dense cities) */
@@ -441,7 +441,7 @@ export async function enrichPlaces(
       if (cafeOnlyCount >= MAX_GOOGLE_ONLY_PER_CATEGORY) break;
       if (matchedGoogleIds.has(g.id) || !g.location) continue;
       if ((g.userRatingCount ?? 0) < MIN_GOOGLE_ONLY_REVIEWS) continue;
-      if ((g.rating ?? 0) < 4.0) continue;
+      if ((g.rating ?? 0) < 3.8) continue;
       const { latitude, longitude } = g.location;
       const dist = haversineKm(cityLat, cityLon, latitude, longitude);
       if (dist > MAX_GOOGLE_ONLY_DISTANCE_KM) continue;
