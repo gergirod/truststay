@@ -10,22 +10,31 @@ interface Props {
   isUnlocked?: boolean;
 }
 
-function categoryLabel(category: Place["category"]): string {
-  switch (category) {
-    case "coworking": return "Coworking space";
-    case "cafe": return "Café";
-    case "food": return "Restaurant";
-    case "gym": return "Gym";
-    default: return category;
+/** Readable work-fit tier — shown instead of place name to prevent free lookup */
+function tierLabel(place: Place): string {
+  if (place.category === "coworking") return "Dedicated coworking";
+  if (place.category === "cafe") {
+    const wf = place.confidence.workFit;
+    if (wf === "high") return "High work fit café";
+    if (wf === "medium") return "Work-friendly café";
+    return "Café";
   }
+  if (place.category === "food") return "Coffee & meals spot";
+  if (place.category === "gym") return "Training spot";
+  return "Place";
 }
 
 function LockedTeaser({ place }: { place: Place }) {
+  const dist = place.distanceFromBasekm;
+  const tier = tierLabel(place);
+
   return (
     <div className="flex items-center justify-between rounded-2xl border border-dune bg-white px-4 py-3.5">
       <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-bark/70">{place.name}</p>
-        <p className="mt-0.5 text-xs text-umber/60">{categoryLabel(place.category)}</p>
+        <p className="text-sm font-medium text-bark">{tier}</p>
+        {dist !== undefined && (
+          <p className="mt-0.5 text-xs text-umber">{dist} km from base</p>
+        )}
       </div>
       <span className="ml-3 flex-shrink-0 rounded-full border border-dune bg-cream px-2.5 py-1 text-xs text-umber/60">
         Locked

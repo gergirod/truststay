@@ -138,11 +138,11 @@ export function PaywallCard({
           City Pass — {cityName}
         </p>
         <h2 className="mt-3 text-lg font-semibold text-bark">
-          Unlock ratings, hours, and details
+          See exactly what and where
         </h2>
         <p className="mt-2 text-sm leading-6 text-umber">
-          You can see all the places above. Unlock to get ratings, opening
-          hours, Wi‑Fi confidence, and Google Maps links for every one.
+          You can see how many places are near your base and how well they fit.
+          Unlock to get the names, ratings, hours, and Maps links for every one.
         </p>
 
         {hookLine && (
@@ -152,6 +152,7 @@ export function PaywallCard({
         {totalLocked > 0 && (
           <div className="mt-4">
             <ul className="space-y-1.5">
+              <LockedItem label="Place names and exact locations" />
               <LockedItem label="Ratings and review counts from Google" />
               <LockedItem label="Opening hours and open/closed status" />
               <LockedItem label="Wi‑Fi confidence and noise signals" />
