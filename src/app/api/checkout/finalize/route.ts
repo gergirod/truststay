@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
-import { UNLOCK_COOKIE, parseSlugs, serializeSlugs } from "@/lib/unlock";
+import {
+  UNLOCK_COOKIE,
+  BUNDLE_COOKIE,
+  parseSlugs,
+  serializeSlugs,
+} from "@/lib/unlock";
 import { env } from "@/lib/env";
 
 // Route Handler — the only correct place to set cookies while also redirecting.
@@ -35,29 +40,45 @@ export async function GET(req: NextRequest) {
   }
 
   const citySlug = session.metadata?.citySlug;
+  const product = session.metadata?.product;
+  const bundleCitySlug = session.metadata?.bundleCitySlug;
+
   if (!citySlug) {
     console.error("[finalize] citySlug missing from session metadata:", sessionId);
     return NextResponse.redirect(new URL("/", origin));
   }
 
-  // Read any previously unlocked slugs from the incoming request cookie
+  const cookieOpts = {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: env.app.isProduction,
+    maxAge: 60 * 60 * 24 * 365,
+    path: "/",
+  };
+
+  if (product === "city_bundle" && bundleCitySlug) {
+    // Bundle purchase: unlock all neighborhoods in the parent city
+    const rawBundle = req.cookies.get(BUNDLE_COOKIE)?.value ?? "";
+    const current = parseSlugs(rawBundle);
+    if (!current.includes(bundleCitySlug)) {
+      current.push(bundleCitySlug);
+    }
+    const response = NextResponse.redirect(
+      new URL(`/city/${bundleCitySlug}`, origin)
+    );
+    response.cookies.set(BUNDLE_COOKIE, serializeSlugs(current), cookieOpts);
+    return response;
+  }
+
+  // Individual neighborhood / city pass
   const rawExisting = req.cookies.get(UNLOCK_COOKIE)?.value ?? "";
   const current = parseSlugs(rawExisting);
   if (!current.includes(citySlug)) {
     current.push(citySlug);
   }
 
-  // Set the unlock cookie on the redirect response.
-  // Set-Cookie on a redirect response is fully valid — the browser stores it
-  // before following the redirect, so the city page receives it on first load.
+  // Set-Cookie on a redirect response is valid — browser stores it before following.
   const response = NextResponse.redirect(new URL(`/city/${citySlug}`, origin));
-  response.cookies.set(UNLOCK_COOKIE, serializeSlugs(current), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: env.app.isProduction,
-    maxAge: 60 * 60 * 24 * 365, // 1 year
-    path: "/",
-  });
-
+  response.cookies.set(UNLOCK_COOKIE, serializeSlugs(current), cookieOpts);
   return response;
 }

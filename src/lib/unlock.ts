@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import { env } from "./env";
 
 export const UNLOCK_COOKIE = "ts_unlocked";
+/** Stores city slugs whose entire neighborhood bundle has been purchased. */
+export const BUNDLE_COOKIE = "ts_bundle";
 
 // ─── Signing ─────────────────────────────────────────────────────────────────
 
@@ -62,9 +64,22 @@ function toStringArray(value: unknown): string[] {
 // ─── Server-side read ────────────────────────────────────────────────────────
 
 // Server-side only — call from server components and route handlers.
-export async function isUnlocked(citySlug: string): Promise<boolean> {
+// Pass parentCitySlug to also grant access via a city bundle purchase.
+export async function isUnlocked(
+  citySlug: string,
+  parentCitySlug?: string
+): Promise<boolean> {
   const cookieStore = await cookies();
-  const raw = cookieStore.get(UNLOCK_COOKIE)?.value;
-  if (!raw) return false;
-  return parseSlugs(raw).includes(citySlug);
+
+  // Individual neighborhood / city unlock
+  const rawUnlock = cookieStore.get(UNLOCK_COOKIE)?.value;
+  if (rawUnlock && parseSlugs(rawUnlock).includes(citySlug)) return true;
+
+  // Bundle unlock: if the parent city was purchased, all its neighborhoods unlock
+  if (parentCitySlug) {
+    const rawBundle = cookieStore.get(BUNDLE_COOKIE)?.value;
+    if (rawBundle && parseSlugs(rawBundle).includes(parentCitySlug)) return true;
+  }
+
+  return false;
 }

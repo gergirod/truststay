@@ -6,6 +6,7 @@ export const env = {
     secretKey: process.env.STRIPE_SECRET_KEY ?? "",
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
     cityPassPriceId: process.env.CITY_PASS_PRICE_ID ?? "",
+    cityBundlePriceId: process.env.CITY_BUNDLE_PRICE_ID ?? "",
   },
   unlock: {
     signingKey: process.env.UNLOCK_SIGNING_KEY ?? "",

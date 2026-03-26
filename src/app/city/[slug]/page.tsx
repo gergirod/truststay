@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { geocodeCity, reverseGeocodeArea } from "@/lib/geocode";
+import { geocodeCity, reverseGeocodeArea, toSlug } from "@/lib/geocode";
 import { fetchPlaces, sortByDistance, sortEnrichedFirst, haversineKm } from "@/lib/overpass";
 import { computeCitySummary, computeBaseCentroid } from "@/lib/scoring";
 import { enrichPlaces } from "@/lib/enrichment";
@@ -13,6 +13,10 @@ import { PlaceSection } from "@/components/PlaceSection";
 import { PaywallCard } from "@/components/PaywallCard";
 import { AnalyticsEvent } from "@/components/AnalyticsEvent";
 import { CheckoutSuccessTracker } from "@/components/CheckoutSuccessTracker";
+import CityNeighborhoodGrid from "@/components/CityNeighborhoodGrid";
+import { CURATED_NEIGHBORHOODS } from "@/data/neighborhoods";
+import type { CityNeighborhoodConfig } from "@/data/neighborhoods";
+import { discoverNeighborhoods } from "@/lib/neighborhoodDiscovery";
 import type { City } from "@/types";
 
 // Free tier limits — per merged section
@@ -64,7 +68,15 @@ const KNOWN_CITY_SLUGS = [
 ];
 
 export async function generateStaticParams() {
-  return KNOWN_CITY_SLUGS.map((slug) => ({ slug }));
+  // City-level slugs
+  const citySlugs = KNOWN_CITY_SLUGS.map((slug) => ({ slug }));
+
+  // Curated neighborhood slugs — pre-render each neighborhood for SEO
+  const neighborhoodSlugs = Object.values(CURATED_NEIGHBORHOODS).flatMap(
+    (config) => config.neighborhoods.map((n) => ({ slug: n.slug }))
+  );
+
+  return [...citySlugs, ...neighborhoodSlugs];
 }
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -89,7 +101,27 @@ export async function generateMetadata({
   const { slug } = await params;
   const sp = await searchParams;
 
-  // Prefer the ?name= param (set by CitySearch) — fall back to formatting the slug
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://trustay.app";
+  const canonicalUrl = `${appUrl}/city/${slug}`;
+
+  const hasParentCity =
+    typeof sp.parentCity === "string" && sp.parentCity.trim().length > 0;
+
+  // ── Neighborhood grid pages (curated cities like Buenos Aires, Mexico City)
+  const curated = CURATED_NEIGHBORHOODS[slug];
+  if (curated && !hasParentCity) {
+    const title = `Best neighborhoods in ${curated.cityName} for remote workers`;
+    const description = `Choose where to base yourself in ${curated.cityName}. Compare neighborhoods by work spots, cafés, and routine options — built for remote workers on the move.`;
+    return {
+      title,
+      description,
+      alternates: { canonical: canonicalUrl },
+      openGraph: { title, description, url: canonicalUrl, type: "website" },
+    };
+  }
+
+  // ── Neighbourhood or regular city page
   const rawName =
     typeof sp.name === "string" && sp.name.trim() ? sp.name.trim() : null;
   const cityName = rawName ?? slugToName(slug);
@@ -98,26 +130,19 @@ export async function generateMetadata({
       ? sp.parentCity.trim()
       : null;
 
-  // For neighbourhood searches, include the parent city in meta for clarity
+  // Neighbourhood: "Work, coffee & routine in Palermo, Buenos Aires"
+  // City: "Work, coffee & routine in Lisbon"
   const displayName = parentCity ? `${cityName}, ${parentCity}` : cityName;
-
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://trustay.app";
-  const canonicalUrl = `${appUrl}/city/${slug}`;
-
   const title = `Work, coffee & routine in ${displayName}`;
-  const description = `Find where to base yourself in ${cityName}, with places to work, grab coffee or meals, and keep your training routine — organized for remote workers on the move.`;
+  const description = parentCity
+    ? `Find the best work spots, cafés, and training options in ${cityName} — a neighborhood in ${parentCity} — organized for remote workers.`
+    : `Find where to base yourself in ${cityName}, with places to work, grab coffee or meals, and keep your training routine — organized for remote workers on the move.`;
 
   return {
     title,
     description,
     alternates: { canonical: canonicalUrl },
-    openGraph: {
-      title,
-      description,
-      url: canonicalUrl,
-      type: "website",
-    },
+    openGraph: { title, description, url: canonicalUrl, type: "website" },
   };
 }
 
@@ -156,9 +181,37 @@ export default async function CityPage({ params, searchParams }: Props) {
   const { slug } = await params;
   const sp = await searchParams;
 
+  const hasParentCityParam =
+    typeof sp.parentCity === "string" && sp.parentCity.trim().length > 0;
+
+  // ── Curated city grid (instant — no geocoding needed) ───────────────────
+  // If the slug is in CURATED_NEIGHBORHOODS and we're not already inside a
+  // specific neighbourhood, show the grid immediately.
+  const curated = CURATED_NEIGHBORHOODS[slug];
+  if (curated && !hasParentCityParam) {
+    const bundlePrice = process.env.NEXT_PUBLIC_CITY_BUNDLE_PRICE ?? "15";
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-1">
+          <CityNeighborhoodGrid config={curated} bundlePrice={bundlePrice} />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  const parentCitySlug = (() => {
+    // Prefer URL param (set by autocomplete/grid), fall back to geocoded parentCity
+    const raw = sp.parentCity;
+    const name = typeof raw === "string" && raw.trim() ? raw.trim() : undefined;
+    return name ? toSlug(name) : undefined;
+    // Note: city.parentCity is used after city resolves for the PaywallCard
+  })();
+
   const [city, unlocked] = await Promise.all([
     resolveCity(slug, sp),
-    isUnlocked(slug),
+    isUnlocked(slug, parentCitySlug),
   ]);
 
   if (!city) {
@@ -218,34 +271,118 @@ export default async function CityPage({ params, searchParams }: Props) {
         isUnlocked={unlocked}
       />
 
-      <main className="flex-1 mx-auto w-full max-w-4xl px-6 py-16">
-        {/* Hero — renders immediately from URL params */}
-        <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
-            {city.parentCity ? "Area setup" : "City setup"}
-          </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-bark sm:text-5xl">
-            {city.name}
-          </h1>
-          <p className="mt-1.5 text-base text-umber">
-            {city.parentCity
-              ? `${city.parentCity}${city.country ? `, ${city.country}` : ""}`
-              : city.country}
-          </p>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-umber">
-            Find a base area, places to work, nearby coffee and meals, and
-            training spots — so you can settle into {city.name} without losing
-            your routine.
-          </p>
-        </div>
-
-        {/* Place data streams in via Suspense — Overpass can be slow */}
-        <Suspense fallback={<PlacesSkeleton />}>
-          <CityContent city={city} isUnlocked={unlocked} />
-        </Suspense>
+      <main className="flex-1">
+        {/* Treat as a neighbourhood if: URL has parentCity param, OR geocoding
+            itself resolved this as a neighbourhood (city.parentCity is set).
+            This handles direct searches like "Las Cañitas" correctly. */}
+        {(hasParentCityParam || !!city.parentCity) ? (
+          // ── Neighbourhood page: show hero + place content ──────────────
+          <div className="mx-auto w-full max-w-4xl px-6 py-16">
+            <div className="max-w-2xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
+                Area setup
+              </p>
+              <h1 className="mt-3 text-4xl font-semibold tracking-tight text-bark sm:text-5xl">
+                {city.name}
+              </h1>
+              <p className="mt-1.5 text-base text-umber">
+                {(city.parentCity ?? (typeof sp.parentCity === "string" ? sp.parentCity.trim() : null))
+                  ? `${city.parentCity ?? sp.parentCity}${city.country ? `, ${city.country}` : ""}`
+                  : city.country}
+              </p>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-umber">
+                Find a base area, places to work, nearby coffee and meals, and
+                training spots — so you can settle into {city.name} without
+                losing your routine.
+              </p>
+            </div>
+            <Suspense fallback={<PlacesSkeleton />}>
+              <CityContent city={city} isUnlocked={unlocked} />
+            </Suspense>
+          </div>
+        ) : (
+          // ── Top-level city: try auto-discovery, fallback to place content ─
+          <Suspense fallback={<DiscoverySkeleton cityName={city.name} />}>
+            <AutoNeighborhoodOrContent city={city} isUnlocked={unlocked} />
+          </Suspense>
+        )}
       </main>
 
       <Footer />
+    </div>
+  );
+}
+
+// ── Auto-discovery wrapper ────────────────────────────────────────────────────
+// For top-level city pages (no parentCity): try to discover neighborhoods first.
+// If >= 3 are found → show the neighborhood grid.
+// If not enough data → fall through to the normal single-city place content.
+async function AutoNeighborhoodOrContent({
+  city,
+  isUnlocked,
+}: {
+  city: City;
+  isUnlocked: boolean;
+}) {
+  const neighborhoods = await discoverNeighborhoods(city);
+
+  if (neighborhoods.length >= 3) {
+    const config: CityNeighborhoodConfig = {
+      cityName: city.name,
+      citySlug: city.slug,
+      neighborhoods,
+    };
+    const bundlePrice = process.env.NEXT_PUBLIC_CITY_BUNDLE_PRICE ?? "15";
+    return <CityNeighborhoodGrid config={config} bundlePrice={bundlePrice} />;
+  }
+
+  // Not enough neighborhood data — fire analytics and show normal city page
+  return (
+    <div className="mx-auto w-full max-w-4xl px-6 py-16">
+      <AnalyticsEvent
+        event="city_no_neighborhoods_found"
+        properties={{
+          city_slug: city.slug,
+          city_name: city.name,
+          country: city.country,
+          neighborhoods_found: neighborhoods.length,
+        }}
+      />
+      <div className="max-w-2xl">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
+          City setup
+        </p>
+        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-bark sm:text-5xl">
+          {city.name}
+        </h1>
+        <p className="mt-1.5 text-base text-umber">{city.country}</p>
+        <p className="mt-3 max-w-xl text-sm leading-6 text-umber">
+          Find a base area, places to work, nearby coffee and meals, and
+          training spots — so you can settle into {city.name} without losing
+          your routine.
+        </p>
+      </div>
+      <Suspense fallback={<PlacesSkeleton />}>
+        <CityContent city={city} isUnlocked={isUnlocked} />
+      </Suspense>
+    </div>
+  );
+}
+
+function DiscoverySkeleton({ cityName }: { cityName: string }) {
+  return (
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 animate-pulse">
+      <div className="mb-8">
+        <div className="h-3 w-28 rounded bg-stone-200 mb-3" />
+        <div className="h-8 w-64 rounded bg-stone-200 mb-2" />
+        <div className="h-4 w-80 rounded bg-stone-200" />
+        <p className="sr-only">Loading neighborhoods for {cityName}…</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-28 rounded-xl bg-stone-200" />
+        ))}
+      </div>
     </div>
   );
 }
@@ -450,6 +587,13 @@ async function CityContent({
           country={city.country}
           lockedCounts={lockedCounts}
           hookLine={hookLine}
+          parentCity={city.parentCity}
+          parentCitySlug={city.parentCity ? toSlug(city.parentCity) : undefined}
+          bundlePrice={
+            city.parentCity
+              ? (process.env.NEXT_PUBLIC_CITY_BUNDLE_PRICE ?? "15")
+              : undefined
+          }
         />
       )}
 

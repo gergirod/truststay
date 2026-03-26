@@ -16,10 +16,26 @@ interface Props {
   country: string;
   lockedCounts: LockedCounts;
   hookLine?: string;
+  /** Parent city name shown on the bundle CTA, e.g. "Buenos Aires" */
+  parentCity?: string;
+  /** Parent city slug used for the bundle checkout, e.g. "buenos-aires" */
+  parentCitySlug?: string;
+  /** Display price for the city bundle, e.g. "15" */
+  bundlePrice?: string;
 }
 
-export function PaywallCard({ citySlug, cityName, country, lockedCounts, hookLine }: Props) {
+export function PaywallCard({
+  citySlug,
+  cityName,
+  country,
+  lockedCounts,
+  hookLine,
+  parentCity,
+  parentCitySlug,
+  bundlePrice,
+}: Props) {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [bundleStatus, setBundleStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
   const displayPrice = process.env.NEXT_PUBLIC_CITY_PASS_PRICE;
@@ -41,6 +57,40 @@ export function PaywallCard({ citySlug, cityName, country, lockedCounts, hookLin
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function handleBundleUnlock() {
+    if (!parentCitySlug) return;
+    setBundleStatus("loading");
+
+    try {
+      sessionStorage.setItem(CHECKOUT_PENDING_KEY, parentCitySlug);
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product: "city_bundle",
+          citySlug: parentCitySlug,
+          bundleCitySlug: parentCitySlug,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok && data.checkoutUrl) {
+        track("checkout_started", {
+          city_slug: parentCitySlug,
+          city_name: parentCity,
+          country,
+          product: "city_bundle",
+        });
+        window.location.href = data.checkoutUrl;
+      } else {
+        setBundleStatus("error");
+        setErrorMsg(data.error ?? "Could not start bundle checkout.");
+      }
+    } catch {
+      setBundleStatus("error");
+      setErrorMsg("Could not reach the payment service. Please try again.");
+    }
+  }
 
   async function handleUnlock() {
     track("unlock_clicked", {
@@ -139,6 +189,30 @@ export function PaywallCard({ citySlug, cityName, country, lockedCounts, hookLin
 
         {status === "error" && (
           <p className="mt-3 text-sm text-red-600">{errorMsg}</p>
+        )}
+
+        {/* Bundle option: unlock all neighborhoods in the parent city */}
+        {parentCity && parentCitySlug && bundlePrice && (
+          <div className="mt-5 pt-5 border-t border-dune">
+            <p className="text-sm text-umber mb-3">
+              Exploring multiple neighborhoods in {parentCity}?
+            </p>
+            <button
+              onClick={handleBundleUnlock}
+              disabled={bundleStatus === "loading"}
+              className="w-full rounded-xl border border-bark bg-transparent px-5 py-3 text-sm font-semibold text-bark transition-colors hover:bg-bark/5 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            >
+              {bundleStatus === "loading"
+                ? "Opening checkout…"
+                : `Unlock all ${parentCity} neighborhoods — $${bundlePrice}`}
+            </button>
+            <p className="mt-2 text-xs text-umber">
+              One payment · All neighborhoods unlocked
+            </p>
+            {bundleStatus === "error" && (
+              <p className="mt-2 text-sm text-red-600">{errorMsg}</p>
+            )}
+          </div>
         )}
       </div>
     </div>

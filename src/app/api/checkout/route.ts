@@ -13,7 +13,12 @@ function resolveAppUrl(req: NextRequest): string {
 }
 
 export async function POST(req: NextRequest) {
-  let body: { product?: string; citySlug?: string };
+  let body: {
+    product?: string;
+    citySlug?: string;
+    /** For city_bundle: the parent city slug whose neighborhoods should unlock */
+    bundleCitySlug?: string;
+  };
   try {
     body = await req.json();
   } catch {
@@ -23,7 +28,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { product, citySlug } = body;
+  const { product, citySlug, bundleCitySlug } = body;
+  const isBundle = product === "city_bundle";
+
   if (!citySlug?.trim()) {
     return NextResponse.json(
       { ok: false, error: "Missing citySlug" },
@@ -31,11 +38,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!env.stripe.cityPassPriceId) {
-    return NextResponse.json(
-      { ok: false, error: "Checkout is not configured yet." },
-      { status: 503 }
-    );
+  if (isBundle) {
+    if (!env.stripe.cityBundlePriceId) {
+      return NextResponse.json(
+        { ok: false, error: "Bundle checkout is not configured yet." },
+        { status: 503 }
+      );
+    }
+  } else {
+    if (!env.stripe.cityPassPriceId) {
+      return NextResponse.json(
+        { ok: false, error: "Checkout is not configured yet." },
+        { status: 503 }
+      );
+    }
   }
 
   let stripe;
@@ -49,16 +65,20 @@ export async function POST(req: NextRequest) {
   }
 
   const appUrl = resolveAppUrl(req);
+  const priceId = isBundle
+    ? env.stripe.cityBundlePriceId
+    : env.stripe.cityPassPriceId;
 
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      line_items: [{ price: env.stripe.cityPassPriceId, quantity: 1 }],
+      line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${appUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/checkout/cancel?slug=${encodeURIComponent(citySlug)}`,
       metadata: {
         product: product ?? "city_pass",
         citySlug,
+        ...(isBundle && bundleCitySlug ? { bundleCitySlug } : {}),
       },
     });
 
