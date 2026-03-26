@@ -56,10 +56,10 @@ export function PlaceCard({ place }: Props) {
     confidence.convenience !== undefined;
 
   return (
-    <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-dune bg-white p-5 shadow-sm">
       {/* Name + meta */}
-      <p className="text-base font-semibold text-stone-900">{place.name}</p>
-      <p className="mt-1 text-xs text-stone-500">
+      <p className="text-base font-semibold text-bark">{place.name}</p>
+      <p className="mt-1 text-xs text-umber">
         {formatCategory(place.category)}
         {place.distanceKm !== undefined && (
           <> &middot; {formatDistance(place.distanceKm)} away</>
@@ -113,7 +113,7 @@ export function PlaceCard({ place }: Props) {
           {place.bestFor.map((tag) => (
             <span
               key={tag}
-              className="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs text-stone-500"
+              className="rounded-full bg-sand px-2.5 py-0.5 text-xs text-umber"
             >
               {formatBestForTag(tag)}
             </span>
@@ -122,8 +122,8 @@ export function PlaceCard({ place }: Props) {
       )}
 
       {/* Explanation */}
-      <div className="mt-4 border-t border-stone-200 pt-3">
-        <p className="text-sm leading-6 text-stone-500">
+      <div className="mt-4 border-t border-dune pt-3">
+        <p className="text-sm leading-6 text-umber">
           {place.explanation}
         </p>
       </div>
@@ -141,30 +141,30 @@ function Badge({
   tier?: BadgeTier;
 }) {
   if (tier === "verified") {
-    // Teal: strongest positive signal — verified, high-confidence
+    // Mist/sage: strongest positive signal — verified, high-confidence
     return (
-      <span className="inline-flex items-center gap-1 rounded border border-teal-200 bg-teal-50 px-2 py-0.5 text-xs">
-        <span className="font-medium text-teal-600">{label}:</span>
-        <span className="font-medium text-teal-700">{value}</span>
+      <span className="inline-flex items-center gap-1 rounded border border-sage bg-mist px-2 py-0.5 text-xs">
+        <span className="font-medium text-umber">{label}:</span>
+        <span className="font-medium text-bark">{value}</span>
       </span>
     );
   }
 
   if (tier === "uncertain") {
-    // White: weak/unknown signal — visually quieter to communicate data gap
+    // White/dune border: weak/unknown signal — visually quieter
     return (
-      <span className="inline-flex items-center gap-1 rounded border border-stone-200 bg-white px-2 py-0.5 text-xs">
+      <span className="inline-flex items-center gap-1 rounded border border-dune bg-white px-2 py-0.5 text-xs">
         <span className="text-stone-400">{label}:</span>
-        <span className="italic text-stone-500">{value}</span>
+        <span className="italic text-umber">{value}</span>
       </span>
     );
   }
 
-  // Neutral: stone-50 — default mid-confidence signal
+  // Neutral: cream/dune — default mid-confidence signal
   return (
-    <span className="inline-flex items-center gap-1 rounded border border-stone-200 bg-stone-50 px-2 py-0.5 text-xs">
-      <span className="font-medium text-stone-500">{label}:</span>
-      <span className="text-stone-600">{value}</span>
+    <span className="inline-flex items-center gap-1 rounded border border-dune bg-cream px-2 py-0.5 text-xs">
+      <span className="font-medium text-umber">{label}:</span>
+      <span className="text-bark">{value}</span>
     </span>
   );
 }

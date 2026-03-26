@@ -11,22 +11,22 @@ const confidenceNote: Record<CitySummary["confidence"], string> = {
 };
 
 const confidenceColor: Record<CitySummary["confidence"], string> = {
-  low: "text-stone-500",
+  low: "text-umber",
   medium: "text-stone-400",
   high: "text-stone-400",
 };
 
 export function RoutineSummaryCard({ summary }: Props) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
-      {/* Top accent bar — marks this as the primary metric card */}
-      <div className="h-[3px] bg-stone-900" />
+    <div className="overflow-hidden rounded-2xl border border-dune bg-white shadow-sm">
+      {/* Top accent bar — sage marks this as the primary metric card */}
+      <div className="h-[3px] bg-sage" />
       <div className="p-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
           Routine score
         </p>
         <div className="mt-4 flex items-baseline gap-2">
-          <span className="text-4xl font-bold tracking-tight text-stone-900">
+          <span className="text-4xl font-bold tracking-tight text-bark">
             {summary.routineScore}
           </span>
           <span className="text-base text-stone-400">/ 100</span>

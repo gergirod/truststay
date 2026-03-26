@@ -1,7 +1,19 @@
 @import "tailwindcss";
 
+/* font reference uses @theme inline because it wraps a CSS var() */
 @theme inline {
   --font-sans: var(--font-geist-sans);
+}
+
+/* colour tokens use plain @theme so the hex values are compiled directly */
+@theme {
+  --color-cream: #FAF8F4;   /* warm off-white — body, header */
+  --color-sand:  #F3EFE7;   /* soft sand — hero, alternating sections */
+  --color-dune:  #E4DDD2;   /* warm border throughout */
+  --color-bark:  #2E2A26;   /* deep warm charcoal — headings, CTAs */
+  --color-umber: #5F5A54;   /* warm secondary text */
+  --color-sage:  #8FB7B3;   /* dusty teal accent */
+  --color-mist:  #DCEBE9;   /* dusty teal soft — verified badge bg */
 }
 
 body {

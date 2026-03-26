@@ -53,15 +53,15 @@ export function PaywallCard({ citySlug, cityName, lockedCounts }: Props) {
   }
 
   return (
-    <div className="rounded-2xl border border-stone-200 bg-white">
+    <div className="rounded-2xl border border-dune bg-white">
       <div className="p-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
           City Pass — {cityName}
         </p>
-        <h2 className="mt-3 text-lg font-semibold text-stone-900">
+        <h2 className="mt-3 text-lg font-semibold text-bark">
           Unlock the full setup
         </h2>
-        <p className="mt-2 text-sm leading-6 text-stone-500">
+        <p className="mt-2 text-sm leading-6 text-umber">
           You&rsquo;re seeing the free preview. The full city pass unlocks
           everything.
         </p>
@@ -93,7 +93,7 @@ export function PaywallCard({ citySlug, cityName, lockedCounts }: Props) {
           <button
             onClick={handleUnlock}
             disabled={status === "loading"}
-            className="w-full rounded-xl bg-stone-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            className="w-full rounded-xl bg-bark px-5 py-3 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {status === "loading"
               ? "Opening checkout…"
@@ -101,7 +101,7 @@ export function PaywallCard({ citySlug, cityName, lockedCounts }: Props) {
               ? `Unlock — $${displayPrice}`
               : "Unlock City Pass"}
           </button>
-          <p className="text-sm text-stone-500">
+          <p className="text-sm text-umber">
             One-time &middot; No account needed
           </p>
         </div>
@@ -116,8 +116,8 @@ export function PaywallCard({ citySlug, cityName, lockedCounts }: Props) {
 
 function LockedItem({ label }: { label: string }) {
   return (
-    <li className="flex items-center gap-2.5 text-sm text-stone-500">
-      <span className="h-1 w-1 flex-shrink-0 rounded-full bg-stone-300" />
+    <li className="flex items-center gap-2.5 text-sm text-umber">
+      <span className="h-1 w-1 flex-shrink-0 rounded-full bg-dune" />
       {label}
     </li>
   );

@@ -65,14 +65,14 @@ export function CitySearch() {
           }}
           placeholder="e.g. Lisbon, Medellín, Chiang Mai"
           disabled={isLoading}
-          className="flex-1 rounded-xl border border-stone-300 bg-white px-4 py-3 text-base text-stone-900 shadow-sm placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-400 disabled:opacity-60"
+          className="flex-1 rounded-xl border border-dune bg-white px-4 py-3 text-base text-bark shadow-sm placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-sage disabled:opacity-60"
           autoComplete="off"
           spellCheck={false}
         />
         <button
           type="submit"
           disabled={!query.trim() || isLoading}
-          className="w-full rounded-xl bg-stone-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:min-w-[110px]"
+          className="w-full rounded-xl bg-bark px-5 py-3 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:min-w-[110px]"
         >
           {isLoading ? "Searching…" : "Find setup"}
         </button>
