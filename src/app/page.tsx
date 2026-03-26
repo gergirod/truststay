@@ -21,14 +21,17 @@ const HOW_IT_WORKS = [
 
 const WHY_TRUSTAY = [
   {
+    accent: "teal" as const,
     title: "Decision support, not discovery clutter",
     body: "We answer one question: where should you base yourself to get functional fast.",
   },
   {
+    accent: "teal" as const,
     title: "Honest signals, not fake certainty",
-    body: "Wi-Fi and noise ratings are labeled as verified, likely, or unknown — never as guaranteed.",
+    body: "Wi-Fi and noise ratings are labeled as verified, likely, or unknown — never guaranteed.",
   },
   {
+    accent: "coral" as const,
     title: "Built for routine, not tourism",
     body: "Work spots, gyms, and food options that support a repeatable daily rhythm.",
   },
@@ -49,47 +52,68 @@ const PASS_FEATURES = [
 export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen">
-      {/* ── Header ── cream bg blends with body ───────────────── */}
-      <header className="border-b border-dune bg-cream">
-        <div className="mx-auto max-w-4xl px-6 py-4">
-          <span className="text-base font-semibold tracking-tight text-bark">
-            Trustay
+      {/* ── Header ──────────────────────────────────────────── */}
+      <header className="border-b border-dune bg-white">
+        <div className="mx-auto max-w-4xl px-6 py-4 flex items-center justify-between">
+          <span className="text-base font-bold tracking-tight text-bark">
+            Trust<span className="text-teal">ay</span>
+          </span>
+          <span className="hidden sm:block text-xs text-umber">
+            Remote worker city setup
           </span>
         </div>
       </header>
 
       <main className="flex-1">
-        {/* ── Hero ── sand surface, inner white card ─────────── */}
+        {/* ── Hero ── sand surface, white inner card ──────────── */}
         <section className="border-b border-dune bg-sand">
           <div className="mx-auto max-w-4xl px-6 py-8 sm:py-14">
-            <div className="rounded-3xl border border-dune bg-white px-6 py-10 shadow-sm sm:px-12 sm:py-14">
-              <div className="max-w-2xl">
-                {/* Eyebrow — sage dot is the single brand accent */}
-                <div className="inline-flex items-center gap-2 rounded-full border border-dune bg-cream px-3 py-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-sage" />
-                  <span className="text-xs font-medium text-umber">
-                    For remote workers
-                  </span>
+            <div className="rounded-3xl border border-dune bg-white shadow-sm overflow-hidden">
+              <div className="grid lg:grid-cols-[1fr_360px]">
+
+                {/* Left — content ───────────────────────────── */}
+                <div className="px-8 py-10 sm:px-12 sm:py-14">
+                  {/* Eyebrow */}
+                  <div className="inline-flex items-center gap-2 rounded-full border border-dune bg-cream px-3 py-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-teal" />
+                    <span className="text-xs font-medium text-umber">
+                      Built for remote workers on the move
+                    </span>
+                  </div>
+
+                  <h1 className="mt-6 text-4xl font-bold leading-[1.1] tracking-tight text-bark sm:text-5xl lg:text-[52px]">
+                    Land in a new city.
+                    <br />
+                    Keep your routine{" "}
+                    <span className="text-coral">from day one.</span>
+                  </h1>
+
+                  <p className="mt-5 max-w-md text-base leading-7 text-umber">
+                    Find a base area, places to work, nearby coffee and meal
+                    spots, and training options that fit your day — without
+                    wasting your first days figuring it all out.
+                  </p>
+
+                  <div className="mt-8">
+                    <CitySearch />
+                  </div>
+
+                  <p className="mt-5 text-xs text-umber">
+                    Free preview · No account required
+                  </p>
                 </div>
 
-                <h1 className="mt-6 text-5xl font-semibold leading-[1.05] tracking-tight text-bark sm:text-6xl">
-                  Choose your next remote-work base with confidence.
-                </h1>
-
-                <p className="mt-5 max-w-lg text-base leading-7 text-umber">
-                  See where to stay, work, train, and eat — without losing
-                  days to research.
-                </p>
-
-                <div className="mt-8">
-                  <CitySearch />
+                {/* Right — product preview (desktop only) ───── */}
+                <div className="hidden lg:flex items-center justify-center border-l border-dune bg-cream px-8 py-12">
+                  <RoutinePreview />
                 </div>
+
               </div>
             </div>
           </div>
         </section>
 
-        {/* ── How it works ── white ──────────────────────────── */}
+        {/* ── How it works ── white ───────────────────────────── */}
         <section className="border-b border-dune bg-white">
           <div className="mx-auto max-w-4xl px-6 py-20">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
@@ -97,50 +121,46 @@ export default function HomePage() {
             </p>
             <div className="mt-12 grid gap-10 sm:grid-cols-3">
               {HOW_IT_WORKS.map(({ n, title, body }) => (
-                <div
-                  key={n}
-                  className="border-l-2 border-dune pl-5 sm:border-0 sm:pl-0"
-                >
-                  <span className="block text-5xl font-bold leading-none tracking-tight text-dune tabular-nums">
+                <div key={n} className="border-l-2 border-teal/30 pl-5 sm:border-l-0 sm:pl-0">
+                  <span className="block text-5xl font-bold leading-none tracking-tight text-teal/20 tabular-nums">
                     {n}
                   </span>
                   <h3 className="mt-5 text-base font-semibold text-bark">
                     {title}
                   </h3>
-                  <p className="mt-2 text-sm leading-6 text-umber">
-                    {body}
-                  </p>
+                  <p className="mt-2 text-sm leading-6 text-umber">{body}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ── Why Trustay ── sand ────────────────────────────── */}
+        {/* ── Why Trustay ── sand ─────────────────────────────── */}
         <section className="border-b border-dune bg-sand">
           <div className="mx-auto max-w-4xl px-6 py-20">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
               Why Trustay
             </p>
             <div className="mt-12 grid gap-4 sm:grid-cols-3">
-              {WHY_TRUSTAY.map(({ title, body }) => (
+              {WHY_TRUSTAY.map(({ accent, title, body }) => (
                 <div
                   key={title}
                   className="rounded-2xl border border-dune bg-white p-5"
                 >
-                  <h3 className="text-sm font-semibold text-bark">
-                    {title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-umber">
-                    {body}
-                  </p>
+                  <span
+                    className={`inline-block h-1.5 w-8 rounded-full mb-4 ${
+                      accent === "coral" ? "bg-coral" : "bg-teal"
+                    }`}
+                  />
+                  <h3 className="text-sm font-semibold text-bark">{title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-umber">{body}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ── Pricing ── white ───────────────────────────────── */}
+        {/* ── Pricing ── white ────────────────────────────────── */}
         <section className="bg-white">
           <div className="mx-auto max-w-4xl px-6 py-20">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
@@ -152,7 +172,7 @@ export default function HomePage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
                   Free
                 </p>
-                <p className="mt-3 text-3xl font-semibold tracking-tight text-bark">
+                <p className="mt-3 text-3xl font-bold tracking-tight text-bark">
                   $0
                 </p>
                 <ul className="mt-5 flex-1 space-y-2.5">
@@ -168,26 +188,26 @@ export default function HomePage() {
                 </ul>
               </div>
 
-              {/* City Pass — premium dark card */}
+              {/* City Pass */}
               <div className="flex flex-col rounded-2xl bg-bark p-6 shadow-md">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-dune">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/60">
                     City Pass
                   </p>
-                  <span className="rounded-full bg-stone-800 px-2.5 py-0.5 text-xs font-medium text-stone-300">
+                  <span className="rounded-full bg-teal px-2.5 py-0.5 text-xs font-semibold text-white">
                     Recommended
                   </span>
                 </div>
-                <p className="mt-3 text-3xl font-semibold tracking-tight text-white">
+                <p className="mt-3 text-3xl font-bold tracking-tight text-white">
                   One-time
                 </p>
                 <ul className="mt-5 flex-1 space-y-2.5">
                   {PASS_FEATURES.map((f) => (
                     <li
                       key={f}
-                      className="flex items-start gap-2.5 text-sm leading-6 text-dune"
+                      className="flex items-start gap-2.5 text-sm leading-6 text-white/70"
                     >
-                      <span className="mt-[7px] h-1 w-1 flex-shrink-0 rounded-full bg-umber" />
+                      <span className="mt-[7px] h-1 w-1 flex-shrink-0 rounded-full bg-teal" />
                       {f}
                     </li>
                   ))}
@@ -204,7 +224,7 @@ export default function HomePage() {
 
       <AnalyticsEvent event="homepage_viewed" />
 
-      {/* ── Footer ── white ────────────────────────────────── */}
+      {/* ── Footer ── white ──────────────────────────────────── */}
       <footer className="border-t border-dune bg-white">
         <div className="mx-auto max-w-4xl px-6 py-8">
           <p className="text-sm text-umber">
@@ -212,6 +232,105 @@ export default function HomePage() {
           </p>
         </div>
       </footer>
+    </div>
+  );
+}
+
+// ── Decorative product preview ───────────────────────────────────────────────
+// Static "mini city report" — communicates the product output at a glance.
+// Intentionally uses fixed Lisbon example data.
+
+function RoutinePreview() {
+  return (
+    <div className="w-full max-w-[270px] rounded-2xl border border-dune bg-white shadow-xl overflow-hidden">
+      {/* Top teal accent bar */}
+      <div className="h-[3px] bg-teal" />
+
+      {/* City header */}
+      <div className="flex items-center justify-between border-b border-dune bg-cream px-4 py-3">
+        <div>
+          <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-umber">
+            City setup
+          </p>
+          <p className="mt-0.5 text-sm font-bold text-bark">Lisbon</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-umber">
+            Routine
+          </p>
+          <p className="mt-0.5 text-sm font-bold text-teal">84 / 100</p>
+        </div>
+      </div>
+
+      {/* Suggested base strip */}
+      <div className="border-b border-dune bg-white px-4 py-2">
+        <p className="text-[10px] text-umber">
+          Base area:{" "}
+          <span className="font-semibold text-bark">Bairro Alto</span>
+        </p>
+      </div>
+
+      {/* Work spots */}
+      <div className="px-4 pt-3">
+        <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-teal">
+          Work spots
+        </p>
+      </div>
+      <div className="px-3 pb-3 pt-1.5">
+        <div className="rounded-xl border border-dune bg-white p-2.5">
+          <p className="text-[11px] font-semibold text-bark">
+            Fabrica Coffee Roasters
+          </p>
+          <p className="mt-0.5 text-[9px] text-umber">
+            Café · 0.3 km · ★ 4.8
+          </p>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            <span className="inline-flex items-center rounded border border-teal/30 bg-mist px-1.5 py-0.5 text-[8px] font-medium text-teal">
+              Wi-Fi: likely
+            </span>
+            <span className="inline-flex items-center rounded border border-dune bg-cream px-1.5 py-0.5 text-[8px] text-umber">
+              Quiet
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Eat & reset */}
+      <div className="border-t border-dune px-4 pt-3">
+        <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-umber">
+          Eat & reset
+        </p>
+      </div>
+      <div className="px-3 pb-3 pt-1.5">
+        <div className="rounded-xl border border-dune bg-white p-2.5">
+          <p className="text-[11px] font-semibold text-bark">
+            Time Out Market
+          </p>
+          <p className="mt-0.5 text-[9px] text-umber">
+            Food ·{" "}
+            <span className="font-semibold text-coral">$$</span>
+            {" "}· 0.5 km
+          </p>
+          <div className="mt-1.5">
+            <span className="inline-flex items-center rounded border border-dune bg-cream px-1.5 py-0.5 text-[8px] text-umber">
+              Good for quick meal
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Training */}
+      <div className="border-t border-dune px-4 pt-3 pb-3.5">
+        <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-umber">
+          Training
+        </p>
+        <div className="mt-1.5 rounded-xl border border-dune bg-white p-2.5">
+          <p className="text-[11px] font-semibold text-bark">
+            Holmes Place Gym
+          </p>
+          <p className="mt-0.5 text-[9px] text-umber">Gym · 0.6 km from base</p>
+        </div>
+      </div>
     </div>
   );
 }

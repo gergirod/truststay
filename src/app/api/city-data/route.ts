@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   }
 
   const city: City = { name, slug, country, lat, lon };
-  const allPlaces = await fetchPlaces(lat, lon);
+  const allPlaces = await fetchPlaces(city);
   const summary = computeCitySummary(city, allPlaces);
 
   const workSpots = sortByDistance(

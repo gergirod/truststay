@@ -1,7 +1,10 @@
-import type { Place, PlaceCategory } from "@/types";
+import type { City, Place, PlaceCategory } from "@/types";
 import { deriveConfidence } from "./confidence";
 
-const OVERPASS_ENDPOINT = "https://overpass-api.de/api/interpreter";
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+];
 
 // Roughly 5km radius at most latitudes
 const BBOX_DELTA = 0.05;
@@ -64,14 +67,13 @@ export function haversineKm(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-export async function fetchPlaces(
-  cityLat: number,
-  cityLon: number
-): Promise<Place[]> {
-  const bbox = buildBbox(cityLat, cityLon);
+export async function fetchPlaces(city: City): Promise<Place[]> {
+  const bbox = city.bbox
+    ? `${city.bbox[0]},${city.bbox[1]},${city.bbox[2]},${city.bbox[3]}`
+    : buildBbox(city.lat, city.lon);
 
   const query = `
-[out:json][timeout:30];
+[out:json][timeout:60];
 (
   node["amenity"="cafe"](${bbox});
   way["amenity"="cafe"](${bbox});
@@ -90,24 +92,37 @@ export async function fetchPlaces(
 out center;
 `.trim();
 
-  let res: Response;
-  try {
-    res = await fetch(OVERPASS_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: `data=${encodeURIComponent(query)}`,
-      next: { revalidate: 3600 },
-    });
-  } catch {
-    return [];
+  // Try each endpoint in order — fall through to the next on error/timeout.
+  let res: Response | undefined;
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    try {
+      const attempt = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `data=${encodeURIComponent(query)}`,
+        next: { revalidate: 3600 },
+      });
+      if (attempt.ok) {
+        res = attempt;
+        break;
+      }
+      console.warn(`[overpass] ${endpoint} returned ${attempt.status} — trying next`);
+    } catch (err) {
+      console.warn(`[overpass] ${endpoint} failed:`, err);
+    }
   }
 
-  if (!res.ok) return [];
+  if (!res) {
+    console.error("[overpass] all endpoints failed");
+    return [];
+  }
 
   let json: { elements: OverpassElement[] };
   try {
     json = await res.json();
-  } catch {
+    console.log(`[overpass] elements returned: ${json.elements?.length ?? 0} for bbox ${bbox}`);
+  } catch (err) {
+    console.error("[overpass] JSON parse failed:", err);
     return [];
   }
 
@@ -131,7 +146,7 @@ out center;
 
     const distanceKm =
       Math.round(
-        haversineKm(cityLat, cityLon, coords.lat, coords.lon) * 10
+        haversineKm(city.lat, city.lon, coords.lat, coords.lon) * 10
       ) / 10;
 
     const { confidence, bestFor, explanation } = deriveConfidence(
@@ -160,4 +175,20 @@ export function sortByDistance(places: Place[]): Place[] {
   return [...places].sort(
     (a, b) => (a.distanceKm ?? 99) - (b.distanceKm ?? 99)
   );
+}
+
+/**
+ * Sort places so that Google-enriched places appear before OSM-only ones,
+ * while still sorting by distance within each tier.
+ * This ensures the few enriched places (with ratings, hours, Maps links)
+ * are visible at the top of each section rather than buried.
+ */
+export function sortEnrichedFirst(places: Place[]): Place[] {
+  return [...places].sort((a, b) => {
+    const aEnriched = a.google ? 0 : 1;
+    const bEnriched = b.google ? 0 : 1;
+    if (aEnriched !== bEnriched) return aEnriched - bEnriched;
+    return (a.distanceFromBasekm ?? a.distanceKm ?? 99) -
+           (b.distanceFromBasekm ?? b.distanceKm ?? 99);
+  });
 }

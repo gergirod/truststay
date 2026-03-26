@@ -1,4 +1,4 @@
-import type { PlaceCategory, BestForTag } from "@/types";
+import type { PlaceCategory, BestForTag, GooglePlaceData } from "@/types";
 
 export function formatCategory(cat: PlaceCategory): string {
   switch (cat) {
@@ -78,4 +78,32 @@ export function formatDistance(km: number): string {
   if (km < 0.1) return "< 100 m";
   if (km < 1) return `${Math.round(km * 1000)} m`;
   return `${km.toFixed(1)} km`;
+}
+
+export function formatQuickMealFit(v: "low" | "medium" | "high"): string {
+  return {
+    low: "Slow service likely",
+    medium: "Possible quick meal",
+    high: "Good for quick meal",
+  }[v];
+}
+
+export function formatRoutineSupport(v: "low" | "medium" | "high"): string {
+  return {
+    low: "Less routine-friendly",
+    medium: "Likely useful near base",
+    high: "Good routine fit",
+  }[v];
+}
+
+export function formatPriceLevel(
+  level: NonNullable<GooglePlaceData["priceLevel"]>
+): string {
+  return {
+    free: "Free",
+    inexpensive: "$",
+    moderate: "$$",
+    expensive: "$$$",
+    very_expensive: "$$$$",
+  }[level];
 }

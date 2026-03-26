@@ -19,7 +19,7 @@ export async function geocodeCity(query: string): Promise<City | null> {
   const url = new URL(`${NOMINATIM_BASE}/search`);
   url.searchParams.set("q", query);
   url.searchParams.set("format", "json");
-  url.searchParams.set("limit", "1");
+  url.searchParams.set("limit", "5"); // Fetch multiple; pickBestResult selects the most useful
   url.searchParams.set("addressdetails", "1");
 
   let res: Response;
@@ -47,37 +47,216 @@ export async function geocodeCity(query: string): Promise<City | null> {
 
   if (!results.length) return null;
 
-  const result = results[0];
+  const result = pickBestResult(results)!;
   const address = result.address ?? {};
+  const country = address.country ?? "";
+  const lat = parseFloat(result.lat);
+  const lon = parseFloat(result.lon);
 
-  // Prefer the most specific city-level name available
+  // Detect area-level results (neighbourhood, suburb, quarter, city_district,
+  // or natural features like lakes/islands that have a usable bbox).
+  const isAreaResult =
+    (result.type ? AREA_TYPES.has(result.type) : false) ||
+    (result.class === "water" && NATURAL_TYPES.has(result.type ?? "")) ||
+    (result.class === "natural" && NATURAL_TYPES.has(result.type ?? ""));
+
+  if (isAreaResult) {
+    // For natural features (lake, island), prefer the feature name itself.
+    // For sub-city areas, prefer the most specific address component.
+    const isNaturalFeature =
+      result.class === "water" || result.class === "natural";
+
+    const areaName = isNaturalFeature
+      ? (address.lake ??
+          address.island ??
+          address.water ??
+          result.display_name.split(",")[0].trim())
+      : (address.neighbourhood ??
+          address.suburb ??
+          address.quarter ??
+          address.city_district ??
+          result.display_name.split(",")[0].trim());
+
+    const parentCity =
+      address.city ??
+      address.town ??
+      address.village ??
+      address.municipality ??
+      // For natural features, the county/state provides useful location context
+      (isNaturalFeature ? (address.county ?? undefined) : undefined);
+
+    // Nominatim boundingbox: [minlat, maxlat, minlon, maxlon]
+    // Convert to Overpass order: [south, west, north, east]
+    // Natural features (lakes/islands) can be larger — allow up to 0.8°.
+    // Sub-city areas stay at ≤ 0.3° to avoid city-sized bboxes.
+    const maxBboxSpan = isNaturalFeature ? 0.8 : 0.3;
+    let bbox: [number, number, number, number] | undefined;
+    if (result.boundingbox && result.boundingbox.length === 4) {
+      const [minlat, maxlat, minlon, maxlon] = result.boundingbox.map(Number);
+      if (maxlat - minlat <= maxBboxSpan && maxlon - minlon <= maxBboxSpan) {
+        bbox = [minlat, minlon, maxlat, maxlon];
+      }
+    }
+
+    return {
+      name: areaName,
+      slug: toSlug(areaName),
+      country,
+      lat,
+      lon,
+      bbox,
+      parentCity,
+    };
+  }
+
+  // Standard city-level result — include hamlet and county as fallbacks so
+  // small villages (e.g. "San Marcos La Laguna") and boundary results resolve.
   const cityName =
     address.city ??
     address.town ??
     address.village ??
     address.municipality ??
+    address.hamlet ??
+    address.county ??
     result.display_name.split(",")[0].trim();
-
-  const country = address.country ?? "";
 
   return {
     name: cityName,
     slug: toSlug(cityName),
     country,
-    lat: parseFloat(result.lat),
-    lon: parseFloat(result.lon),
+    lat,
+    lon,
   };
 }
+
+/** Sub-city place types that should use the Nominatim bbox directly */
+const AREA_TYPES = new Set([
+  "neighbourhood",
+  "suburb",
+  "quarter",
+  "city_district",
+  "residential",
+]);
+
+/** Natural/water feature types — use bbox to cover the area around them */
+const NATURAL_TYPES = new Set([
+  "lake",
+  "water",
+  "bay",
+  "island",
+  "river",
+  "sea",
+  "reservoir",
+]);
 
 interface NominatimResult {
   lat: string;
   lon: string;
   display_name: string;
+  /** Nominatim feature class — e.g. "place", "boundary", "water", "highway" */
+  class?: string;
+  /** Nominatim feature type — e.g. "city", "neighbourhood", "lake" */
+  type?: string;
+  /** [minlat, maxlat, minlon, maxlon] — note Nominatim's non-standard order */
+  boundingbox?: string[];
   address?: {
     city?: string;
     town?: string;
     village?: string;
     municipality?: string;
+    hamlet?: string;
+    county?: string;
     country?: string;
+    neighbourhood?: string;
+    suburb?: string;
+    quarter?: string;
+    city_district?: string;
+    lake?: string;
+    island?: string;
+    water?: string;
   };
+}
+
+/**
+ * Pick the most useful Nominatim result from a list.
+ * Prioritises actual settlements over roads, streets, and ambiguous features.
+ *
+ * Tiers (first match wins):
+ *   1. place class: city / town / village / hamlet — clear settlements
+ *   2. boundary administrative — municipal/district boundaries
+ *   3. natural features with a usable bbox (lake, island, etc.)
+ *   4. any remaining place class result
+ *   5. fallback to first result
+ */
+function pickBestResult(results: NominatimResult[]): NominatimResult | null {
+  if (!results.length) return null;
+
+  const isSettlement = (r: NominatimResult) =>
+    r.class === "place" &&
+    ["city", "town", "village", "hamlet", "municipality"].includes(r.type ?? "");
+
+  const isAdminBoundary = (r: NominatimResult) =>
+    r.class === "boundary" && r.type === "administrative";
+
+  const isNatural = (r: NominatimResult) =>
+    (r.class === "water" || r.class === "natural") &&
+    NATURAL_TYPES.has(r.type ?? "");
+
+  const isAnyPlace = (r: NominatimResult) => r.class === "place";
+
+  return (
+    results.find(isSettlement) ??
+    results.find(isAdminBoundary) ??
+    results.find(isNatural) ??
+    results.find(isAnyPlace) ??
+    results[0]
+  );
+}
+
+/**
+ * Reverse geocode a lat/lon to the most specific neighbourhood-level name
+ * available from Nominatim. Returns null on any failure so callers can fall
+ * back gracefully to "Central {city}".
+ */
+export async function reverseGeocodeArea(
+  lat: number,
+  lon: number
+): Promise<string | null> {
+  const url = new URL(`${NOMINATIM_BASE}/reverse`);
+  url.searchParams.set("lat", lat.toString());
+  url.searchParams.set("lon", lon.toString());
+  url.searchParams.set("format", "json");
+  url.searchParams.set("zoom", "16");
+
+  let res: Response;
+  try {
+    res = await fetch(url.toString(), {
+      headers: {
+        "User-Agent": USER_AGENT,
+        Accept: "application/json",
+      },
+      next: { revalidate: 86400 },
+    });
+  } catch {
+    return null;
+  }
+
+  if (!res.ok) return null;
+
+  let result: NominatimResult;
+  try {
+    result = await res.json();
+  } catch {
+    return null;
+  }
+
+  const address = result.address ?? {};
+
+  return (
+    address.neighbourhood ??
+    address.suburb ??
+    address.quarter ??
+    address.city_district ??
+    null
+  );
 }

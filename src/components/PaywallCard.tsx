@@ -5,10 +5,9 @@ import { track } from "@/lib/analytics";
 import { CHECKOUT_PENDING_KEY } from "@/components/CheckoutSuccessTracker";
 
 interface LockedCounts {
-  workSpots: number;
-  coworkings: number;
-  gyms: number;
-  foodSpots: number;
+  work: number;
+  coffeeMeals: number;
+  training: number;
 }
 
 interface Props {
@@ -16,18 +15,18 @@ interface Props {
   cityName: string;
   country: string;
   lockedCounts: LockedCounts;
+  hookLine?: string;
 }
 
-export function PaywallCard({ citySlug, cityName, country, lockedCounts }: Props) {
+export function PaywallCard({ citySlug, cityName, country, lockedCounts, hookLine }: Props) {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
   const displayPrice = process.env.NEXT_PUBLIC_CITY_PASS_PRICE;
   const totalLocked =
-    lockedCounts.workSpots +
-    lockedCounts.coworkings +
-    lockedCounts.gyms +
-    lockedCounts.foodSpots;
+    lockedCounts.work +
+    lockedCounts.coffeeMeals +
+    lockedCounts.training;
 
   useEffect(() => {
     track("paywall_viewed", {
@@ -35,10 +34,9 @@ export function PaywallCard({ citySlug, cityName, country, lockedCounts }: Props
       city_name: cityName,
       country,
       is_unlocked: false,
-      locked_work_spots: lockedCounts.workSpots,
-      locked_coworkings: lockedCounts.coworkings,
-      locked_gyms: lockedCounts.gyms,
-      locked_food_spots: lockedCounts.foodSpots,
+      locked_work: lockedCounts.work,
+      locked_coffee_meals: lockedCounts.coffeeMeals,
+      locked_training: lockedCounts.training,
       total_locked: totalLocked,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -98,42 +96,44 @@ export function PaywallCard({ citySlug, cityName, country, lockedCounts }: Props
         </p>
 
         {totalLocked > 0 && (
-          <ul className="mt-4 space-y-1.5">
-            {lockedCounts.workSpots > 0 && (
-              <LockedItem label={`+${lockedCounts.workSpots} more work spots`} />
+          <div className="mt-4">
+            {hookLine && (
+              <p className="mb-3 text-sm font-medium text-bark">{hookLine}</p>
             )}
-            {lockedCounts.coworkings > 0 && (
-              <LockedItem
-                label={`+${lockedCounts.coworkings} more coworking space${lockedCounts.coworkings !== 1 ? "s" : ""}`}
-              />
-            )}
-            {lockedCounts.gyms > 0 && (
-              <LockedItem
-                label={`+${lockedCounts.gyms} more gym${lockedCounts.gyms !== 1 ? "s" : ""}`}
-              />
-            )}
-            {lockedCounts.foodSpots > 0 && (
-              <LockedItem
-                label={`+${lockedCounts.foodSpots} more food spot${lockedCounts.foodSpots !== 1 ? "s" : ""}`}
-              />
-            )}
-          </ul>
+            <ul className="space-y-1.5">
+              {lockedCounts.work > 0 && (
+                <LockedItem
+                  label={`+${lockedCounts.work} more work spot${lockedCounts.work !== 1 ? "s" : ""}`}
+                />
+              )}
+              {lockedCounts.coffeeMeals > 0 && (
+                <LockedItem
+                  label={`+${lockedCounts.coffeeMeals} more coffee & meal spot${lockedCounts.coffeeMeals !== 1 ? "s" : ""}`}
+                />
+              )}
+              {lockedCounts.training > 0 && (
+                <LockedItem
+                  label={`+${lockedCounts.training} more training spot${lockedCounts.training !== 1 ? "s" : ""}`}
+                />
+              )}
+            </ul>
+          </div>
         )}
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
           <button
             onClick={handleUnlock}
             disabled={status === "loading"}
-            className="w-full rounded-xl bg-bark px-5 py-3 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            className="w-full rounded-xl bg-teal px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-deep-teal disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {status === "loading"
               ? "Opening checkout…"
               : displayPrice
-              ? `Unlock — $${displayPrice}`
-              : "Unlock City Pass"}
+              ? `Unlock ${cityName} setup — $${displayPrice}`
+              : `Unlock ${cityName} setup`}
           </button>
           <p className="text-sm text-umber">
-            One-time &middot; No account needed
+            One-time &middot; No account needed &middot; Instant access
           </p>
         </div>
 

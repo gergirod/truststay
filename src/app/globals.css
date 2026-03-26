@@ -7,13 +7,22 @@
 
 /* colour tokens use plain @theme so the hex values are compiled directly */
 @theme {
-  --color-cream: #FAF8F4;   /* warm off-white — body, header */
-  --color-sand:  #F3EFE7;   /* soft sand — hero, alternating sections */
-  --color-dune:  #E4DDD2;   /* warm border throughout */
-  --color-bark:  #2E2A26;   /* deep warm charcoal — headings, CTAs */
-  --color-umber: #5F5A54;   /* warm secondary text */
-  --color-sage:  #8FB7B3;   /* dusty teal accent */
-  --color-mist:  #DCEBE9;   /* dusty teal soft — verified badge bg */
+  /* ── Base neutrals ──────────────────────────────────────── */
+  --color-cream: #F8F6F1;   /* warm light — body, header bg */
+  --color-sand:  #F0EDE6;   /* soft warm — hero, alternating sections */
+  --color-dune:  #E5E7EB;   /* neutral border */
+  --color-bark:  #1F2937;   /* primary text — charcoal */
+  --color-umber: #6B7280;   /* secondary text */
+
+  /* ── Teal — trust / structure / work signals ────────────── */
+  --color-sage:       #14B8A6;   /* backward-compat alias = teal */
+  --color-mist:       #DDF7F4;   /* soft teal — verified badge bg */
+  --color-teal:       #14B8A6;   /* primary brand accent */
+  --color-deep-teal:  #0F766E;   /* teal hover / CTAs */
+
+  /* ── Coral — energy / movement / visual highlights ──────── */
+  --color-coral:      #F97360;
+  --color-soft-coral: #FDE7E2;
 }
 
 body {

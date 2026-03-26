@@ -16,17 +16,12 @@ export function RecommendedAreaCard({ summary }: Props) {
         {summary.recommendedArea}
       </p>
 
-      {isLowConfidence ? (
-        <p className="mt-3 text-sm leading-6 text-umber">
-          Limited data for this city — this is a general suggestion to start
-          around the center, not a verified area recommendation.
-        </p>
-      ) : (
-        <p className="mt-3 text-sm leading-6 text-umber">
-          This is where work spots, gyms, and food options seem to cluster. A
-          useful starting point — not a precise neighborhood boundary.
-        </p>
-      )}
+      <p className="mt-3 text-sm leading-6 text-umber">
+        {summary.areaReason ??
+          (isLowConfidence
+            ? "Limited data for this city — this is a general suggestion to start around the center, not a verified area recommendation."
+            : "This is where work spots, gyms, and food options seem to cluster. A useful starting point — not a precise neighborhood boundary.")}
+      </p>
     </div>
   );
 }

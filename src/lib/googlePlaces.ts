@@ -1,0 +1,119 @@
+/**
+ * Google Places API (New) client.
+ *
+ * Only one public function is exposed:
+ *   searchNearbyPlaces()  — one Nearby Search call, returns raw results
+ *
+ * Usage is intentionally minimal to control cost:
+ *   - Only cafes, coworkings, and restaurants are ever searched
+ *   - Results are cached for 1 hour via Next.js fetch cache
+ *   - Field mask excludes photos, individual reviews, and other expensive fields
+ *   - Called only from server-side code (GOOGLE_MAPS_API_KEY stays server-only)
+ */
+
+const PLACES_SEARCH_URL =
+  "https://places.googleapis.com/v1/places:searchNearby";
+
+/**
+ * Subset of the Google Places (New) API response we care about.
+ * All fields beyond id are optional — the enrichment layer handles absences.
+ */
+export interface RawGooglePlace {
+  id: string;
+  displayName?: { text: string; languageCode?: string };
+  location?: { latitude: number; longitude: number };
+  formattedAddress?: string;
+  rating?: number;
+  userRatingCount?: number;
+  currentOpeningHours?: {
+    openNow?: boolean;
+    weekdayDescriptions?: string[];
+  };
+  websiteUri?: string;
+  googleMapsUri?: string;
+  editorialSummary?: { text: string; languageCode?: string };
+  /** Price level — returned for restaurant-type places */
+  priceLevel?: string;
+  /** Meal service boolean signals — food places */
+  servesBreakfast?: boolean;
+  servesLunch?: boolean;
+  servesDinner?: boolean;
+  servesCoffee?: boolean;
+  takeout?: boolean;
+  dineIn?: boolean;
+}
+
+// Minimal field mask — Basic + Advanced tier fields, no photos or individual reviews
+const FIELD_MASK = [
+  "places.id",
+  "places.displayName",
+  "places.location",
+  "places.formattedAddress",
+  "places.rating",
+  "places.userRatingCount",
+  "places.currentOpeningHours",
+  "places.websiteUri",
+  "places.googleMapsUri",
+  "places.editorialSummary",
+  "places.priceLevel",
+  "places.servesBreakfast",
+  "places.servesLunch",
+  "places.servesDinner",
+  "places.servesCoffee",
+  "places.takeout",
+  "places.dineIn",
+].join(",");
+
+/**
+ * Search for places of a given type near a coordinate.
+ * Returns an empty array on any failure — callers must handle the no-data case.
+ *
+ * @param lat        City centre latitude
+ * @param lon        City centre longitude
+ * @param type       Google Places type
+ * @param apiKey     GOOGLE_MAPS_API_KEY
+ * @param maxResults Hard cap on results (controls cost)
+ */
+export async function searchNearbyPlaces(
+  lat: number,
+  lon: number,
+  type: "cafe" | "coworking_space" | "restaurant",
+  apiKey: string,
+  maxResults: number
+): Promise<RawGooglePlace[]> {
+  try {
+    const res = await fetch(PLACES_SEARCH_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": FIELD_MASK,
+      },
+      body: JSON.stringify({
+        locationRestriction: {
+          circle: {
+            center: { latitude: lat, longitude: lon },
+            radius: 8000,
+          },
+        },
+        includedTypes: [type],
+        maxResultCount: maxResults,
+      }),
+      // Same cache strategy as Overpass — 1 hour revalidation
+      next: { revalidate: 3600 },
+    });
+
+    if (!res.ok) {
+      console.warn(
+        `[googlePlaces] searchNearby HTTP ${res.status} for type=${type}`
+      );
+      return [];
+    }
+
+    const data = (await res.json()) as { places?: RawGooglePlace[] };
+    return data.places ?? [];
+  } catch (err) {
+    console.warn("[googlePlaces] searchNearby error:", err);
+    return [];
+  }
+}

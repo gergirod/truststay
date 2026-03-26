@@ -1,8 +1,11 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { geocodeCity } from "@/lib/geocode";
-import { fetchPlaces, sortByDistance } from "@/lib/overpass";
-import { computeCitySummary } from "@/lib/scoring";
+import type { Metadata } from "next";
+import { geocodeCity, reverseGeocodeArea } from "@/lib/geocode";
+import { fetchPlaces, sortByDistance, sortEnrichedFirst, haversineKm } from "@/lib/overpass";
+import { computeCitySummary, computeBaseCentroid } from "@/lib/scoring";
+import { enrichPlaces } from "@/lib/enrichment";
+import type { Place } from "@/types";
 import { isUnlocked } from "@/lib/unlock";
 import { RoutineSummaryCard } from "@/components/RoutineSummaryCard";
 import { RecommendedAreaCard } from "@/components/RecommendedAreaCard";
@@ -12,11 +15,57 @@ import { AnalyticsEvent } from "@/components/AnalyticsEvent";
 import { CheckoutSuccessTracker } from "@/components/CheckoutSuccessTracker";
 import type { City } from "@/types";
 
-// Free tier limits per product spec
-const FREE_WORK_SPOTS = 2;
-const FREE_COWORKINGS = 1;
-const FREE_GYMS = 1;
-const FREE_FOOD_SPOTS = 2;
+// Free tier limits — per merged section
+const FREE_WORK = 3;        // coworkings + work cafes combined
+const FREE_COFFEE_MEALS = 2; // food + break cafes combined
+const FREE_TRAINING = 1;
+
+// ── Café routing ────────────────────────────────────────────────────────────
+// Decides whether a café belongs in the "Work" section (work-oriented) or the
+// "Coffee & meals" section (break / meal / coffee-stop oriented).
+//
+// Route to Work when work suitability is reasonably clear:
+//   - workFit is high
+//   - bestFor contains work-intent tags
+//   - workFit is medium AND wifi is decent AND noise is not high
+//
+// Default (ambiguous / unclear signals) → Coffee & meals
+function isCafeWorkSection(place: Place): boolean {
+  const { confidence, bestFor } = place;
+
+  // Explicit low-work signal — definitely Coffee & meals
+  if (confidence.workFit === "low") return false;
+
+  // Strong positive work signals
+  if (confidence.workFit === "high") return true;
+  const workTags: string[] = ["deep_work", "backup_work", "calls", "short_session"];
+  if (bestFor.some((t) => workTags.includes(t))) return true;
+
+  // Work-capable with decent wifi and acceptable noise
+  if (
+    confidence.workFit === "medium" &&
+    (confidence.wifiConfidence === "medium" ||
+      confidence.wifiConfidence === "verified") &&
+    confidence.noiseRisk !== "high"
+  ) {
+    return true;
+  }
+
+  // Ambiguous — default to Coffee & meals per product spec
+  return false;
+}
+
+/** Popular remote-work cities pre-rendered at build time for fast first load. */
+const KNOWN_CITY_SLUGS = [
+  "lisbon", "medellin", "bali", "mexico-city", "buenos-aires",
+  "chiang-mai", "berlin", "barcelona", "amsterdam", "ho-chi-minh-city",
+  "tbilisi", "budapest", "prague", "bansko", "playa-del-carmen",
+  "oaxaca", "bogota", "san-jose", "taipei", "kuala-lumpur",
+];
+
+export async function generateStaticParams() {
+  return KNOWN_CITY_SLUGS.map((slug) => ({ slug }));
+}
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -24,6 +73,53 @@ type Props = {
   params: Promise<{ slug: string }>;
   searchParams: Promise<SearchParams>;
 };
+
+/** Format a URL slug into a human-readable city name for metadata fallback. */
+function slugToName(slug: string): string {
+  return slug
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+export async function generateMetadata({
+  params,
+  searchParams,
+}: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const sp = await searchParams;
+
+  // Prefer the ?name= param (set by CitySearch) — fall back to formatting the slug
+  const rawName =
+    typeof sp.name === "string" && sp.name.trim() ? sp.name.trim() : null;
+  const cityName = rawName ?? slugToName(slug);
+  const parentCity =
+    typeof sp.parentCity === "string" && sp.parentCity.trim()
+      ? sp.parentCity.trim()
+      : null;
+
+  // For neighbourhood searches, include the parent city in meta for clarity
+  const displayName = parentCity ? `${cityName}, ${parentCity}` : cityName;
+
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://trustay.app";
+  const canonicalUrl = `${appUrl}/city/${slug}`;
+
+  const title = `Work, coffee & routine in ${displayName}`;
+  const description = `Find where to base yourself in ${cityName}, with places to work, grab coffee or meals, and keep your training routine — organized for remote workers on the move.`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: canonicalUrl },
+    openGraph: {
+      title,
+      description,
+      url: canonicalUrl,
+      type: "website",
+    },
+  };
+}
 
 function getString(sp: SearchParams, key: string): string | undefined {
   const val = sp[key];
@@ -38,9 +134,18 @@ async function resolveCity(
   const lon = parseFloat(getString(sp, "lon") ?? "");
   const name = getString(sp, "name");
   const country = getString(sp, "country") ?? "";
+  const parentCity = getString(sp, "parentCity");
+  const bboxParam = getString(sp, "bbox");
 
   if (!isNaN(lat) && !isNaN(lon) && name) {
-    return { name, slug, country, lat, lon };
+    let bbox: [number, number, number, number] | undefined;
+    if (bboxParam) {
+      const parts = bboxParam.split(",").map(Number);
+      if (parts.length === 4 && parts.every((n) => !isNaN(n))) {
+        bbox = parts as [number, number, number, number];
+      }
+    }
+    return { name, slug, country, lat, lon, bbox, parentCity };
   }
 
   const query = slug.replace(/-/g, " ");
@@ -117,14 +222,21 @@ export default async function CityPage({ params, searchParams }: Props) {
         {/* Hero — renders immediately from URL params */}
         <div className="max-w-2xl">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
-            City setup
+            {city.parentCity ? "Area setup" : "City setup"}
           </p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight text-bark sm:text-5xl">
             {city.name}
           </h1>
-          {city.country && (
-            <p className="mt-1.5 text-base text-umber">{city.country}</p>
-          )}
+          <p className="mt-1.5 text-base text-umber">
+            {city.parentCity
+              ? `${city.parentCity}${city.country ? `, ${city.country}` : ""}`
+              : city.country}
+          </p>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-umber">
+            Find a base area, places to work, nearby coffee and meals, and
+            training spots — so you can settle into {city.name} without losing
+            your routine.
+          </p>
         </div>
 
         {/* Place data streams in via Suspense — Overpass can be slow */}
@@ -150,7 +262,7 @@ async function CityContent({
 }) {
   let allPlaces;
   try {
-    allPlaces = await fetchPlaces(city.lat, city.lon);
+    allPlaces = await fetchPlaces(city);
   } catch (err) {
     const errorType =
       err instanceof Error ? err.message : "upstream_fetch_failed";
@@ -181,29 +293,101 @@ async function CityContent({
     );
   }
 
-  const summary = computeCitySummary(city, allPlaces);
+  // ── Google Places enrichment (cafes + coworkings only) ──────────────────
+  // Falls back to OSM-only data if GOOGLE_MAPS_API_KEY is absent or fails.
+  const enrichedPlaces = await enrichPlaces(allPlaces, city.lat, city.lon);
 
-  const workSpots = sortByDistance(
-    allPlaces.filter((p) => p.category === "cafe")
-  ).slice(0, 20);
-  const coworkings = sortByDistance(
-    allPlaces.filter((p) => p.category === "coworking")
-  ).slice(0, 10);
-  const gyms = sortByDistance(
-    allPlaces.filter((p) => p.category === "gym")
-  ).slice(0, 10);
-  const foodSpots = sortByDistance(
-    allPlaces.filter((p) => p.category === "food")
-  ).slice(0, 20);
+  // ── Base area centroid ───────────────────────────────────────────────────
+  // Weighted average of cafe + coworking coordinates — more actionable than
+  // the raw geocoded city centre for "how far is this from where I'd stay?".
+  const baseCentroid = computeBaseCentroid(enrichedPlaces);
 
-  // Locked counts — what the paywall card describes
+  // Add distanceFromBasekm to every place (used in card + modal display)
+  const places: Place[] = baseCentroid
+    ? enrichedPlaces.map((p) => ({
+        ...p,
+        distanceFromBasekm:
+          Math.round(
+            haversineKm(baseCentroid.lat, baseCentroid.lon, p.lat, p.lon) * 10
+          ) / 10,
+      }))
+    : enrichedPlaces;
+
+  // Reverse geocode the work-cluster centroid to get a real neighbourhood name.
+  // Only attempt if we have a centroid (≥3 work places). Falls back silently.
+  const areaName = baseCentroid
+    ? await reverseGeocodeArea(baseCentroid.lat, baseCentroid.lon)
+    : null;
+
+  const summary = computeCitySummary(city, places, areaName ?? undefined);
+
+  // ── Data coverage level ──────────────────────────────────────────────────
+  const dataCoverage: "good" | "partial" | "limited" | "none" =
+    places.length >= 15
+      ? "good"
+      : places.length >= 6
+      ? "partial"
+      : places.length >= 1
+      ? "limited"
+      : "none";
+
+  // ── Section grouping ─────────────────────────────────────────────────────
+  // Work: all coworkings + cafes where work suitability is clear
+  // Coffee & meals: food places + cafes better suited for breaks or meals
+  // Training: all gyms
+  // Enriched places bubble to the top within each section so the first
+  // cards a user sees are the ones with ratings, hours, and Maps links.
+  const workPlaces = sortEnrichedFirst([
+    ...places.filter((p) => p.category === "coworking"),
+    ...places.filter((p) => p.category === "cafe" && isCafeWorkSection(p)),
+  ]).slice(0, 20);
+
+  const coffeeMealsPlaces = sortEnrichedFirst([
+    ...places.filter((p) => p.category === "food"),
+    ...places.filter((p) => p.category === "cafe" && !isCafeWorkSection(p)),
+  ]).slice(0, 20);
+
+  const trainingPlaces = sortByDistance(
+    places.filter((p) => p.category === "gym")
+  ).slice(0, 10);
+
   const lockedCounts = {
-    workSpots: Math.max(workSpots.length - FREE_WORK_SPOTS, 0),
-    coworkings: Math.max(coworkings.length - FREE_COWORKINGS, 0),
-    gyms: Math.max(gyms.length - FREE_GYMS, 0),
-    foodSpots: Math.max(foodSpots.length - FREE_FOOD_SPOTS, 0),
+    work: Math.max(workPlaces.length - FREE_WORK, 0),
+    coffeeMeals: Math.max(coffeeMealsPlaces.length - FREE_COFFEE_MEALS, 0),
+    training: Math.max(trainingPlaces.length - FREE_TRAINING, 0),
   };
   const hasLockedContent = Object.values(lockedCounts).some((n) => n > 0);
+
+  // Generate a qualitative hook line based on what is hidden behind the paywall.
+  const lockedWorkPlaces = workPlaces.slice(FREE_WORK);
+  const lockedCoffeeMealsPlaces = coffeeMealsPlaces.slice(FREE_COFFEE_MEALS);
+  const lockedTrainingPlaces = trainingPlaces.slice(FREE_TRAINING);
+
+  let hookLine: string | undefined;
+  const hasLockedCoworking = lockedWorkPlaces.some(
+    (p) => p.category === "coworking"
+  );
+  const hasLockedEnrichedMeals = lockedCoffeeMealsPlaces.some(
+    (p) => p.google?.rating !== undefined
+  );
+  const allCategoriesLocked =
+    lockedCounts.work > 0 &&
+    lockedCounts.coffeeMeals > 0 &&
+    lockedCounts.training > 0;
+
+  if (hasLockedContent) {
+    if (allCategoriesLocked) {
+      hookLine = "Full setup — work spots, meals, and training options.";
+    } else if (hasLockedCoworking) {
+      hookLine = "Includes dedicated coworking spaces with verified hours.";
+    } else if (hasLockedEnrichedMeals) {
+      hookLine = "Places with ratings, hours, and menu links available.";
+    } else if (lockedCounts.work > 0) {
+      hookLine = "More work-friendly cafés and spots near your base.";
+    } else if (lockedTrainingPlaces.length > 0) {
+      hookLine = "More training options to help you keep your routine.";
+    }
+  }
 
   return (
     <div className="mt-10 space-y-8">
@@ -214,7 +398,7 @@ async function CityContent({
           city_slug: city.slug,
           city_name: city.name,
           country: city.country,
-          total_places: allPlaces.length,
+          total_places: places.length,
           routine_score: summary.routineScore,
           is_unlocked: isUnlocked,
         }}
@@ -226,40 +410,36 @@ async function CityContent({
         <RecommendedAreaCard summary={summary} />
       </div>
 
+      {/* Data coverage notice — only shown for partial/limited data */}
+      {dataCoverage !== "good" && dataCoverage !== "none" && (
+        <CoverageNotice city={city.name} level={dataCoverage} />
+      )}
+
       <PlaceSection
-        title="Work spots"
-        subtitle="Cafés and work-friendly spaces nearby"
-        places={workSpots}
-        freeCount={FREE_WORK_SPOTS}
+        title="Work"
+        subtitle="Coworkings and work-friendly cafés near your base"
+        places={workPlaces}
+        freeCount={FREE_WORK}
         isUnlocked={isUnlocked}
-        emptyMessage="No cafés found in this area based on OpenStreetMap data."
+        emptyMessage="No strong work spots found near this base yet."
       />
 
       <PlaceSection
-        title="Coworking backup"
-        subtitle="Dedicated coworking spaces in range"
-        places={coworkings}
-        freeCount={FREE_COWORKINGS}
+        title="Coffee & meals"
+        subtitle="Places to grab coffee, breakfast, or lunch without breaking your day"
+        places={coffeeMealsPlaces}
+        freeCount={FREE_COFFEE_MEALS}
         isUnlocked={isUnlocked}
-        emptyMessage="No coworking spaces found in this area. Cafés may be your best backup."
+        emptyMessage="No clear coffee or meal spots found near this base yet."
       />
 
       <PlaceSection
         title="Training"
-        subtitle="Gyms and fitness centres nearby"
-        places={gyms}
-        freeCount={FREE_GYMS}
+        subtitle="Gyms and places that help you keep your routine"
+        places={trainingPlaces}
+        freeCount={FREE_TRAINING}
         isUnlocked={isUnlocked}
-        emptyMessage="No gyms found in this area based on OpenStreetMap data."
-      />
-
-      <PlaceSection
-        title="Food & coffee"
-        subtitle="Restaurants and quick-meal options close by"
-        places={foodSpots}
-        freeCount={FREE_FOOD_SPOTS}
-        isUnlocked={isUnlocked}
-        emptyMessage="No food spots found in this area based on OpenStreetMap data."
+        emptyMessage="No training spots found near this base yet."
       />
 
       {/* Paywall — shown only when locked and there is locked content */}
@@ -269,6 +449,7 @@ async function CityContent({
           cityName={city.name}
           country={city.country}
           lockedCounts={lockedCounts}
+          hookLine={hookLine}
         />
       )}
 
@@ -294,6 +475,31 @@ function PlacesSkeleton() {
           <div className="h-20 rounded-2xl bg-stone-200" />
         </div>
       ))}
+    </div>
+  );
+}
+
+function CoverageNotice({
+  city,
+  level,
+}: {
+  city: string;
+  level: "partial" | "limited";
+}) {
+  return (
+    <div className="rounded-2xl border border-dune bg-white px-6 py-4">
+      <p className="text-sm leading-6 text-umber">
+        {level === "limited" ? (
+          <>
+            <span className="font-medium text-bark">Limited data found for {city}.</span>{" "}
+            Results are incomplete — this city may be less covered in OpenStreetMap.
+          </>
+        ) : (
+          <>
+            Data coverage for {city} is moderate. Some options may be missing — OpenStreetMap data varies by city.
+          </>
+        )}
+      </p>
     </div>
   );
 }
