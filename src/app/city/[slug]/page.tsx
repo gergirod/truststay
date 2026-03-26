@@ -3,10 +3,18 @@ import Link from "next/link";
 import { geocodeCity } from "@/lib/geocode";
 import { fetchPlaces, sortByDistance } from "@/lib/overpass";
 import { computeCitySummary } from "@/lib/scoring";
+import { isUnlocked } from "@/lib/unlock";
 import { RoutineSummaryCard } from "@/components/RoutineSummaryCard";
 import { RecommendedAreaCard } from "@/components/RecommendedAreaCard";
 import { PlaceSection } from "@/components/PlaceSection";
+import { PaywallCard } from "@/components/PaywallCard";
 import type { City } from "@/types";
+
+// Free tier limits per product spec
+const FREE_WORK_SPOTS = 2;
+const FREE_COWORKINGS = 1;
+const FREE_GYMS = 1;
+const FREE_FOOD_SPOTS = 2;
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -40,7 +48,11 @@ async function resolveCity(
 export default async function CityPage({ params, searchParams }: Props) {
   const { slug } = await params;
   const sp = await searchParams;
-  const city = await resolveCity(slug, sp);
+
+  const [city, unlocked] = await Promise.all([
+    resolveCity(slug, sp),
+    isUnlocked(slug),
+  ]);
 
   if (!city) {
     return (
@@ -96,7 +108,7 @@ export default async function CityPage({ params, searchParams }: Props) {
 
         {/* Place data streams in via Suspense — Overpass can be slow */}
         <Suspense fallback={<PlacesSkeleton />}>
-          <CityContent city={city} />
+          <CityContent city={city} isUnlocked={unlocked} />
         </Suspense>
       </main>
 
@@ -106,7 +118,13 @@ export default async function CityPage({ params, searchParams }: Props) {
 }
 
 // Async server component — runs Overpass + scoring, streams into the page
-async function CityContent({ city }: { city: City }) {
+async function CityContent({
+  city,
+  isUnlocked,
+}: {
+  city: City;
+  isUnlocked: boolean;
+}) {
   const allPlaces = await fetchPlaces(city.lat, city.lon);
   const summary = computeCitySummary(city, allPlaces);
 
@@ -123,8 +141,18 @@ async function CityContent({ city }: { city: City }) {
     allPlaces.filter((p) => p.category === "food")
   ).slice(0, 20);
 
+  // Locked counts — what the paywall card describes
+  const lockedCounts = {
+    workSpots: Math.max(workSpots.length - FREE_WORK_SPOTS, 0),
+    coworkings: Math.max(coworkings.length - FREE_COWORKINGS, 0),
+    gyms: Math.max(gyms.length - FREE_GYMS, 0),
+    foodSpots: Math.max(foodSpots.length - FREE_FOOD_SPOTS, 0),
+  };
+  const hasLockedContent = Object.values(lockedCounts).some((n) => n > 0);
+
   return (
     <div className="mt-10 space-y-8">
+      {/* Summary cards — always visible */}
       <div className="grid gap-4 sm:grid-cols-2">
         <RoutineSummaryCard summary={summary} />
         <RecommendedAreaCard summary={summary} />
@@ -134,6 +162,8 @@ async function CityContent({ city }: { city: City }) {
         title="Work spots"
         subtitle="Cafés and work-friendly spaces nearby"
         places={workSpots}
+        freeCount={FREE_WORK_SPOTS}
+        isUnlocked={isUnlocked}
         emptyMessage="No cafés found in this area based on OpenStreetMap data."
       />
 
@@ -141,6 +171,8 @@ async function CityContent({ city }: { city: City }) {
         title="Coworking backup"
         subtitle="Dedicated coworking spaces in range"
         places={coworkings}
+        freeCount={FREE_COWORKINGS}
+        isUnlocked={isUnlocked}
         emptyMessage="No coworking spaces found in this area. Cafés may be your best backup."
       />
 
@@ -148,6 +180,8 @@ async function CityContent({ city }: { city: City }) {
         title="Training"
         subtitle="Gyms and fitness centres nearby"
         places={gyms}
+        freeCount={FREE_GYMS}
+        isUnlocked={isUnlocked}
         emptyMessage="No gyms found in this area based on OpenStreetMap data."
       />
 
@@ -155,8 +189,19 @@ async function CityContent({ city }: { city: City }) {
         title="Food & coffee"
         subtitle="Restaurants and quick-meal options close by"
         places={foodSpots}
+        freeCount={FREE_FOOD_SPOTS}
+        isUnlocked={isUnlocked}
         emptyMessage="No food spots found in this area based on OpenStreetMap data."
       />
+
+      {/* Paywall — shown only when locked and there is locked content */}
+      {!isUnlocked && hasLockedContent && (
+        <PaywallCard
+          citySlug={city.slug}
+          cityName={city.name}
+          lockedCounts={lockedCounts}
+        />
+      )}
 
       <MethodologyNote />
     </div>

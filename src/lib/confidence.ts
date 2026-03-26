@@ -28,8 +28,9 @@ export function deriveConfidence(
         laptopFriendly: "yes",
       },
       bestFor: ["backup_work", "deep_work"],
-      explanation:
-        "Dedicated coworking venue — strong work signals based on venue type and proximity.",
+      explanation: hasInternet
+        ? "Coworking space with internet access noted — generally a more reliable option for focused work than a café."
+        : "Coworking space — generally a more reliable option for focused work. Internet likely available but not verified from this source.",
     };
   }
 
@@ -50,20 +51,28 @@ export function deriveConfidence(
       bestFor.push("short_session", "backup_work");
     }
 
-    const parts: string[] = [];
+    // Natural sentence explanations rather than comma-joined fragments
+    let explanation: string;
     if (isWorkNamed) {
-      parts.push("Work-oriented café based on name and category");
+      explanation =
+        wifiConfidence === "unknown"
+          ? "Work-oriented café based on the name — laptop-friendly signals, though internet isn't verified from this source."
+          : "Work-oriented café with internet access noted — better work signals than a typical café.";
+    } else if (hasOutdoorSeating && wifiConfidence === "unknown") {
+      explanation =
+        "Café with outdoor seating — could work for a break or short session, though noise may vary and internet isn't verified.";
+    } else if (wifiConfidence === "unknown") {
+      explanation =
+        "Café — likely decent for a short session or coffee break, though internet isn't verified from this source.";
     } else {
-      parts.push("Café with moderate work signals");
+      explanation =
+        "Café with internet access noted — a reasonable short-session option.";
     }
-    if (wifiConfidence === "unknown") parts.push("internet not verified");
-    if (noiseRisk === "medium")
-      parts.push("noise may vary due to outdoor seating");
 
     return {
       confidence: { workFit, wifiConfidence, noiseRisk, laptopFriendly },
       bestFor,
-      explanation: parts.join(", ") + ".",
+      explanation,
     };
   }
 
@@ -82,10 +91,10 @@ export function deriveConfidence(
 
     const explanation =
       distanceKm < 0.5
-        ? "Gym within easy walking distance — good for a steady training routine."
+        ? "Close enough to walk — easy to build into a daily routine."
         : distanceKm < 1.5
-        ? "Gym within a short trip — convenient for regular training sessions."
-        : "Gym available but may require a longer commute from the suggested area.";
+        ? "A short trip away — still manageable for regular training sessions."
+        : "Further out from the suggested area — worth factoring in if routine training matters to you.";
 
     return { confidence: { routineFit, convenience }, bestFor, explanation };
   }
@@ -107,7 +116,7 @@ export function deriveConfidence(
       ? ["quick_meal", "quick_stop"]
       : ["quick_meal", "routine_support"],
     explanation: isQuickService
-      ? "Quick-service option near the recommended area — good for time-efficient meals."
-      : "Restaurant nearby — useful for routine meal support without searching far.",
+      ? "Quick-service spot nearby — useful when you need a fast meal without going far."
+      : "Restaurant within range — a reasonable option for keeping a regular meal routine.",
   };
 }

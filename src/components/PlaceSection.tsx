@@ -6,6 +6,10 @@ interface Props {
   subtitle?: string;
   places: Place[];
   emptyMessage?: string;
+  // Free/locked split — omit both to show all places (default, Task 03 behavior).
+  // When both are provided: show freeCount items freely, lock the rest.
+  freeCount?: number;
+  isUnlocked?: boolean;
 }
 
 export function PlaceSection({
@@ -13,7 +17,15 @@ export function PlaceSection({
   subtitle,
   places,
   emptyMessage = "No places found in this area.",
+  freeCount,
+  isUnlocked = false,
 }: Props) {
+  const applyLock =
+    !isUnlocked && freeCount !== undefined && places.length > freeCount;
+  const visiblePlaces =
+    applyLock ? places.slice(0, freeCount) : places;
+  const lockedCount = applyLock ? places.length - freeCount! : 0;
+
   return (
     <section>
       <div className="mb-4">
@@ -29,9 +41,17 @@ export function PlaceSection({
         </div>
       ) : (
         <div className="space-y-3">
-          {places.map((place) => (
+          {visiblePlaces.map((place) => (
             <PlaceCard key={place.id} place={place} />
           ))}
+
+          {lockedCount > 0 && (
+            <div className="rounded-lg border border-dashed border-stone-200 bg-stone-50 px-5 py-4 text-center">
+              <p className="text-sm text-stone-400">
+                +{lockedCount} more in this category — unlock with City Pass
+              </p>
+            </div>
+          )}
         </div>
       )}
     </section>

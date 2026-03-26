@@ -4,30 +4,21 @@ import type { Place, CitySummary } from "@/types";
 // centroid requires at least this many total places across all categories.
 const MIN_PLACES_FOR_CENTROID = 5;
 
-function computeCentroid(
-  places: Place[]
-): { lat: number; lon: number } | null {
-  if (!places.length) return null;
-  const lat = places.reduce((s, p) => s + p.lat, 0) / places.length;
-  const lon = places.reduce((s, p) => s + p.lon, 0) / places.length;
-  return { lat, lon };
-}
+// Each sub-score is capped below 1.0 to avoid implying certainty.
+// Even with abundant data we can only say "likely good", not "perfect".
+const SCORE_CERTAINTY_CAP = 0.85;
 
-// Returns a compass direction string when the centroid meaningfully deviates
-// from the city center. Used to build a descriptive area label.
-function compassLabel(dLat: number, dLon: number): string {
-  const aLat = Math.abs(dLat);
-  const aLon = Math.abs(dLon);
+// Thresholds are intentionally high — a well-served city should reach ~70-82,
+// not 100. Hitting the cap requires genuine density, not just a few spots.
+const THRESHOLDS = {
+  cafe: 15,
+  coworking: 4,
+  gym: 4,
+  food: 15,
+};
 
-  // ~300m threshold — below this call it simply "central"
-  if (aLat < 0.003 && aLon < 0.003) return "";
-
-  const ns = dLat > 0 ? "north" : "south";
-  const ew = dLon > 0 ? "east" : "west";
-
-  if (aLat > aLon * 2) return ns;
-  if (aLon > aLat * 2) return ew;
-  return `${ns}${ew}`;
+function cappedRatio(count: number, threshold: number): number {
+  return Math.min(count / threshold, SCORE_CERTAINTY_CAP);
 }
 
 export function computeCitySummary(
@@ -39,21 +30,22 @@ export function computeCitySummary(
   const gyms = places.filter((p) => p.category === "gym");
   const food = places.filter((p) => p.category === "food");
 
-  // Each category contributes up to 25 points
-  const cafeScore = Math.min(cafes.length / 8, 1) * 25;
-  const coworkScore = Math.min(coworkings.length / 2, 1) * 25;
-  const gymScore = Math.min(gyms.length / 2, 1) * 25;
-  const foodScore = Math.min(food.length / 8, 1) * 25;
+  // Each category contributes up to 25 × SCORE_CERTAINTY_CAP ≈ 21 points.
+  // Total max ≈ 85. A score of 100 is intentionally unreachable.
+  const cafeScore = cappedRatio(cafes.length, THRESHOLDS.cafe) * 25;
+  const coworkScore = cappedRatio(coworkings.length, THRESHOLDS.coworking) * 25;
+  const gymScore = cappedRatio(gyms.length, THRESHOLDS.gym) * 25;
+  const foodScore = cappedRatio(food.length, THRESHOLDS.food) * 25;
   const routineScore = Math.round(cafeScore + coworkScore + gymScore + foodScore);
 
   const summaryText =
-    routineScore >= 75
-      ? "Good setup for a remote-work routine. Work, training, and food options are well represented."
+    routineScore >= 70
+      ? "Well-supported for a remote-work routine. Work, training, and food options are well represented."
       : routineScore >= 50
-      ? "Decent city for a remote-work stay. Some gaps, but core needs are covered."
+      ? "Decent setup for a remote-work stay. Core needs appear covered, with some gaps."
       : routineScore >= 25
-      ? "Limited remote-work infrastructure based on available data. Plan your setup carefully."
-      : "Very few places found. Data may be incomplete or sparse for this city.";
+      ? "Some gaps in remote-work infrastructure. Worth planning your setup before you arrive."
+      : "Limited places found in this area. Data may be sparse, or amenities may be further out.";
 
   const confidence: CitySummary["confidence"] =
     routineScore >= 60 ? "high" : routineScore >= 35 ? "medium" : "low";
@@ -64,16 +56,15 @@ export function computeCitySummary(
     return {
       routineScore,
       summaryText,
-      recommendedArea: "Central area recommended",
+      recommendedArea: "Central area",
       confidence: "low",
     };
   }
 
-  const centroid = computeCentroid(places)!;
-  const dir = compassLabel(centroid.lat - city.lat, centroid.lon - city.lon);
-  const areaName = dir
-    ? `${dir.charAt(0).toUpperCase() + dir.slice(1)}-central ${city.name}`
-    : `Central ${city.name}`;
+  // Area label is always "Central [city name]" — we compute a centroid
+  // internally but do not surface compass coordinates as a label.
+  // Compass directions add false precision and read as robotic to users.
+  const recommendedArea = `Central ${city.name}`;
 
-  return { routineScore, summaryText, recommendedArea: areaName, confidence };
+  return { routineScore, summaryText, recommendedArea, confidence };
 }

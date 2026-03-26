@@ -14,7 +14,11 @@ export function formatCategory(cat: PlaceCategory): string {
 }
 
 export function formatWorkFit(v: "low" | "medium" | "high"): string {
-  return { low: "Low", medium: "Medium", high: "High" }[v];
+  return {
+    low: "Likely limited",
+    medium: "Possibly workable",
+    high: "Likely a good fit",
+  }[v];
 }
 
 export function formatWifi(
@@ -22,7 +26,7 @@ export function formatWifi(
 ): string {
   return {
     weak: "Weak signal likely",
-    medium: "Likely available",
+    medium: "Probably available",
     verified: "Verified",
     unknown: "Not verified",
   }[v];
@@ -32,10 +36,10 @@ export function formatNoiseRisk(
   v: "low" | "medium" | "high" | "unknown"
 ): string {
   return {
-    low: "Low risk",
+    low: "Likely quiet",
     medium: "May vary",
-    high: "High risk",
-    unknown: "Unknown",
+    high: "Likely noisy",
+    unknown: "Not assessed",
   }[v];
 }
 
@@ -44,18 +48,26 @@ export function formatLaptopFriendly(
 ): string {
   return {
     yes: "Yes",
-    likely: "Likely",
-    mixed: "Mixed reports",
-    unknown: "Unknown",
+    likely: "Probably fine",
+    mixed: "Mixed signals",
+    unknown: "Not assessed",
   }[v];
 }
 
 export function formatRoutineFit(v: "low" | "medium" | "high"): string {
-  return { low: "Low", medium: "Decent", high: "Good" }[v];
+  return {
+    low: "Less convenient",
+    medium: "Reasonably close",
+    high: "Very convenient",
+  }[v];
 }
 
 export function formatConvenience(v: "low" | "medium" | "high"): string {
-  return { low: "Low", medium: "Medium", high: "High" }[v];
+  return {
+    low: "Further away",
+    medium: "Moderate distance",
+    high: "Close by",
+  }[v];
 }
 
 export function formatBestForTag(tag: BestForTag): string {

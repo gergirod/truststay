@@ -10,22 +10,21 @@ export function RecommendedAreaCard({ summary }: Props) {
   return (
     <div className="rounded-xl border border-stone-200 bg-white p-6">
       <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">
-        Recommended base area
+        Suggested base area
       </p>
       <p className="mt-3 text-xl font-semibold text-stone-900">
         {summary.recommendedArea}
       </p>
 
       {isLowConfidence ? (
-        <p className="mt-3 text-sm text-amber-700 leading-relaxed">
-          Low confidence — limited place data was found for this city. This is a
-          general central-area recommendation, not a verified neighborhood
-          analysis.
+        <p className="mt-3 text-sm leading-relaxed text-amber-700">
+          We found limited data for this city, so this is a general suggestion
+          to start around the center. Not a verified area recommendation.
         </p>
       ) : (
-        <p className="mt-3 text-sm text-stone-500 leading-relaxed">
-          Derived from the density of work spots, gyms, and food options in the
-          area. Not a verified neighborhood boundary.
+        <p className="mt-3 text-sm leading-relaxed text-stone-500">
+          This is where work spots, gyms, and food options seem to cluster. A
+          useful starting point — not a precise neighborhood boundary.
         </p>
       )}
     </div>
