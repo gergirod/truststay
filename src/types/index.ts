@@ -50,5 +50,3 @@ export interface Place {
   bestFor: BestForTag[];
   explanation: string;
 }
-
-export type CheckoutProduct = "city_pass" | "trustay_pass";

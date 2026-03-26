@@ -16,29 +16,41 @@ export const env = {
   },
 } as const;
 
-// Warn about missing critical vars at server startup.
-// These appear in Vercel function logs and local dev console.
+// Warn about missing vars at server startup.
+// Messages appear in Vercel function logs and local dev console.
 (function checkEnv() {
-  const missing: string[] = [];
-
-  if (!env.stripe.secretKey) missing.push("STRIPE_SECRET_KEY");
-  if (!env.stripe.cityPassPriceId) missing.push("CITY_PASS_PRICE_ID");
-
-  for (const name of missing) {
+  if (!env.stripe.secretKey) {
     console.warn(
-      `[Trustay] Missing env var: ${name} — Stripe checkout will not work`
+      "[Trustay] STRIPE_SECRET_KEY not set — Stripe checkout will not work. " +
+        "Add this in Vercel → Settings → Environment Variables."
+    );
+  }
+
+  if (!env.stripe.cityPassPriceId) {
+    console.warn(
+      "[Trustay] CITY_PASS_PRICE_ID not set — Stripe checkout will not work. " +
+        "Create a one-time price in the Stripe dashboard and paste the price_... ID."
     );
   }
 
   if (!env.stripe.webhookSecret) {
     console.warn(
-      "[Trustay] STRIPE_WEBHOOK_SECRET not set — webhook signature validation will be skipped"
+      "[Trustay] STRIPE_WEBHOOK_SECRET not set — webhook signature validation will be skipped. " +
+        "Add the whsec_... secret from your Stripe webhook endpoint."
     );
   }
 
   if (!env.unlock.signingKey) {
     console.warn(
-      "[Trustay] UNLOCK_SIGNING_KEY not set — unlock cookie will not be HMAC-signed (less secure)"
+      "[Trustay] UNLOCK_SIGNING_KEY not set — unlock cookie will not be HMAC-signed. " +
+        "Generate one with: openssl rand -base64 32"
+    );
+  }
+
+  if (env.app.isProduction && !env.app.url) {
+    console.warn(
+      "[Trustay] NEXT_PUBLIC_APP_URL not set in production — Stripe redirect URLs will be " +
+        "inferred from request headers. Set this to your Vercel deployment URL (e.g. https://truststay.com)."
     );
   }
 })();

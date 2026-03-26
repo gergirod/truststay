@@ -210,12 +210,20 @@ async function CityContent({
 
 function PlacesSkeleton() {
   return (
-    <div className="mt-10 space-y-4 animate-pulse">
+    <div className="mt-10 space-y-8 animate-pulse">
+      {/* Summary cards */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="h-28 rounded-xl bg-stone-100" />
+        <div className="h-28 rounded-xl bg-stone-100" />
+      </div>
+
+      {/* Place sections */}
       {[...Array(4)].map((_, i) => (
-        <div
-          key={i}
-          className="h-24 rounded-xl bg-stone-100"
-        />
+        <div key={i} className="space-y-3">
+          <div className="h-4 w-28 rounded bg-stone-100" />
+          <div className="h-20 rounded-lg bg-stone-100" />
+          <div className="h-20 rounded-lg bg-stone-100" />
+        </div>
       ))}
     </div>
   );

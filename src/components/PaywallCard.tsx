@@ -88,7 +88,7 @@ export function PaywallCard({ citySlug, cityName, lockedCounts }: Props) {
         </ul>
       )}
 
-      <div className="mt-6 flex items-center gap-4">
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
         <button
           onClick={handleUnlock}
           disabled={status === "loading"}

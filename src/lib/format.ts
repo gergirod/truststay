@@ -43,17 +43,6 @@ export function formatNoiseRisk(
   }[v];
 }
 
-export function formatLaptopFriendly(
-  v: "yes" | "likely" | "mixed" | "unknown"
-): string {
-  return {
-    yes: "Yes",
-    likely: "Probably fine",
-    mixed: "Mixed signals",
-    unknown: "Not assessed",
-  }[v];
-}
-
 export function formatRoutineFit(v: "low" | "medium" | "high"): string {
   return {
     low: "Less convenient",
