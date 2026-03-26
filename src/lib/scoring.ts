@@ -11,7 +11,9 @@ import { haversineKm } from "./overpass";
  * city centre or omits the distance field).
  */
 /** Max distance from the weighted centroid for a place to count in pass 2. */
-const CENTROID_OUTLIER_KM = 2.5;
+const CENTROID_OUTLIER_KM = 1.5;
+/** If computed centroid drifts further than this from the geocoded city center, fall back */
+const MAX_CENTROID_DRIFT_KM = 3.0;
 
 /**
  * Work-potential weight for centroid calculation.
@@ -61,23 +63,36 @@ function centroidWeight(p: Place): number {
 }
 
 export function computeBaseCentroid(
-  places: Place[]
+  places: Place[],
+  cityLat?: number,
+  cityLon?: number
 ): { lat: number; lon: number } | null {
   const workPlaces = places.filter(
     (p) => p.category === "cafe" || p.category === "coworking"
   );
   if (workPlaces.length < 3) return null;
 
-  // Pass 1: weighted centroid — coworkings + enriched cafes pull harder
-  const totalWeight1 = workPlaces.reduce((s, p) => s + centroidWeight(p), 0);
-  const roughLat = workPlaces.reduce((s, p) => s + p.lat * centroidWeight(p), 0) / totalWeight1;
-  const roughLon = workPlaces.reduce((s, p) => s + p.lon * centroidWeight(p), 0) / totalWeight1;
+  // Pass 1: weighted centroid anchored near the geocoded city center.
+  // Only use places within MAX_CENTROID_DRIFT_KM of the city center so that
+  // Google-only places from nearby towns (e.g. Las Salinas for Popoyo) don't
+  // pull the centroid away from the actual destination.
+  const anchored =
+    cityLat !== undefined && cityLon !== undefined
+      ? workPlaces.filter(
+          (p) => haversineKm(cityLat, cityLon, p.lat, p.lon) <= MAX_CENTROID_DRIFT_KM
+        )
+      : workPlaces;
+  const pool1 = anchored.length >= 2 ? anchored : workPlaces;
+
+  const totalWeight1 = pool1.reduce((s, p) => s + centroidWeight(p), 0);
+  const roughLat = pool1.reduce((s, p) => s + p.lat * centroidWeight(p), 0) / totalWeight1;
+  const roughLon = pool1.reduce((s, p) => s + p.lon * centroidWeight(p), 0) / totalWeight1;
 
   // Pass 2: drop outliers > CENTROID_OUTLIER_KM from the weighted centroid
-  const cluster = workPlaces.filter(
+  const cluster = pool1.filter(
     (p) => haversineKm(roughLat, roughLon, p.lat, p.lon) <= CENTROID_OUTLIER_KM
   );
-  const finalPlaces = cluster.length >= 2 ? cluster : workPlaces;
+  const finalPlaces = cluster.length >= 2 ? cluster : pool1;
 
   // Final weighted average using only the cluster
   const totalWeight2 = finalPlaces.reduce((s, p) => s + centroidWeight(p), 0);

@@ -458,7 +458,7 @@ async function CityContent({
   // ── Base area centroid ───────────────────────────────────────────────────
   // Weighted average of cafe + coworking coordinates — more actionable than
   // the raw geocoded city centre for "how far is this from where I'd stay?".
-  const baseCentroid = computeBaseCentroid(enrichedPlaces);
+  const baseCentroid = computeBaseCentroid(enrichedPlaces, city.lat, city.lon);
 
   // Add distanceFromBasekm to every place (used in card + modal display)
   const places: Place[] = baseCentroid
