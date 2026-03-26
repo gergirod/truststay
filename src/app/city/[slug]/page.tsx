@@ -544,7 +544,11 @@ async function CityContent({
       {/* Summary cards — always visible */}
       <div className="grid gap-4 sm:grid-cols-2">
         <RoutineSummaryCard summary={summary} />
-        <RecommendedAreaCard summary={summary} />
+        <RecommendedAreaCard
+          summary={summary}
+          centroidLat={baseCentroid?.lat}
+          centroidLon={baseCentroid?.lon}
+        />
       </div>
 
       {/* Data coverage notice — only shown for partial/limited data */}

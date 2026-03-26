@@ -25,6 +25,14 @@ const MAX_MATCH_DISTANCE_KM = 0.25;
 const MIN_NAME_SIMILARITY = 0.35;
 /** Reject matches where the OSM place name is suspiciously short (likely unnamed/partial) */
 const MIN_OSM_NAME_LENGTH = 3;
+/** Maximum distance from city center for Google-only places to be included */
+const MAX_GOOGLE_ONLY_DISTANCE_KM = 6;
+/** Minimum reviews for a Google-only cafe/food to be included (avoids noise) */
+const MIN_GOOGLE_ONLY_REVIEWS = 15;
+/** Skip Google-only place if an existing place is within this distance (dedup) */
+const DEDUP_DISTANCE_KM = 0.15;
+/** Max Google-only places to add per category (caps noise in dense cities) */
+const MAX_GOOGLE_ONLY_PER_CATEGORY = 8;
 
 // ── Name similarity ────────────────────────────────────────────────────────
 
@@ -257,6 +265,80 @@ function upgradeFoodConfidenceFromGoogle(place: Place): Place {
   };
 }
 
+// ── Google-only place builder ──────────────────────────────────────────────
+
+/**
+ * Convert a RawGooglePlace into a Place when no OSM match was found.
+ * Used to surface coworkings/cafes that exist in Google but not in OSM.
+ * Confidence signals are derived from rating + review count, not from
+ * OSM tags, so language stays honest (no "verified" claims).
+ */
+function googlePlaceToPlace(
+  g: RawGooglePlace,
+  category: "coworking" | "cafe" | "food",
+  cityLat: number,
+  cityLon: number
+): Place | null {
+  if (!g.location || !g.displayName?.text) return null;
+
+  const { latitude, longitude } = g.location;
+  const distanceKm = haversineKm(cityLat, cityLon, latitude, longitude);
+  const rating = g.rating;
+  const reviews = g.userRatingCount ?? 0;
+  const googleData = buildGoogleData(g);
+
+  // Build category-specific confidence signals from what Google tells us
+  let confidence: import("@/types").PlaceConfidence = {};
+  let bestFor: import("@/types").BestForTag[] = [];
+  let explanation = "Found via Google Places.";
+
+  if (category === "coworking") {
+    confidence = {
+      workFit: "high",
+      wifiConfidence: "medium",
+      noiseRisk: "unknown",
+      laptopFriendly: "likely",
+    };
+    bestFor = ["deep_work", "backup_work"];
+    explanation = "Coworking space — details from Google Places.";
+    if (rating && rating >= 4.5 && reviews >= 20) {
+      explanation += " Highly rated by visitors.";
+    }
+  } else if (category === "cafe") {
+    confidence = {
+      workFit: rating && rating >= 4.3 ? "medium" : "low",
+      wifiConfidence: "unknown",
+      noiseRisk: "unknown",
+    };
+    bestFor = rating && rating >= 4.3 ? ["backup_work", "short_session"] : ["coffee_break"];
+    explanation = "Café — details from Google Places.";
+  } else {
+    // food
+    confidence = {
+      convenience: "medium",
+      quickMealFit: g.takeout ? "high" : "medium",
+      routineSupport: rating && rating >= 4.0 && reviews >= 20 ? "high" : "medium",
+    };
+    bestFor = ["quick_meal", "routine_support"];
+    explanation = "Restaurant — details from Google Places.";
+  }
+
+  return {
+    id: `google_${g.id}`,
+    name: g.displayName.text,
+    category,
+    lat: latitude,
+    lon: longitude,
+    rating,
+    reviewCount: g.userRatingCount,
+    distanceKm,
+    confidence,
+    bestFor,
+    explanation,
+    google: googleData,
+  };
+}
+
 // ── Public API ─────────────────────────────────────────────────────────────
 
 /**
@@ -291,6 +373,9 @@ export async function enrichPlaces(
     );
 
     let matchCount = 0;
+    // Track which Google place IDs were consumed so we can detect unmatched ones
+    const matchedGoogleIds = new Set<string>();
+
     const enriched = places.map((place) => {
       if (
         place.category !== "cafe" &&
@@ -300,18 +385,21 @@ export async function enrichPlaces(
         return place;
       }
 
+      // Food places can be classified as either "restaurant" or "cafe" in Google,
+      // so we search both pools — common in beach towns / small villages.
       const pool =
         place.category === "cafe"
           ? googleCafes
           : place.category === "coworking"
           ? googleCoworks
-          : googleFood;
+          : [...googleFood, ...googleCafes];
 
       if (place.name.trim().length < MIN_OSM_NAME_LENGTH) return place;
       const matched = findMatch(place, pool);
       if (!matched) return place;
 
       matchCount++;
+      matchedGoogleIds.add(matched.id);
       const enrichedPlace: Place = {
         ...place,
         rating: matched.rating ?? place.rating,
@@ -325,8 +413,64 @@ export async function enrichPlaces(
       return upgradeConfidenceFromGoogle(enrichedPlace);
     });
 
-    console.log(`[enrichment] matched ${matchCount} of ${places.length} places`);
-    return enriched;
+    // ── Google-only discovery ──────────────────────────────────────────────
+    // Places that exist in Google but were never matched to an OSM place.
+    // Catches coworkings/cafes that OSM hasn't tagged yet (e.g. Waves & Wifi).
+    const googleOnlyPlaces: Place[] = [];
+
+    // Helper: true if any existing place (OSM or already-added Google-only) is
+    // within DEDUP_DISTANCE_KM — prevents double-listing the same physical place.
+    const isDuplicate = (lat: number, lon: number): boolean =>
+      enriched.some((p) => haversineKm(p.lat, p.lon, lat, lon) < DEDUP_DISTANCE_KM) ||
+      googleOnlyPlaces.some((p) => haversineKm(p.lat, p.lon, lat, lon) < DEDUP_DISTANCE_KM);
+
+    // Always add unmatched coworkings — coworking_space is heavily under-tagged in OSM
+    for (const g of googleCoworks) {
+      if (matchedGoogleIds.has(g.id) || !g.location) continue;
+      const { latitude, longitude } = g.location;
+      const dist = haversineKm(cityLat, cityLon, latitude, longitude);
+      if (dist > MAX_GOOGLE_ONLY_DISTANCE_KM) continue;
+      if (isDuplicate(latitude, longitude)) continue;
+      const p = googlePlaceToPlace(g, "coworking", cityLat, cityLon);
+      if (p) googleOnlyPlaces.push(p);
+    }
+
+    // Add unmatched cafes only if well-rated (avoids noisy low-quality results)
+    let cafeOnlyCount = 0;
+    for (const g of googleCafes) {
+      if (cafeOnlyCount >= MAX_GOOGLE_ONLY_PER_CATEGORY) break;
+      if (matchedGoogleIds.has(g.id) || !g.location) continue;
+      if ((g.userRatingCount ?? 0) < MIN_GOOGLE_ONLY_REVIEWS) continue;
+      if ((g.rating ?? 0) < 4.0) continue;
+      const { latitude, longitude } = g.location;
+      const dist = haversineKm(cityLat, cityLon, latitude, longitude);
+      if (dist > MAX_GOOGLE_ONLY_DISTANCE_KM) continue;
+      if (isDuplicate(latitude, longitude)) continue;
+      const p = googlePlaceToPlace(g, "cafe", cityLat, cityLon);
+      if (p) { googleOnlyPlaces.push(p); cafeOnlyCount++; }
+    }
+
+    // Add unmatched food places only if highly rated, sorted by rating desc
+    const sortedFood = [...googleFood].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+    let foodOnlyCount = 0;
+    for (const g of sortedFood) {
+      if (foodOnlyCount >= MAX_GOOGLE_ONLY_PER_CATEGORY) break;
+      if (matchedGoogleIds.has(g.id) || !g.location) continue;
+      if ((g.userRatingCount ?? 0) < MIN_GOOGLE_ONLY_REVIEWS) continue;
+      if ((g.rating ?? 0) < 4.2) continue;
+      const { latitude, longitude } = g.location;
+      const dist = haversineKm(cityLat, cityLon, latitude, longitude);
+      if (dist > MAX_GOOGLE_ONLY_DISTANCE_KM) continue;
+      if (isDuplicate(latitude, longitude)) continue;
+      const p = googlePlaceToPlace(g, "food", cityLat, cityLon);
+      if (p) { googleOnlyPlaces.push(p); foodOnlyCount++; }
+    }
+
+    console.log(
+      `[enrichment] matched ${matchCount}/${places.length} OSM places | ` +
+      `added ${googleOnlyPlaces.length} Google-only places`
+    );
+    return [...enriched, ...googleOnlyPlaces];
   } catch (err) {
     console.warn(
       "[enrichment] enrichPlaces failed — using OSM data only:",

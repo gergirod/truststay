@@ -279,6 +279,8 @@ export async function reverseGeocodeArea(
     address.suburb ??
     address.quarter ??
     address.city_district ??
+    address.village ??
+    address.town ??
     null
   );
 }
