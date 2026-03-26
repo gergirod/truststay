@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { track } from "@/lib/analytics";
 import type { City } from "@/types";
 
 type Status = "idle" | "loading" | "error";
@@ -37,6 +38,12 @@ export function CitySearch() {
       }
 
       const city: City = data.city;
+      track("city_search_submitted", {
+        city_slug: city.slug,
+        city_name: city.name,
+        country: city.country,
+      });
+
       const params = new URLSearchParams({
         lat: city.lat.toString(),
         lon: city.lon.toString(),

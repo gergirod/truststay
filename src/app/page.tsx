@@ -1,4 +1,5 @@
 import { CitySearch } from "@/components/CitySearch";
+import { AnalyticsEvent } from "@/components/AnalyticsEvent";
 
 const HOW_IT_WORKS = [
   {
@@ -200,6 +201,8 @@ export default function HomePage() {
           </div>
         </section>
       </main>
+
+      <AnalyticsEvent event="homepage_viewed" />
 
       {/* ── Footer ── white ────────────────────────────────── */}
       <footer className="border-t border-dune bg-white">

@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { track } from "@/lib/analytics";
+import { CHECKOUT_PENDING_KEY } from "@/components/CheckoutSuccessTracker";
 
 interface LockedCounts {
   workSpots: number;
@@ -12,10 +14,11 @@ interface LockedCounts {
 interface Props {
   citySlug: string;
   cityName: string;
+  country: string;
   lockedCounts: LockedCounts;
 }
 
-export function PaywallCard({ citySlug, cityName, lockedCounts }: Props) {
+export function PaywallCard({ citySlug, cityName, country, lockedCounts }: Props) {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -26,7 +29,28 @@ export function PaywallCard({ citySlug, cityName, lockedCounts }: Props) {
     lockedCounts.gyms +
     lockedCounts.foodSpots;
 
+  useEffect(() => {
+    track("paywall_viewed", {
+      city_slug: citySlug,
+      city_name: cityName,
+      country,
+      is_unlocked: false,
+      locked_work_spots: lockedCounts.workSpots,
+      locked_coworkings: lockedCounts.coworkings,
+      locked_gyms: lockedCounts.gyms,
+      locked_food_spots: lockedCounts.foodSpots,
+      total_locked: totalLocked,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function handleUnlock() {
+    track("unlock_clicked", {
+      city_slug: citySlug,
+      city_name: cityName,
+      country,
+    });
+
     setStatus("loading");
     setErrorMsg("");
 
@@ -39,6 +63,13 @@ export function PaywallCard({ citySlug, cityName, lockedCounts }: Props) {
       const data = await res.json();
 
       if (data.ok && data.checkoutUrl) {
+        track("checkout_started", {
+          city_slug: citySlug,
+          city_name: cityName,
+          country,
+        });
+        // Write handoff key so CheckoutSuccessTracker can detect the return
+        sessionStorage.setItem(CHECKOUT_PENDING_KEY, citySlug);
         window.location.href = data.checkoutUrl;
       } else {
         setStatus("error");

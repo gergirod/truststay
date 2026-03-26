@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AnalyticsEvent } from "@/components/AnalyticsEvent";
 
 type Props = {
   searchParams: Promise<{ slug?: string }>;
@@ -17,6 +18,10 @@ export default async function CheckoutCancelPage({ searchParams }: Props) {
         </div>
       </header>
 
+      <AnalyticsEvent
+        event="checkout_cancelled"
+        properties={{ city_slug: slug ?? null }}
+      />
       <main className="flex-1 flex items-center justify-center px-6">
         <div className="max-w-md text-center">
           <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">

@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
+import { track } from "@/lib/analytics";
 
 export default function CityPageError({
   error,
@@ -9,6 +11,19 @@ export default function CityPageError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    // Extract slug from /city/[slug] — error boundaries don't receive route params
+    const slug =
+      window.location.pathname.split("/city/")[1]?.split("?")[0] ?? "unknown";
+    track("city_data_failed", {
+      city_slug: slug,
+      error_type: error.message || "unhandled_error",
+      error_digest: error.digest,
+      source: "error_boundary",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="flex flex-col min-h-screen bg-stone-50">
       <header className="border-b border-stone-200 bg-white">

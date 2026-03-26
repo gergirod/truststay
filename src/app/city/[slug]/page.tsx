@@ -8,6 +8,8 @@ import { RoutineSummaryCard } from "@/components/RoutineSummaryCard";
 import { RecommendedAreaCard } from "@/components/RecommendedAreaCard";
 import { PlaceSection } from "@/components/PlaceSection";
 import { PaywallCard } from "@/components/PaywallCard";
+import { AnalyticsEvent } from "@/components/AnalyticsEvent";
+import { CheckoutSuccessTracker } from "@/components/CheckoutSuccessTracker";
 import type { City } from "@/types";
 
 // Free tier limits per product spec
@@ -92,6 +94,25 @@ export default async function CityPage({ params, searchParams }: Props) {
     <div className="flex flex-col min-h-screen">
       <Header />
 
+      {/* Fires as soon as the city page shell renders (before Suspense resolves) */}
+      <AnalyticsEvent
+        event="city_page_viewed"
+        properties={{
+          city_slug: city.slug,
+          city_name: city.name,
+          country: city.country,
+          is_unlocked: unlocked,
+        }}
+      />
+
+      {/* Fires once after a successful checkout, via sessionStorage handoff from PaywallCard */}
+      <CheckoutSuccessTracker
+        citySlug={city.slug}
+        cityName={city.name}
+        country={city.country}
+        isUnlocked={unlocked}
+      />
+
       <main className="flex-1 mx-auto w-full max-w-4xl px-6 py-16">
         {/* Hero — renders immediately from URL params */}
         <div className="max-w-2xl">
@@ -117,7 +138,9 @@ export default async function CityPage({ params, searchParams }: Props) {
   );
 }
 
-// Async server component — runs Overpass + scoring, streams into the page
+// Async server component — runs Overpass + scoring, streams into the page.
+// Wraps fetchPlaces in a try-catch so upstream failures show a graceful message
+// (and fire city_data_failed) instead of crashing to the error boundary.
 async function CityContent({
   city,
   isUnlocked,
@@ -125,7 +148,39 @@ async function CityContent({
   city: City;
   isUnlocked: boolean;
 }) {
-  const allPlaces = await fetchPlaces(city.lat, city.lon);
+  let allPlaces;
+  try {
+    allPlaces = await fetchPlaces(city.lat, city.lon);
+  } catch (err) {
+    const errorType =
+      err instanceof Error ? err.message : "upstream_fetch_failed";
+    return (
+      <div className="mt-10 space-y-4">
+        {/* fire city_data_failed for the graceful-failure path */}
+        <AnalyticsEvent
+          event="city_data_failed"
+          properties={{
+            city_slug: city.slug,
+            city_name: city.name,
+            country: city.country,
+            error_type: errorType,
+            source: "graceful_fallback",
+          }}
+        />
+        <div className="rounded-2xl border border-dune bg-white px-6 py-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
+            Data temporarily unavailable
+          </p>
+          <p className="mt-2 text-sm leading-6 text-umber">
+            We could not fetch place data for {city.name} right now. This is
+            usually a temporary issue with the upstream data service. Try
+            refreshing in a moment.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const summary = computeCitySummary(city, allPlaces);
 
   const workSpots = sortByDistance(
@@ -152,6 +207,19 @@ async function CityContent({
 
   return (
     <div className="mt-10 space-y-8">
+      {/* Fires when place data resolves successfully (after Suspense) */}
+      <AnalyticsEvent
+        event="city_data_loaded"
+        properties={{
+          city_slug: city.slug,
+          city_name: city.name,
+          country: city.country,
+          total_places: allPlaces.length,
+          routine_score: summary.routineScore,
+          is_unlocked: isUnlocked,
+        }}
+      />
+
       {/* Summary cards — always visible */}
       <div className="grid gap-4 sm:grid-cols-2">
         <RoutineSummaryCard summary={summary} />
@@ -199,6 +267,7 @@ async function CityContent({
         <PaywallCard
           citySlug={city.slug}
           cityName={city.name}
+          country={city.country}
           lockedCounts={lockedCounts}
         />
       )}
