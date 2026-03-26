@@ -103,52 +103,52 @@ export default function HomePage() {
       </header>
 
       <main className="flex-1">
-        {/* ── Hero ── sand surface, white inner card ──────────── */}
-        <section className="border-b border-dune bg-sand">
-          <div className="mx-auto max-w-4xl px-6 py-8 sm:py-14">
-            <div className="rounded-3xl border border-dune bg-white shadow-sm overflow-hidden">
-              <div className="grid lg:grid-cols-[1fr_360px]">
+        {/* ── Hero ── map fills everything, glass card floats on top ─ */}
+        <section className="relative border-b border-dune bg-sand overflow-hidden" style={{ minHeight: "600px" }}>
 
-                {/* Left — content ───────────────────────────── */}
-                <div className="px-8 py-10 sm:px-12 sm:py-14">
-                  {/* Eyebrow */}
-                  <div className="inline-flex items-center gap-2 rounded-full border border-dune bg-cream px-3 py-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-teal" />
-                    <span className="text-xs font-medium text-umber">
-                      Built for remote workers on the move
-                    </span>
-                  </div>
+          {/* Full-bleed map background — single instance, all screen sizes */}
+          <div className="absolute inset-0 z-0">
+            <HeroMap />
+          </div>
 
-                  <h1 className="mt-6 text-4xl font-bold leading-[1.1] tracking-tight text-bark sm:text-5xl lg:text-[52px]">
-                    Land in a new city.
-                    <br />
-                    Keep your routine{" "}
-                    <span className="text-coral">from day one.</span>
-                  </h1>
+          {/* Glass content card — floats above map */}
+          <div className="relative z-10 mx-auto max-w-4xl px-6 py-10 sm:py-16 flex items-center min-h-[600px]">
+            <div className="w-full max-w-[540px] rounded-3xl border border-white/40 bg-white/88 shadow-2xl overflow-hidden backdrop-blur-xl">
+              <div className="px-8 py-10 sm:px-12 sm:py-14">
 
-                  <p className="mt-5 max-w-md text-base leading-7 text-umber">
-                    Find a base area, places to work, nearby coffee and meal
-                    spots, and wellbeing options that fit your day — without
-                    wasting your first days figuring it all out.
-                  </p>
-
-                  <div className="mt-8">
-                    <CitySearch />
-                  </div>
-
-                  <p className="mt-5 text-xs text-umber">
-                    Free preview · No account required
-                  </p>
+                {/* Eyebrow */}
+                <div className="inline-flex items-center gap-2 rounded-full border border-dune bg-white/70 px-3 py-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-teal" />
+                  <span className="text-xs font-medium text-umber">
+                    Built for remote workers on the move
+                  </span>
                 </div>
 
-                {/* Map — bottom strip on mobile, right column on desktop */}
-                <div className="h-56 border-t border-dune lg:h-auto lg:border-t-0 lg:border-l overflow-hidden">
-                  <HeroMap />
+                <h1 className="mt-6 text-4xl font-bold leading-[1.1] tracking-tight text-bark sm:text-5xl lg:text-[52px]">
+                  Land in a new city.
+                  <br />
+                  Keep your routine{" "}
+                  <span className="text-coral">from day one.</span>
+                </h1>
+
+                <p className="mt-5 max-w-md text-base leading-7 text-umber">
+                  Find a base area, places to work, nearby coffee and meal
+                  spots, and wellbeing options that fit your day — without
+                  wasting your first days figuring it all out.
+                </p>
+
+                <div className="mt-8">
+                  <CitySearch />
                 </div>
+
+                <p className="mt-5 text-xs text-umber">
+                  Free preview · No account required
+                </p>
 
               </div>
             </div>
           </div>
+
         </section>
 
         {/* ── How it works ── white ───────────────────────────── */}

@@ -38,6 +38,8 @@ export function HeroMap() {
     async function init() {
       const mapboxgl = (await import("mapbox-gl")).default;
       if (cancelled || !containerRef.current) return;
+      // Skip if container is hidden (display:none gives 0 width)
+      if (containerRef.current.getBoundingClientRect().width === 0) return;
 
       mapboxgl.accessToken = token!;
 
@@ -49,6 +51,12 @@ export function HeroMap() {
         interactive: false,   // hero preview — no pan / zoom
         attributionControl: false,
       });
+
+      // Attribution required by Mapbox ToS — compact, bottom-right
+      map.addControl(
+        new mapboxgl.AttributionControl({ compact: true }),
+        "bottom-right"
+      );
 
       map.on("load", () => {
         if (!map) return;

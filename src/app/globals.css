@@ -29,6 +29,15 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
+/* ── Mapbox attribution — keep compact and subtle ───────────────────────── */
+.mapboxgl-ctrl-attrib {
+  font-size: 9px !important;
+  opacity: 0.6;
+}
+.mapboxgl-ctrl-attrib:hover {
+  opacity: 1;
+}
+
 /* ── Mapbox popup overrides — match Truststay card style ────────────────── */
 .ts-popup .mapboxgl-popup-content {
   padding: 8px 12px;
