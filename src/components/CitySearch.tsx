@@ -55,7 +55,7 @@ export function CitySearch() {
 
   return (
     <div className="w-full max-w-lg">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-2 sm:flex-row">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2.5 sm:flex-row">
         <input
           type="text"
           value={query}
@@ -65,14 +65,14 @@ export function CitySearch() {
           }}
           placeholder="e.g. Lisbon, Medellín, Chiang Mai"
           disabled={isLoading}
-          className="flex-1 rounded-lg border border-stone-200 bg-white px-4 py-3 text-base text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-300 disabled:opacity-60"
+          className="flex-1 rounded-xl border border-stone-300 bg-white px-4 py-3 text-base text-stone-900 shadow-sm placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-400 disabled:opacity-60"
           autoComplete="off"
           spellCheck={false}
         />
         <button
           type="submit"
           disabled={!query.trim() || isLoading}
-          className="rounded-lg bg-stone-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[110px]"
+          className="w-full rounded-xl bg-stone-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:min-w-[110px]"
         >
           {isLoading ? "Searching…" : "Find setup"}
         </button>

@@ -60,15 +60,15 @@ export default async function CityPage({ params, searchParams }: Props) {
         <Header />
         <main className="flex-1 mx-auto w-full max-w-4xl px-6 py-20">
           <div className="max-w-xl">
-            <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
               Not found
             </p>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight text-stone-900">
               City not found
             </h1>
-            <p className="mt-4 text-base leading-relaxed text-stone-500">
+            <p className="mt-4 text-base leading-7 text-stone-600">
               We could not find a city matching{" "}
-              <span className="font-medium text-stone-700">
+              <span className="font-medium text-stone-900">
                 &ldquo;{slug.replace(/-/g, " ")}&rdquo;
               </span>
               . Try searching again with a different spelling.
@@ -76,7 +76,7 @@ export default async function CityPage({ params, searchParams }: Props) {
             <div className="mt-8">
               <Link
                 href="/"
-                className="inline-block rounded-lg bg-stone-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-stone-700"
+                className="inline-block rounded-xl bg-stone-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-stone-800"
               >
                 Search again
               </Link>
@@ -95,14 +95,14 @@ export default async function CityPage({ params, searchParams }: Props) {
       <main className="flex-1 mx-auto w-full max-w-4xl px-6 py-16">
         {/* Hero — renders immediately from URL params */}
         <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
             City setup
           </p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
+          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl">
             {city.name}
           </h1>
           {city.country && (
-            <p className="mt-1 text-base text-stone-400">{city.country}</p>
+            <p className="mt-1.5 text-base text-stone-500">{city.country}</p>
           )}
         </div>
 
@@ -213,16 +213,16 @@ function PlacesSkeleton() {
     <div className="mt-10 space-y-8 animate-pulse">
       {/* Summary cards */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="h-28 rounded-xl bg-stone-100" />
-        <div className="h-28 rounded-xl bg-stone-100" />
+        <div className="h-28 rounded-2xl bg-stone-200" />
+        <div className="h-28 rounded-2xl bg-stone-200" />
       </div>
 
       {/* Place sections */}
       {[...Array(4)].map((_, i) => (
         <div key={i} className="space-y-3">
-          <div className="h-4 w-28 rounded bg-stone-100" />
-          <div className="h-20 rounded-lg bg-stone-100" />
-          <div className="h-20 rounded-lg bg-stone-100" />
+          <div className="h-4 w-28 rounded bg-stone-200" />
+          <div className="h-20 rounded-2xl bg-stone-200" />
+          <div className="h-20 rounded-2xl bg-stone-200" />
         </div>
       ))}
     </div>
@@ -231,11 +231,11 @@ function PlacesSkeleton() {
 
 function MethodologyNote() {
   return (
-    <div className="rounded-xl border border-stone-100 bg-stone-50 px-6 py-5">
-      <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">
+    <div className="rounded-2xl border border-stone-200 bg-white px-6 py-5">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
         About this data
       </p>
-      <p className="mt-2 text-xs leading-relaxed text-stone-500">
+      <p className="mt-2 text-sm leading-6 text-stone-500">
         Place data is sourced from OpenStreetMap via Overpass API. Confidence
         signals are derived from venue category, proximity, and available tags —
         not from direct verification. Wi-Fi, noise, and work comfort ratings
@@ -248,15 +248,15 @@ function MethodologyNote() {
 
 function Header() {
   return (
-    <header className="border-b border-stone-200 bg-white">
+    <header className="border-b border-stone-200 bg-stone-50">
       <div className="mx-auto max-w-4xl px-6 py-4 flex items-center gap-3">
         <Link
           href="/"
-          className="text-sm text-stone-400 hover:text-stone-600 transition-colors"
+          className="text-sm text-stone-500 hover:text-stone-700 transition-colors"
         >
           ← Back
         </Link>
-        <span className="text-stone-200">|</span>
+        <div className="h-4 w-px bg-stone-200" />
         <span className="text-base font-semibold tracking-tight text-stone-900">
           Trustay
         </span>
@@ -269,7 +269,9 @@ function Footer() {
   return (
     <footer className="border-t border-stone-200 bg-white">
       <div className="mx-auto max-w-4xl px-6 py-8">
-        <p className="text-xs text-stone-400">Trustay</p>
+        <p className="text-sm text-stone-500">
+          Trustay — built for remote workers who need to get functional fast.
+        </p>
       </div>
     </footer>
   );

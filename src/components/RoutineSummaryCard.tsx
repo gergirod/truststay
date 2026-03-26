@@ -11,29 +11,33 @@ const confidenceNote: Record<CitySummary["confidence"], string> = {
 };
 
 const confidenceColor: Record<CitySummary["confidence"], string> = {
-  low: "text-amber-600",
+  low: "text-stone-500",
   medium: "text-stone-400",
   high: "text-stone-400",
 };
 
 export function RoutineSummaryCard({ summary }: Props) {
   return (
-    <div className="rounded-xl border border-stone-200 bg-white p-6">
-      <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">
-        Routine score
-      </p>
-      <div className="mt-4 flex items-baseline gap-2">
-        <span className="text-4xl font-bold tracking-tight text-stone-900">
-          {summary.routineScore}
-        </span>
-        <span className="text-base text-stone-300">/ 100</span>
+    <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
+      {/* Top accent bar — marks this as the primary metric card */}
+      <div className="h-[3px] bg-stone-900" />
+      <div className="p-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
+          Routine score
+        </p>
+        <div className="mt-4 flex items-baseline gap-2">
+          <span className="text-4xl font-bold tracking-tight text-stone-900">
+            {summary.routineScore}
+          </span>
+          <span className="text-base text-stone-400">/ 100</span>
+        </div>
+        <p className="mt-3 text-sm leading-6 text-stone-600">
+          {summary.summaryText}
+        </p>
+        <p className={`mt-3 text-xs leading-5 ${confidenceColor[summary.confidence]}`}>
+          {confidenceNote[summary.confidence]}
+        </p>
       </div>
-      <p className="mt-3 text-sm leading-relaxed text-stone-600">
-        {summary.summaryText}
-      </p>
-      <p className={`mt-3 text-xs ${confidenceColor[summary.confidence]}`}>
-        {confidenceNote[summary.confidence]}
-      </p>
     </div>
   );
 }
