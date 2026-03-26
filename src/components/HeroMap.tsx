@@ -10,18 +10,29 @@ import {
 } from "@/lib/mapMarkers";
 
 // ── Hardcoded Lisbon demo data ─────────────────────────────────────────────
-// Coordinates around Bairro Alto / Príncipe Real — the real work cluster.
+// Dense cluster around Bairro Alto / Príncipe Real / Chiado.
 
-const DEMO_BASE = { lat: 38.7115, lon: -9.1433 };
+const DEMO_BASE = { lat: 38.7125, lon: -9.1440 };
 
 const DEMO_PINS: { lat: number; lon: number; category: string }[] = [
-  { lat: 38.7161, lon: -9.1503, category: "work" },      // Príncipe Real
-  { lat: 38.7107, lon: -9.1391, category: "work" },      // Chiado
-  { lat: 38.7157, lon: -9.1400, category: "coffee" },    // Chiado area
-  { lat: 38.7199, lon: -9.1354, category: "coffee" },    // Intendente
-  { lat: 38.7139, lon: -9.1543, category: "wellbeing" }, // Rato
-  { lat: 38.7073, lon: -9.1516, category: "locked" },    // Santos
-  { lat: 38.7177, lon: -9.1333, category: "locked" },    // Mouraria
+  // Work spots (teal laptop)
+  { lat: 38.7161, lon: -9.1503, category: "work" },   // Príncipe Real
+  { lat: 38.7107, lon: -9.1391, category: "work" },   // Chiado
+  { lat: 38.7142, lon: -9.1468, category: "work" },   // Bairro Alto
+  { lat: 38.7085, lon: -9.1425, category: "work" },   // Cais do Sodré
+  // Coffee & meals (terracotta cup)
+  { lat: 38.7157, lon: -9.1410, category: "coffee" }, // Chiado area
+  { lat: 38.7098, lon: -9.1355, category: "coffee" }, // Baixa
+  { lat: 38.7178, lon: -9.1470, category: "coffee" }, // Príncipe Real
+  { lat: 38.7065, lon: -9.1470, category: "coffee" }, // Cais do Sodré
+  // Wellbeing (amber figure)
+  { lat: 38.7148, lon: -9.1533, category: "wellbeing" }, // Rato
+  { lat: 38.7090, lon: -9.1500, category: "wellbeing" }, // Santos
+  // Locked grey dots
+  { lat: 38.7120, lon: -9.1360, category: "locked" },
+  { lat: 38.7050, lon: -9.1410, category: "locked" },
+  { lat: 38.7188, lon: -9.1390, category: "locked" },
+  { lat: 38.7132, lon: -9.1560, category: "locked" },
 ];
 
 export function HeroMap() {
@@ -47,7 +58,7 @@ export function HeroMap() {
         container: containerRef.current,
         style: "mapbox://styles/mapbox/light-v11",
         center: [DEMO_BASE.lon, DEMO_BASE.lat],
-        zoom: 13.2,
+        zoom: 14.2,           // tight zoom — pins fill the frame
         interactive: false,   // hero preview — no pan / zoom
         attributionControl: false,
       });
@@ -83,11 +94,7 @@ export function HeroMap() {
             .addTo(map);
         }
 
-        // Fit to show all pins
-        const bounds = new mapboxgl.LngLatBounds();
-        bounds.extend([DEMO_BASE.lon, DEMO_BASE.lat]);
-        DEMO_PINS.forEach((p) => bounds.extend([p.lon, p.lat]));
-        map.fitBounds(bounds, { padding: 48, maxZoom: 14, duration: 0 });
+        // Fixed center + zoom — more predictable than fitBounds for a hero
       });
     }
 

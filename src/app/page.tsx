@@ -113,7 +113,7 @@ export default function HomePage() {
 
           {/* Glass content card — floats above map */}
           <div className="relative z-10 mx-auto max-w-4xl px-6 py-10 sm:py-16 flex items-center min-h-[600px]">
-            <div className="w-full max-w-[540px] rounded-3xl border border-white/40 bg-white/88 shadow-2xl overflow-hidden backdrop-blur-xl">
+            <div className="w-full max-w-[540px] rounded-3xl border border-white/30 bg-white/70 shadow-2xl overflow-hidden backdrop-blur-md">
               <div className="px-8 py-10 sm:px-12 sm:py-14">
 
                 {/* Eyebrow */}
