@@ -194,8 +194,37 @@ async function resolveCity(
     return { name, slug, country, lat, lon, bbox, parentCity };
   }
 
-  const query = slug.replace(/-/g, " ");
-  return geocodeCity(query);
+  // Geocode hints for slugs that are ambiguous or need country context to
+  // avoid Nominatim picking a high-importance place in the wrong country
+  // (e.g. "minca" → München without a hint).
+  const GEOCODE_HINTS: Record<string, string> = {
+    "minca":             "Minca Magdalena Colombia",
+    "banos":             "Baños Tungurahua Ecuador",
+    "el-zonte":          "El Zonte La Libertad El Salvador",
+    "el-tunco":          "El Tunco La Libertad El Salvador",
+    "olon":              "Olón Santa Elena Ecuador",
+    "mancora":           "Máncora Piura Peru",
+    "itacare":           "Itacaré Bahia Brazil",
+    "jericoacoara":      "Jericoacoara Ceará Brazil",
+    "puerto-viejo":      "Puerto Viejo de Talamanca Limón Costa Rica",
+    "boquete":           "Boquete Chiriquí Panama",
+    "antigua-guatemala": "Antigua Guatemala Sacatepéquez",
+    "popoyo":            "Popoyo Rivas Nicaragua",
+    "nosara":            "Nosara Guanacaste Costa Rica",
+    "montanita":         "Montañita Santa Elena Ecuador",
+    "sayulita":          "Sayulita Nayarit Mexico",
+    "santa-teresa":      "Santa Teresa Puntarenas Costa Rica",
+    "bocas-del-toro":    "Bocas del Toro Panama",
+    "tamarindo":         "Tamarindo Guanacaste Costa Rica",
+    "san-juan-del-sur":  "San Juan del Sur Rivas Nicaragua",
+    "puerto-escondido":  "Puerto Escondido Oaxaca Mexico",
+    "florianopolis":     "Florianópolis Santa Catarina Brazil",
+  };
+
+  const query = GEOCODE_HINTS[slug] ?? slug.replace(/-/g, " ");
+  const city = await geocodeCity(query);
+  // Preserve the canonical URL slug regardless of what Nominatim derives
+  return city ? { ...city, slug } : null;
 }
 
 export default async function CityPage({ params, searchParams }: Props) {
