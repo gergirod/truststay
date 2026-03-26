@@ -1,4 +1,5 @@
 import type { Place, CitySummary } from "@/types";
+import { haversineKm } from "./overpass";
 
 /**
  * Compute the centroid of all cafes and coworkings in the place list.
@@ -9,6 +10,56 @@ import type { Place, CitySummary } from "@/types";
  * Returns null if fewer than 3 work places exist (caller falls back to
  * city centre or omits the distance field).
  */
+/** Max distance from the weighted centroid for a place to count in pass 2. */
+const CENTROID_OUTLIER_KM = 2.5;
+
+/**
+ * Work-potential weight for centroid calculation.
+ *
+ * The base area should be wherever the best remote-work options are,
+ * not just wherever most places cluster. This weight reflects that:
+ *
+ *   category base:
+ *     coworking        → 10  (strongest signal for remote workers)
+ *     work-fit cafe    → 5   (cafe with clear work signals)
+ *     enriched cafe    → 3   (has Google data, usable but unclear work fit)
+ *     OSM-only cafe    → 1   (minimal signal)
+ *
+ *   workFit bonus:     high +4 / medium +2 / low 0
+ *   wifi bonus:        verified +3 / medium +1
+ *   rating multiplier: scales the full score by 1.0–2.0 based on Google rating
+ *                      no rating → neutral 1.0
+ */
+function centroidWeight(p: Place): number {
+  // Base by category + work signals
+  let base: number;
+  if (p.category === "coworking") {
+    base = 10;
+  } else if (p.confidence.workFit === "high") {
+    base = 5;
+  } else if (p.google) {
+    base = 3;
+  } else {
+    base = 1;
+  }
+
+  // workFit bonus
+  const workFitBonus =
+    p.confidence.workFit === "high" ? 4 :
+    p.confidence.workFit === "medium" ? 2 : 0;
+
+  // wifi bonus
+  const wifiBonus =
+    p.confidence.wifiConfidence === "verified" ? 3 :
+    p.confidence.wifiConfidence === "medium" ? 1 : 0;
+
+  // rating multiplier (1.0 if no rating, up to 2.0 for ★5)
+  const rating = p.google?.rating ?? p.rating;
+  const ratingMult = rating ? Math.min(Math.max(rating / 5 * 2, 1.0), 2.0) : 1.0;
+
+  return (base + workFitBonus + wifiBonus) * ratingMult;
+}
+
 export function computeBaseCentroid(
   places: Place[]
 ): { lat: number; lon: number } | null {
@@ -17,8 +68,21 @@ export function computeBaseCentroid(
   );
   if (workPlaces.length < 3) return null;
 
-  const lat = workPlaces.reduce((s, p) => s + p.lat, 0) / workPlaces.length;
-  const lon = workPlaces.reduce((s, p) => s + p.lon, 0) / workPlaces.length;
+  // Pass 1: weighted centroid — coworkings + enriched cafes pull harder
+  const totalWeight1 = workPlaces.reduce((s, p) => s + centroidWeight(p), 0);
+  const roughLat = workPlaces.reduce((s, p) => s + p.lat * centroidWeight(p), 0) / totalWeight1;
+  const roughLon = workPlaces.reduce((s, p) => s + p.lon * centroidWeight(p), 0) / totalWeight1;
+
+  // Pass 2: drop outliers > CENTROID_OUTLIER_KM from the weighted centroid
+  const cluster = workPlaces.filter(
+    (p) => haversineKm(roughLat, roughLon, p.lat, p.lon) <= CENTROID_OUTLIER_KM
+  );
+  const finalPlaces = cluster.length >= 2 ? cluster : workPlaces;
+
+  // Final weighted average using only the cluster
+  const totalWeight2 = finalPlaces.reduce((s, p) => s + centroidWeight(p), 0);
+  const lat = finalPlaces.reduce((s, p) => s + p.lat * centroidWeight(p), 0) / totalWeight2;
+  const lon = finalPlaces.reduce((s, p) => s + p.lon * centroidWeight(p), 0) / totalWeight2;
   return { lat, lon };
 }
 

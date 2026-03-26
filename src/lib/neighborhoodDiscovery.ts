@@ -43,6 +43,14 @@ const BBOX_HALF_DEG = 0.018;
  */
 const MIN_CITY_SPREAD_KM = 3.5;
 
+/**
+ * Maximum distance from city center for a discovered neighborhood to be
+ * considered part of that city. Prevents pulling in neighborhoods from
+ * neighboring towns when the Overpass query radius overlaps them.
+ * Example: San Marcos La Laguna → "Minerva" is from Quetzaltenango 10km away.
+ */
+const MAX_NEIGHBORHOOD_DISTANCE_KM = 5.0;
+
 const OVERPASS_ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
@@ -223,9 +231,26 @@ export async function discoverNeighborhoods(
       return true;
     });
 
+    // ── Distance filter ──────────────────────────────────────────────────────
+    // Discard neighborhoods that are too far from the city center — they
+    // belong to a neighboring town, not to this city.
+    const nearby = deduped.filter((n) => {
+      const d = haversineKm(city.lat, city.lon, n.lat, n.lon);
+      if (d > MAX_NEIGHBORHOOD_DISTANCE_KM) {
+        console.log(
+          `[neighborhoodDiscovery] skipping "${n.name}" — ${d.toFixed(1)}km from ${city.name} center (limit ${MAX_NEIGHBORHOOD_DISTANCE_KM}km)`
+        );
+        return false;
+      }
+      return true;
+    });
+
+    // Need at least 3 neighborhoods nearby to justify showing a grid
+    if (nearby.length < 3) return [];
+
     // Sort by density score, take top N
-    deduped.sort((a, b) => b.score - a.score);
-    const top = deduped.slice(0, MAX_RESULTS);
+    nearby.sort((a, b) => b.score - a.score);
+    const top = nearby.slice(0, MAX_RESULTS);
 
     // ── Compact city check ───────────────────────────────────────────────────
     // If all neighborhoods are tightly clustered, the city is too small to

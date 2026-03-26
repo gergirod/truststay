@@ -15,34 +15,51 @@ export function toSlug(name: string): string {
     .replace(/\s+/g, "-");
 }
 
-export async function geocodeCity(query: string): Promise<City | null> {
+/**
+ * Strip Spanish linking prepositions from a place name so Nominatim can find it.
+ * "San Marcos de la Laguna" → "San Marcos la Laguna"
+ * "Bahía de Banderas"       → "Bahía Banderas"
+ * Leaves names like "Playa del Carmen" unchanged (common known place).
+ */
+function normalizeQuery(q: string): string {
+  return q
+    .replace(/\bde\s+la\s+/gi, "la ")
+    .replace(/\bde\s+los\s+/gi, "los ")
+    .replace(/\bde\s+las\s+/gi, "las ")
+    .replace(/\bdel\s+/gi, "")
+    .trim();
+}
+
+async function fetchNominatimResults(q: string): Promise<NominatimResult[]> {
   const url = new URL(`${NOMINATIM_BASE}/search`);
-  url.searchParams.set("q", query);
+  url.searchParams.set("q", q);
   url.searchParams.set("format", "json");
-  url.searchParams.set("limit", "5"); // Fetch multiple; pickBestResult selects the most useful
+  url.searchParams.set("limit", "5");
   url.searchParams.set("addressdetails", "1");
 
-  let res: Response;
   try {
-    res = await fetch(url.toString(), {
-      headers: {
-        "User-Agent": USER_AGENT,
-        Accept: "application/json",
-      },
-      // Cache on the server for 1 hour — also reduces Nominatim load
+    const res = await fetch(url.toString(), {
+      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
       next: { revalidate: 3600 },
     });
+    if (!res.ok) return [];
+    return await res.json();
   } catch {
-    return null;
+    return [];
   }
+}
 
-  if (!res.ok) return null;
+export async function geocodeCity(query: string): Promise<City | null> {
+  // Try the query as-is first
+  let results = await fetchNominatimResults(query);
 
-  let results: NominatimResult[];
-  try {
-    results = await res.json();
-  } catch {
-    return null;
+  // If empty or top result looks wrong (very low importance < 0.2, likely
+  // a hamlet/minor place in the wrong country), retry with normalized query.
+  const topImportance = results[0]?.importance ?? 0;
+  const normalized = normalizeQuery(query);
+  if ((results.length === 0 || topImportance < 0.2) && normalized !== query) {
+    const retryResults = await fetchNominatimResults(normalized);
+    if (retryResults.length > 0) results = retryResults;
   }
 
   if (!results.length) return null;

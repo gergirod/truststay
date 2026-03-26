@@ -48,35 +48,47 @@ interface NominatimSearchResult {
   };
 }
 
+function normalizeAutocompleteQuery(q: string): string {
+  return q
+    .replace(/\bde\s+la\s+/gi, "la ")
+    .replace(/\bde\s+los\s+/gi, "los ")
+    .replace(/\bde\s+las\s+/gi, "las ")
+    .replace(/\bdel\s+/gi, "")
+    .trim();
+}
+
+async function searchNominatim(q: string): Promise<NominatimSearchResult[]> {
+  const url = new URL(`${NOMINATIM_BASE}/search`);
+  url.searchParams.set("q", q);
+  url.searchParams.set("format", "json");
+  url.searchParams.set("limit", "6");
+  url.searchParams.set("addressdetails", "1");
+  try {
+    const res = await fetch(url.toString(), {
+      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+      next: { revalidate: 300 },
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q")?.trim();
   if (!q || q.length < 2) {
     return NextResponse.json({ suggestions: [] });
   }
 
-  const url = new URL(`${NOMINATIM_BASE}/search`);
-  url.searchParams.set("q", q);
-  url.searchParams.set("format", "json");
-  url.searchParams.set("limit", "6");
-  url.searchParams.set("addressdetails", "1");
-
-  let res: Response;
-  try {
-    res = await fetch(url.toString(), {
-      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
-      next: { revalidate: 300 },
-    });
-  } catch {
-    return NextResponse.json({ suggestions: [] });
-  }
-
-  if (!res.ok) return NextResponse.json({ suggestions: [] });
-
-  let results: NominatimSearchResult[];
-  try {
-    results = await res.json();
-  } catch {
-    return NextResponse.json({ suggestions: [] });
+  // Try original query; if no useful results, retry with normalized query
+  // (strips Spanish prepositions like "de la", "del" that confuse Nominatim)
+  let results = await searchNominatim(q);
+  const topImportance = (results[0] as { importance?: number })?.importance ?? 0;
+  const normalized = normalizeAutocompleteQuery(q);
+  if ((results.length === 0 || topImportance < 0.2) && normalized !== q) {
+    const retry = await searchNominatim(normalized);
+    if (retry.length > 0) results = retry;
   }
 
   const suggestions: AutocompleteSuggestion[] = [];

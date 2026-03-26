@@ -6,7 +6,8 @@ import type { CityNeighborhoodConfig, NeighborhoodEntry } from "@/data/neighborh
 
 interface Props {
   config: CityNeighborhoodConfig;
-  bundlePrice: string;
+  /** If undefined, the bundle CTA is hidden (e.g. auto-discovered, non-curated cities) */
+  bundlePrice?: string;
 }
 
 function directionLabel(dir: NeighborhoodEntry["directionFromCenter"]): string {
@@ -150,12 +151,14 @@ export default function CityNeighborhoodGrid({ config, bundlePrice }: Props) {
         ))}
       </div>
 
-      {/* Bundle CTA */}
-      <BundleButton
-        citySlug={config.citySlug}
-        cityName={config.cityName}
-        bundlePrice={bundlePrice}
-      />
+      {/* Bundle CTA — only shown for curated cities (bundlePrice is passed only then) */}
+      {bundlePrice && (
+        <BundleButton
+          citySlug={config.citySlug}
+          cityName={config.cityName}
+          bundlePrice={bundlePrice}
+        />
+      )}
     </div>
   );
 }
