@@ -47,7 +47,7 @@ export async function geocodeCity(query: string): Promise<City | null> {
 
   if (!results.length) return null;
 
-  const result = pickBestResult(results)!;
+  const result = pickBestResult(results, query)!;
   const address = result.address ?? {};
   const country = address.country ?? "";
   const lat = parseFloat(result.lat);
@@ -77,13 +77,15 @@ export async function geocodeCity(query: string): Promise<City | null> {
           address.city_district ??
           result.display_name.split(",")[0].trim());
 
-    const parentCity =
-      address.city ??
-      address.town ??
-      address.village ??
-      address.municipality ??
-      // For natural features, the county/state provides useful location context
-      (isNaturalFeature ? (address.county ?? undefined) : undefined);
+    const parentCity = isNaturalFeature
+      // For lakes/islands, skip city/town/village — a nearby village is not a
+      // meaningful "parent" for a lake. Use state/county for location context only.
+      ? (address.state ?? address.county ?? undefined)
+      : (address.city ??
+          address.town ??
+          address.village ??
+          address.municipality ??
+          undefined);
 
     // Nominatim boundingbox: [minlat, maxlat, minlon, maxlon]
     // Convert to Overpass order: [south, west, north, east]
@@ -174,6 +176,7 @@ interface NominatimResult {
     lake?: string;
     island?: string;
     water?: string;
+    state?: string;
   };
 }
 
@@ -188,7 +191,13 @@ interface NominatimResult {
  *   4. any remaining place class result
  *   5. fallback to first result
  */
-function pickBestResult(results: NominatimResult[]): NominatimResult | null {
+/** Keywords that signal the user is looking for a natural feature, not a city. */
+const NATURAL_KEYWORDS = /\b(lago|lake|laguna|río|rio|river|island|isla|mar|sea|gulf|bay|bahia)\b/i;
+
+function pickBestResult(
+  results: NominatimResult[],
+  query?: string
+): NominatimResult | null {
   if (!results.length) return null;
 
   const isSettlement = (r: NominatimResult) =>
@@ -203,6 +212,19 @@ function pickBestResult(results: NominatimResult[]): NominatimResult | null {
     NATURAL_TYPES.has(r.type ?? "");
 
   const isAnyPlace = (r: NominatimResult) => r.class === "place";
+
+  // If the query contains natural-feature keywords (e.g. "Lago Atitlan"),
+  // prioritise matching natural results over settlements to avoid picking up
+  // unrelated towns whose display_name happens to include the query string.
+  if (query && NATURAL_KEYWORDS.test(query)) {
+    return (
+      results.find(isNatural) ??
+      results.find(isSettlement) ??
+      results.find(isAdminBoundary) ??
+      results.find(isAnyPlace) ??
+      results[0]
+    );
+  }
 
   return (
     results.find(isSettlement) ??

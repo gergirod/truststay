@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { geocodeCity } from "@/lib/geocode";
+import { geocodeCity, toSlug } from "@/lib/geocode";
 import { discoverNeighborhoods } from "@/lib/neighborhoodDiscovery";
 import { fetchPlaces, haversineKm } from "@/lib/overpass";
 import { enrichPlaces } from "@/lib/enrichment";
+import { CURATED_NEIGHBORHOODS } from "@/data/neighborhoods";
 import type { NeighborhoodEntry } from "@/data/neighborhoods";
 
 function checkSecret(req: NextRequest): boolean {
@@ -64,9 +65,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "City not found" }, { status: 404 });
   }
 
-  // 2. Auto-discover neighborhoods + fetch enriched places in parallel
+  // 2. Check if already curated — use curated data as base, still enrich with quality signals
+  const citySlug = toSlug(city.name);
+  const existingCurated = CURATED_NEIGHBORHOODS[citySlug];
+  const source: "curated" | "auto-discovered" = existingCurated
+    ? "curated"
+    : "auto-discovered";
+
+  // 3. Discover or use curated neighborhoods + fetch enriched places in parallel
   const [neighborhoods, rawPlaces] = await Promise.all([
-    discoverNeighborhoods(city),
+    existingCurated
+      ? Promise.resolve(existingCurated.neighborhoods)
+      : discoverNeighborhoods(city),
     fetchPlaces(city).catch(() => []),
   ]);
 
@@ -94,11 +104,12 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     city: {
       name: city.name,
-      slug: city.slug,
+      slug: citySlug,
       country: city.country,
       lat: city.lat,
       lon: city.lon,
     },
+    source,
     placeCounts,
     neighborhoods: neighborhoodsWithQuality,
   });

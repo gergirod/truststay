@@ -590,7 +590,11 @@ async function CityContent({
           parentCity={city.parentCity}
           parentCitySlug={city.parentCity ? toSlug(city.parentCity) : undefined}
           bundlePrice={
-            city.parentCity
+            // Only show the bundle CTA when the parent is a curated city
+            // (i.e. a real city with multiple neighborhoods to unlock).
+            // Avoids nonsensical CTAs like "Unlock all San Pedro La Laguna — $15"
+            // for lakes/natural features whose OSM parent is a tiny village.
+            city.parentCity && CURATED_NEIGHBORHOODS[toSlug(city.parentCity)]
               ? (process.env.NEXT_PUBLIC_CITY_BUNDLE_PRICE ?? "15")
               : undefined
           }

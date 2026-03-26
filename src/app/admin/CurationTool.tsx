@@ -1,7 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { NeighborhoodEntry } from "@/data/neighborhoods";
+import { CURATED_NEIGHBORHOODS } from "@/data/neighborhoods";
+
+const CURATED_CITY_NAMES = Object.values(CURATED_NEIGHBORHOODS).map(
+  (c) => c.cityName
+);
 
 interface DiscoverResult {
   city: {
@@ -11,12 +16,14 @@ interface DiscoverResult {
     lat: number;
     lon: number;
   };
+  source: "curated" | "auto-discovered";
   placeCounts: {
     cafes: number;
     coworkings: number;
     gyms: number;
     food: number;
     total: number;
+    enriched?: number;
   };
   neighborhoods: NeighborhoodEntry[];
 }
@@ -36,6 +43,31 @@ interface EditableNeighborhood extends NeighborhoodEntry {
   quality?: NeighborhoodQuality;
 }
 
+function CuratedCitiesBar({
+  onSelect,
+}: {
+  onSelect: (city: string) => void;
+}) {
+  return (
+    <div className="mb-6">
+      <p className="text-xs font-semibold uppercase tracking-widest text-[#5F5A54] mb-2">
+        Already curated — click to review
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {CURATED_CITY_NAMES.map((name) => (
+          <button
+            key={name}
+            onClick={() => onSelect(name)}
+            className="text-sm px-3 py-1.5 rounded-lg border border-[#8FB7B3] bg-[#DCEBE9] text-[#2E2A26] hover:bg-[#c8dedd] transition-colors font-medium"
+          >
+            ✓ {name}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function CurationTool({ secret }: { secret: string }) {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,6 +75,14 @@ export default function CurationTool({ secret }: { secret: string }) {
   const [error, setError] = useState<string | null>(null);
   const [neighborhoods, setNeighborhoods] = useState<EditableNeighborhood[]>([]);
   const [showCode, setShowCode] = useState(false);
+
+  // When a curated city pill is clicked, load it automatically
+  useEffect(() => {
+    if (query && CURATED_CITY_NAMES.includes(query)) {
+      handleDiscover();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
   async function handleDiscover() {
     if (!query.trim()) return;
@@ -173,6 +213,9 @@ ${lines.join(",\n")}
           </p>
         </div>
 
+        {/* Curated cities quick-access */}
+        <CuratedCitiesBar onSelect={(city) => { setQuery(city); }} />
+
         {/* Search */}
         <div className="flex gap-3 mb-8">
           <input
@@ -204,9 +247,20 @@ ${lines.join(",\n")}
             <div className="mb-6 rounded-xl border border-[#E4DDD2] bg-white px-5 py-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-[#8FB7B3] mb-1">
-                    City resolved
-                  </p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-[#8FB7B3]">
+                      City resolved
+                    </p>
+                    {result.source === "curated" ? (
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#DCEBE9] text-[#2E2A26]">
+                        ✓ Already curated
+                      </span>
+                    ) : (
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                        Auto-discovered
+                      </span>
+                    )}
+                  </div>
                   <p className="text-lg font-semibold text-[#2E2A26]">
                     {result.city.name}
                     {result.city.country && (
@@ -257,10 +311,19 @@ ${lines.join(",\n")}
               </div>
             ) : (
               <>
-                <div className="flex items-center justify-between mb-4">
+                  {result.source === "curated" && (
+                    <div className="mb-4 rounded-lg bg-[#DCEBE9] px-4 py-3 text-sm text-[#2E2A26]">
+                      This city is already curated. Edit taglines or reorder, then
+                      regenerate the code to update{" "}
+                      <code className="text-xs">src/data/neighborhoods.ts</code>.
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between mb-4">
                   <p className="text-sm font-semibold text-[#2E2A26]">
                     {neighborhoods.length} neighborhood
-                    {neighborhoods.length !== 1 ? "s" : ""} discovered ·{" "}
+                    {neighborhoods.length !== 1 ? "s" : ""}{" "}
+                    {result.source === "curated" ? "curated" : "discovered"} ·{" "}
                     <span className="text-[#8FB7B3]">
                       {neighborhoods.filter((n) => n.selected).length} selected
                     </span>

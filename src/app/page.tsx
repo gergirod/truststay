@@ -38,15 +38,21 @@ const WHY_TRUSTAY = [
 ];
 
 const FREE_FEATURES = [
-  "City overview and routine score",
-  "Suggested base area",
-  "Top picks per category",
+  "Neighborhood grid for major cities",
+  "Routine score and suggested base area",
+  "Top picks per category (work, coffee, training)",
 ];
 
 const PASS_FEATURES = [
-  "Full place lists, every category",
-  "Deeper confidence breakdown",
-  "All supporting venue data",
+  "Full place lists for one neighborhood",
+  "Ratings, hours, and Maps links",
+  "Confidence breakdown per place",
+];
+
+const BUNDLE_FEATURES = [
+  "All neighborhoods in a city unlocked",
+  "Everything in the Neighborhood Pass",
+  "One payment — explore freely",
 ];
 
 export default function HomePage() {
@@ -166,15 +172,16 @@ export default function HomePage() {
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
               Pricing
             </p>
-            <div className="mt-12 grid max-w-xl gap-4 sm:grid-cols-2">
+            <div className="mt-12 grid gap-4 sm:grid-cols-3">
               {/* Free tier */}
-              <div className="flex flex-col rounded-2xl border border-dune bg-white p-6 shadow-sm">
+              <div className="flex flex-col rounded-2xl border border-dune bg-white p-6">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
                   Free
                 </p>
                 <p className="mt-3 text-3xl font-bold tracking-tight text-bark">
                   $0
                 </p>
+                <p className="mt-1 text-xs text-umber">Always</p>
                 <ul className="mt-5 flex-1 space-y-2.5">
                   {FREE_FEATURES.map((f) => (
                     <li
@@ -188,19 +195,20 @@ export default function HomePage() {
                 </ul>
               </div>
 
-              {/* City Pass */}
+              {/* Neighborhood Pass */}
               <div className="flex flex-col rounded-2xl bg-bark p-6 shadow-md">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/60">
-                    City Pass
+                    Neighborhood Pass
                   </p>
                   <span className="rounded-full bg-teal px-2.5 py-0.5 text-xs font-semibold text-white">
-                    Recommended
+                    Popular
                   </span>
                 </div>
                 <p className="mt-3 text-3xl font-bold tracking-tight text-white">
-                  One-time
+                  ${process.env.NEXT_PUBLIC_CITY_PASS_PRICE ?? "5"}
                 </p>
+                <p className="mt-1 text-xs text-white/60">One-time per neighborhood</p>
                 <ul className="mt-5 flex-1 space-y-2.5">
                   {PASS_FEATURES.map((f) => (
                     <li
@@ -213,10 +221,32 @@ export default function HomePage() {
                   ))}
                 </ul>
               </div>
+
+              {/* City Bundle */}
+              <div className="flex flex-col rounded-2xl border border-[#8FB7B3] bg-[#DCEBE9] p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5F5A54]">
+                  City Bundle
+                </p>
+                <p className="mt-3 text-3xl font-bold tracking-tight text-bark">
+                  ${process.env.NEXT_PUBLIC_CITY_BUNDLE_PRICE ?? "15"}
+                </p>
+                <p className="mt-1 text-xs text-[#5F5A54]">All neighborhoods, one city</p>
+                <ul className="mt-5 flex-1 space-y-2.5">
+                  {BUNDLE_FEATURES.map((f) => (
+                    <li
+                      key={f}
+                      className="flex items-start gap-2.5 text-sm leading-6 text-[#2E2A26]"
+                    >
+                      <span className="mt-[7px] h-1 w-1 flex-shrink-0 rounded-full bg-[#8FB7B3]" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
 
             <p className="mt-6 text-sm text-umber">
-              No account required. One purchase per city.
+              No account required. No subscription. Pay once, access forever.
             </p>
           </div>
         </section>
