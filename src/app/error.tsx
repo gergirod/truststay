@@ -17,7 +17,7 @@ export default function GlobalError({
             href="/"
             className="text-base font-semibold tracking-tight text-stone-900"
           >
-            Trustay
+            Truststay
           </Link>
         </div>
       </header>

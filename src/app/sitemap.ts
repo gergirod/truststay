@@ -10,7 +10,7 @@ const KNOWN_CITY_SLUGS = [
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://trustay.app";
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://truststay.co";
 
   // City overview pages (grid or single-city)
   const cityPages: MetadataRoute.Sitemap = KNOWN_CITY_SLUGS.map((slug) => ({

@@ -13,7 +13,7 @@ export default async function CheckoutCancelPage({ searchParams }: Props) {
       <header className="border-b border-stone-200 bg-white">
         <div className="mx-auto max-w-4xl px-6 py-4">
           <span className="text-base font-semibold tracking-tight text-stone-900">
-            Trustay
+            Truststay
           </span>
         </div>
       </header>

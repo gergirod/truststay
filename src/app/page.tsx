@@ -141,11 +141,11 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── Why Trustay ── sand ─────────────────────────────── */}
+        {/* ── Why Truststay ── sand ─────────────────────────────── */}
         <section className="border-b border-dune bg-sand">
           <div className="mx-auto max-w-4xl px-6 py-20">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
-              Why Trustay
+              Why Truststay
             </p>
             <div className="mt-12 grid gap-4 sm:grid-cols-3">
               {WHY_TRUSTAY.map(({ accent, title, body }) => (
@@ -258,7 +258,7 @@ export default function HomePage() {
       <footer className="border-t border-dune bg-white">
         <div className="mx-auto max-w-4xl px-6 py-8">
           <p className="text-sm text-umber">
-            Trustay — built for remote workers who need to get functional fast.
+            Truststay — built for remote workers who need to get functional fast.
           </p>
         </div>
       </footer>

@@ -102,7 +102,7 @@ export async function generateMetadata({
   const sp = await searchParams;
 
   const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://trustay.app";
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://truststay.co";
   const canonicalUrl = `${appUrl}/city/${slug}`;
 
   const hasParentCity =
@@ -681,7 +681,7 @@ function Header() {
         </Link>
         <div className="h-4 w-px bg-dune" />
         <span className="text-base font-semibold tracking-tight text-bark">
-          Trustay
+          Truststay
         </span>
       </div>
     </header>
@@ -693,7 +693,7 @@ function Footer() {
     <footer className="border-t border-dune bg-white">
       <div className="mx-auto max-w-4xl px-6 py-8">
         <p className="text-sm text-umber">
-          Trustay — built for remote workers who need to get functional fast.
+          Truststay — built for remote workers who need to get functional fast.
         </p>
       </div>
     </footer>

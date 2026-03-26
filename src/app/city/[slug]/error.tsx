@@ -36,7 +36,7 @@ export default function CityPageError({
           </Link>
           <span className="text-stone-200">|</span>
           <span className="text-base font-semibold tracking-tight text-stone-900">
-            Trustay
+            Truststay
           </span>
         </div>
       </header>

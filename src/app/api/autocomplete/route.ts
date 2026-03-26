@@ -3,7 +3,7 @@ import { toSlug } from "@/lib/geocode";
 import type { City } from "@/types";
 
 const NOMINATIM_BASE = "https://nominatim.openstreetmap.org";
-const USER_AGENT = "Trustay/1.0 (trustay.app; contact@trustay.app)";
+const USER_AGENT = "Truststay/1.0 (truststay.co; contact@truststay.co)";
 
 const AREA_TYPES = new Set([
   "neighbourhood",

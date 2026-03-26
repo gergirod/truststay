@@ -262,7 +262,7 @@ export function PlaceModal({ place, onClose }: Props) {
           {/* ── Confidence notes ───────────────────────────────────── */}
           <div className="mt-5 border-t border-dune pt-4">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
-              Trustay confidence notes
+              Truststay confidence notes
             </p>
 
             {hasConfidenceSignals && (

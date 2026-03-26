@@ -10,15 +10,15 @@ const geist = Geist({
 
 export const metadata: Metadata = {
   title: {
-    default: "Trustay — Choose your remote-work base with confidence",
-    // City pages use: "Work, coffee & routine in Lisboa" → "Work, coffee & routine in Lisboa | Trustay"
-    template: "%s | Trustay",
+    default: "Truststay — Choose your remote-work base with confidence",
+    // City pages use: "Work, coffee & routine in Lisboa" → "Work, coffee & routine in Lisboa | Truststay"
+    template: "%s | Truststay",
   },
   description:
     "Find a base area, places to work, coffee spots, and training options in any city — built for remote workers on the move.",
   openGraph: {
     type: "website",
-    siteName: "Trustay",
+    siteName: "Truststay",
   },
   twitter: {
     card: "summary",

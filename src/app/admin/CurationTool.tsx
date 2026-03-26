@@ -186,7 +186,7 @@ ${lines.join(",\n")}
     <div className="min-h-screen bg-[#FAF8F4]">
       {/* Header */}
       <header className="border-b border-[#E4DDD2] bg-white px-6 py-4 flex items-center gap-3">
-        <span className="text-base font-semibold text-[#2E2A26]">Trustay</span>
+        <span className="text-base font-semibold text-[#2E2A26]">Truststay</span>
         <div className="h-4 w-px bg-[#E4DDD2]" />
         <span className="text-sm text-[#5F5A54]">Neighborhood Curation Tool</span>
         <div className="ml-auto">

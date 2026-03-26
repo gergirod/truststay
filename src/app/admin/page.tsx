@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import CurationTool from "./CurationTool";
 
 export const metadata: Metadata = {
-  title: "Curation Tool | Trustay Admin",
+  title: "Curation Tool | Truststay Admin",
   robots: { index: false, follow: false },
 };
 

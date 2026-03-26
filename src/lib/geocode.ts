@@ -3,7 +3,7 @@ import type { City } from "@/types";
 const NOMINATIM_BASE = "https://nominatim.openstreetmap.org";
 
 // Nominatim requires a descriptive User-Agent identifying the app and contact.
-const USER_AGENT = "Trustay/1.0 (trustay.app; contact@trustay.app)";
+const USER_AGENT = "Truststay/1.0 (truststay.co; contact@truststay.co)";
 
 export function toSlug(name: string): string {
   return name
