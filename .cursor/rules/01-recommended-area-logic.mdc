@@ -1,0 +1,11 @@
+Recommended area logic — MVP decision
+
+- Do not compute real neighborhood polygons or complex geographic clustering.
+- The recommended area is a "central routine area" derived from place density.
+- Compute it as a weighted centroid of available places across these categories:
+  cafes, coworkings, gyms, food spots.
+- All four categories contribute equally to the centroid in Phase 1.
+- If total place count across all categories is below a minimum threshold (e.g. fewer than 5 places total), do not attempt to compute a centroid.
+- In the low-data case, show the label "Central area recommended" with a low-confidence disclaimer.
+- Never present the recommended area as a verified or authoritative neighborhood boundary.
+- Area name in the UI should always be a plain descriptive label, not a polygon or map overlay.

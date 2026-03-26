@@ -1,0 +1,11 @@
+Trustay MVP rules
+
+- Build only the MVP defined in specs.
+- Do not add auth unless explicitly required by a task.
+- Do not add a database unless explicitly required by a task.
+- Do not add mobile app features.
+- Do not add community, chat, reviews system, or booking engine.
+- Do not claim certainty about Wi-Fi, noise, or work comfort unless directly verified.
+- Use confidence-based labels such as: likely, unknown, weak, medium, not verified.
+- Implement one task at a time.
+- Keep UI simple, calm, clean, and highly readable.

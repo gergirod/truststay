@@ -1,0 +1,10 @@
+Unlock persistence — Phase 1 decision
+
+- Do not use a database for unlock state in Phase 1.
+- Payment is handled exclusively via Stripe Checkout.
+- After a successful Stripe Checkout session, the unlock is recorded client-side.
+- Preferred mechanism: a signed cookie set on the success redirect, or localStorage as fallback.
+- Do not build user accounts, login flows, or server-side unlock records in Phase 1.
+- The webhook endpoint (/api/stripe/webhook) must validate the Stripe signature and can log the event, but does not need to write to a database.
+- If unlock state is lost (cookie cleared, different device), the user must repurchase. This is acceptable for Phase 1.
+- Do not resolve account management or cross-device unlock until explicitly scoped in a future task.
