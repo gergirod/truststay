@@ -672,6 +672,10 @@ export default async function CityPage({ params, searchParams }: Props) {
 // For top-level city pages (no parentCity): try to discover neighborhoods first.
 // If >= 3 are found → show the neighborhood grid.
 // If not enough data → fall through to the normal single-city place content.
+//
+// Performance: discoverNeighborhoods + fetchPlaces run in PARALLEL.
+// For cities without neighborhoods this cuts the critical path from ~4-5s to ~2s
+// because CityContent gets a cache-warm hit on fetchPlaces (instant).
 async function AutoNeighborhoodOrContent({
   city,
   isUnlocked,
@@ -679,7 +683,12 @@ async function AutoNeighborhoodOrContent({
   city: City;
   isUnlocked: boolean;
 }) {
-  const neighborhoods = await discoverNeighborhoods(city);
+  // Run both in parallel — fetchPlaces warms the unstable_cache so CityContent
+  // gets an instant hit instead of waiting a second time.
+  const [neighborhoods] = await Promise.all([
+    discoverNeighborhoods(city),
+    fetchPlaces(city).catch(() => []),
+  ]);
 
   if (neighborhoods.length >= 3) {
     const config: CityNeighborhoodConfig = {
@@ -717,6 +726,7 @@ async function AutoNeighborhoodOrContent({
           your routine.
         </p>
       </div>
+      {/* fetchPlaces already cache-warmed above — CityContent resolves instantly */}
       <Suspense fallback={<PlacesSkeleton />}>
         <CityContent city={city} isUnlocked={isUnlocked} />
       </Suspense>
@@ -785,9 +795,14 @@ async function CityContent({
     );
   }
 
-  // ── Google Places enrichment (cafes + coworkings only) ──────────────────
-  // Falls back to OSM-only data if GOOGLE_MAPS_API_KEY is absent or fails.
-  const enrichedPlaces = await enrichPlaces(allPlaces, city.lat, city.lon);
+  // ── Google Places enrichment ─────────────────────────────────────────────
+  // Only run for unlocked users — saves ~800ms (4 Google API calls) for the
+  // majority of visitors who are on the free tier.
+  // Non-unlocked users still see OSM confidence signals on their 3 free cards.
+  // When a user unlocks, the page re-renders with full enrichment.
+  const enrichedPlaces = isUnlocked
+    ? await enrichPlaces(allPlaces, city.lat, city.lon)
+    : allPlaces;
 
   // ── Base area centroid ───────────────────────────────────────────────────
   // Weighted average of cafe + coworking coordinates — more actionable than
@@ -806,10 +821,12 @@ async function CityContent({
     : enrichedPlaces;
 
   // Reverse geocode the work-cluster centroid to get a real neighbourhood name.
-  // Only attempt if we have a centroid (≥3 work places). Falls back silently.
-  const areaName = baseCentroid
-    ? await reverseGeocodeArea(baseCentroid.lat, baseCentroid.lon)
-    : null;
+  // Only attempt if we have a centroid (≥3 work places) AND user is unlocked
+  // (non-unlocked users don't see the RecommendedAreaCard detail that uses this).
+  const areaName =
+    isUnlocked && baseCentroid
+      ? await reverseGeocodeArea(baseCentroid.lat, baseCentroid.lon)
+      : null;
 
   const summary = computeCitySummary(city, places, areaName ?? undefined);
 
