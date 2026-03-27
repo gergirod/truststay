@@ -273,6 +273,101 @@ function VoteRequests({ secret }: { secret: string }) {
   );
 }
 
+interface SuggestionRow {
+  name: string;
+  mapsUrl: string;
+  category: string;
+  note: string | null;
+  citySlug: string;
+  neighborhoodSlug: string;
+  submittedAt: string;
+}
+
+function SuggestedPlaces({ secret }: { secret: string }) {
+  const [rows, setRows] = useState<SuggestionRow[] | null>(null);
+  const [status, setStatus] = useState<"loading" | "ready" | "not_configured" | "error">("loading");
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    fetch(`/api/admin/suggestions?secret=${encodeURIComponent(secret)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error === "not_configured") setStatus("not_configured");
+        else if (data.suggestions) { setRows(data.suggestions); setStatus("ready"); }
+        else setStatus("error");
+      })
+      .catch(() => setStatus("error"));
+  }, [open, secret]);
+
+  return (
+    <div className="mb-8 rounded-xl border border-[#E4DDD2] bg-white px-5 py-5">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-2"
+      >
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold text-[#2E2A26]">Suggested places</p>
+          <span className="text-xs text-[#5F5A54]">— from unlocked users</span>
+        </div>
+        <span className="text-xs text-[#5F5A54]">{open ? "▲" : "▼"}</span>
+      </button>
+
+      {open && (
+        <div className="mt-4">
+          {status === "loading" && <p className="text-xs text-[#5F5A54]">Loading…</p>}
+          {status === "not_configured" && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              PostHog not configured.
+            </p>
+          )}
+          {status === "error" && <p className="text-xs text-red-600">Failed to load.</p>}
+          {status === "ready" && rows && (
+            rows.length === 0 ? (
+              <p className="text-xs text-[#5F5A54]">No suggestions yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {rows.map((r, i) => (
+                  <div key={i} className="rounded-lg border border-[#E4DDD2] bg-[#FAFAF8] px-4 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-[#2E2A26]">{r.name}</p>
+                        <p className="mt-0.5 text-xs text-[#5F5A54]">
+                          {r.citySlug}
+                          {r.neighborhoodSlug && r.neighborhoodSlug !== r.citySlug && ` → ${r.neighborhoodSlug}`}
+                          {" · "}
+                          <span className={`font-semibold ${
+                            r.category === "work" ? "text-teal-700" :
+                            r.category === "food" ? "text-amber-700" : "text-purple-700"
+                          }`}>{r.category}</span>
+                          {" · "}
+                          {new Date(r.submittedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </p>
+                        {r.note && <p className="mt-1 text-xs italic text-[#5F5A54]">&ldquo;{r.note}&rdquo;</p>}
+                      </div>
+                      <a
+                        href={r.mapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 rounded-lg border border-[#E4DDD2] bg-white px-3 py-1.5 text-xs font-medium text-[#5F5A54] hover:text-[#2E2A26] transition-colors"
+                      >
+                        Maps ↗
+                      </a>
+                    </div>
+                    <p className="mt-2 text-[10px] text-stone-400">
+                      To approve: add an entry to <code className="font-mono bg-stone-100 px-1 rounded">src/data/placeOverrides.ts</code>
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CuratedCitiesBar({
   onSelect,
 }: {
@@ -731,6 +826,9 @@ ${lines.join(",\n")}
 
         {/* City vote requests */}
         <VoteRequests secret={secret} />
+
+        {/* Suggested places from users */}
+        <SuggestedPlaces secret={secret} />
 
         {/* Curated cities quick-access */}
         <CuratedCitiesBar onSelect={(city) => { setQuery(city); }} />

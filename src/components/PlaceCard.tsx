@@ -98,7 +98,14 @@ export function PlaceCard({ place, isUnlocked = false, citySlug = "" }: Props) {
         {/* Name + meta */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-base font-semibold text-bark">{place.name}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-base font-semibold text-bark">{place.name}</p>
+              {place.source === "community" && (
+                <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                  community pick
+                </span>
+              )}
+            </div>
             <p className="mt-1 text-xs text-umber">
               {formatCategory(place.category)}
               {place.google?.priceLevel && (

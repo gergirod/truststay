@@ -77,6 +77,8 @@ export interface Place {
   id: string;
   name: string;
   category: PlaceCategory;
+  /** "community" when the place was added from a user suggestion override */
+  source?: "community";
   lat: number;
   lon: number;
   rating?: number;

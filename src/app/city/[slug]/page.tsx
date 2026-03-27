@@ -17,6 +17,7 @@ import { CityMap } from "@/components/CityMap";
 import CityNeighborhoodGrid from "@/components/CityNeighborhoodGrid";
 import { CURATED_NEIGHBORHOODS } from "@/data/neighborhoods";
 import type { CityNeighborhoodConfig } from "@/data/neighborhoods";
+import { PLACE_OVERRIDES } from "@/data/placeOverrides";
 import { discoverNeighborhoods } from "@/lib/neighborhoodDiscovery";
 import { EmailCapture } from "@/components/EmailCapture";
 import { ShareButton } from "@/components/ShareButton";
@@ -970,18 +971,41 @@ async function CityContent({
     return ratingBonus + routineBonus - distPenalty;
   }
 
+  // Community-approved overrides for this city/neighborhood
+  const relevantOverrides = PLACE_OVERRIDES.filter(
+    (o) => o.citySlug === city.slug || o.neighborhoodSlug === "*" && o.citySlug === city.slug
+  );
+  function overrideToPlace(o: (typeof PLACE_OVERRIDES)[number]): Place {
+    return {
+      id: `community_${o.citySlug}_${o.name.replace(/\s+/g, "_").toLowerCase()}`,
+      name: o.name,
+      category: o.category === "work" ? "coworking" : o.category === "food" ? "food" : "gym",
+      lat: o.lat,
+      lon: o.lon,
+      confidence: {},
+      bestFor: o.bestFor ?? [],
+      explanation: o.note,
+      source: "community",
+    };
+  }
+  const overrideWork = relevantOverrides.filter((o) => o.category === "work").map(overrideToPlace);
+  const overrideFood = relevantOverrides.filter((o) => o.category === "food").map(overrideToPlace);
+  const overrideWellbeing = relevantOverrides.filter((o) => o.category === "wellbeing").map(overrideToPlace);
+
   const workPlaces = [
+    ...overrideWork,
     ...places.filter((p) => p.category === "coworking"),
     ...places.filter((p) => p.category === "cafe" && isCafeWorkSection(p)),
   ].sort((a, b) => workScore(b) - workScore(a)).slice(0, 20);
 
   const coffeeMealsPlaces = [
+    ...overrideFood,
     ...places.filter((p) => p.category === "food"),
     ...places.filter((p) => p.category === "cafe" && !isCafeWorkSection(p)),
   ].sort((a, b) => coffeeMealsScore(b) - coffeeMealsScore(a)).slice(0, 20);
 
   const wellbeingPlaces = sortByDistance(
-    places.filter((p) => p.category === "gym")
+    [...overrideWellbeing, ...places.filter((p) => p.category === "gym")]
   ).slice(0, 10);
 
   const lockedCounts = {
@@ -1076,6 +1100,8 @@ async function CityContent({
         freeCount={FREE_WORK}
         isUnlocked={isUnlocked}
         citySlug={city.slug}
+        neighborhoodSlug={city.slug}
+        sectionKind="work"
         emptyMessage="No strong work spots found near this base yet."
       />
 
@@ -1086,6 +1112,8 @@ async function CityContent({
         freeCount={FREE_COFFEE_MEALS}
         isUnlocked={isUnlocked}
         citySlug={city.slug}
+        neighborhoodSlug={city.slug}
+        sectionKind="food"
         emptyMessage="No clear coffee or meal spots found near this base yet."
       />
 
@@ -1096,6 +1124,8 @@ async function CityContent({
         freeCount={FREE_WELLBEING}
         isUnlocked={isUnlocked}
         citySlug={city.slug}
+        neighborhoodSlug={city.slug}
+        sectionKind="wellbeing"
         emptyMessage="No wellbeing spots found near this base yet."
       />
 

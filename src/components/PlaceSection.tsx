@@ -1,5 +1,8 @@
 import type { Place } from "@/types";
 import { PlaceCard } from "./PlaceCard";
+import { SuggestPlace } from "./SuggestPlace";
+
+type SectionKind = "work" | "food" | "wellbeing";
 
 interface Props {
   title: string;
@@ -9,6 +12,8 @@ interface Props {
   freeCount?: number;
   isUnlocked?: boolean;
   citySlug?: string;
+  neighborhoodSlug?: string;
+  sectionKind?: SectionKind;
 }
 
 /** Readable work-fit tier — shown instead of place name to prevent free lookup */
@@ -52,6 +57,8 @@ export function PlaceSection({
   freeCount,
   isUnlocked = false,
   citySlug = "",
+  neighborhoodSlug = "",
+  sectionKind,
 }: Props) {
   const applyLock = !isUnlocked && freeCount !== undefined;
   const freePlaces = applyLock ? places.slice(0, freeCount) : places;
@@ -81,6 +88,14 @@ export function PlaceSection({
             <LockedTeaser key={place.id} place={place} />
           ))}
         </div>
+      )}
+
+      {isUnlocked && sectionKind && (
+        <SuggestPlace
+          citySlug={citySlug}
+          neighborhoodSlug={neighborhoodSlug}
+          sectionCategory={sectionKind}
+        />
       )}
     </section>
   );
