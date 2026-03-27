@@ -125,7 +125,7 @@ export default function HomePage() {
                 </div>
 
                 <h1 className="mt-6 text-4xl font-bold leading-[1.1] tracking-tight text-bark sm:text-5xl lg:text-[52px]">
-                  Land in a new city.
+                  Land in a new spot.
                   <br />
                   Keep your routine{" "}
                   <span className="text-coral">from day one.</span>
