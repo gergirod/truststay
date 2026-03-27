@@ -120,7 +120,7 @@ export default function HomePage() {
                 <div className="inline-flex items-center gap-2 rounded-full border border-dune bg-white/70 px-3 py-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-teal" />
                   <span className="text-xs font-medium text-umber">
-                    Built for remote workers on the move
+                    For remote workers who travel with a purpose
                   </span>
                 </div>
 
@@ -132,9 +132,9 @@ export default function HomePage() {
                 </h1>
 
                 <p className="mt-5 max-w-md text-base leading-7 text-umber">
-                  Find a base area, places to work, nearby coffee and meal
-                  spots, and wellbeing options that fit your day — without
-                  wasting your first days figuring it all out.
+                  Whether you're surfing at 6am, hiking at dawn, or just
+                  need everything walkable — find your base area, work
+                  spots, food, and wellbeing options before you arrive.
                 </p>
 
                 <div className="mt-8">

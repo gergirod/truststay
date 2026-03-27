@@ -327,6 +327,140 @@ No es 1 post por día. Es esto:
 
 ---
 
+## Surf & Activity-First Angle
+
+This is a secondary distribution track that runs alongside the main plan. The research shows this niche has a real, acute pain — and no tool is solving it at the neighborhood level.
+
+**The core insight from real Reddit data:**
+A remote worker went to Puerto Escondido in 2023, stayed in the wrong neighborhood (Zicatela), had to scooter to a different part of town for every call, and had a bad trip. He came back in 2025, stayed in La Punta — correct neighborhood — and had an amazing month. Same city, completely different experience. **The neighborhood choice was the product.**
+
+That's exactly what Truststay does. And it's a story that will resonate immediately in surf communities.
+
+---
+
+### Who this audience is
+
+Not just surfers. **Activity-first remote workers** — people who chose a destination for something specific (surf, hiking, yoga retreat, climbing, kitesurfing, trail running) and need their work life to fit around that activity, not the other way around. They have one extra constraint regular nomads don't: their workspace needs to be close to the activity. A café 20 minutes away by scooter breaks a 6am surf → 8am work schedule.
+
+---
+
+### Subreddits to add (rotate these alongside the main plan)
+
+| Subreddit | Size | Angle |
+|---|---|---|
+| r/surftravel | 180K | "For remote workers surfing on the road" |
+| r/digitalnomad | 1.4M | Surf + remote work framing |
+| r/surfing | 3M | Use carefully — only post when you have real data for a famous surf spot |
+| r/nosara | small | Hyper-local, very engaged |
+| r/PuertoEscondido | small | Direct city community |
+| r/CostaRica | 150K | "Remote workers heading to surf towns in CR" |
+| r/NicaraguaTravel | small | Popoyo, San Juan del Sur |
+| r/Bali | 100K | Canggu, Uluwatu angle |
+
+---
+
+### Post templates — activity-first angle
+
+**Reddit r/surftravel (use early in week 1)**
+```
+For remote workers doing surf trips:
+
+Built truststay.co because I kept seeing the same problem — people show up to a surf town, pick the wrong neighborhood, spend the first week scrambling for wifi and figuring out logistics, and waste half their trip.
+
+Search any surf destination — shows you where to base yourself (walkable to everything), which cafes have reliable wifi, gyms and yoga studios nearby. Built around the idea that if you're surfing at 6am, your work setup needs to be 5 minutes away, not 20.
+
+Works well for: Nosara, Santa Teresa, Popoyo, Puerto Escondido, El Tunco, Tamarindo, Sayulita, Canggu.
+
+Free to preview. $5 to unlock the full neighborhood.
+
+Anyone else dealt with the "wrong neighborhood" problem on a surf trip?
+```
+
+**Reddit r/digitalnomad — surf angle**
+```
+Something I've seen come up a lot in surf town trip reports:
+
+The neighborhood you pick matters more than anything else. Wrong neighborhood in Puerto Escondido = scootering to a different part of town for every call. Right neighborhood = café 3 minutes from the break, gym walkable, good lunch spots nearby.
+
+Built truststay.co to make that choice easier. Shows you where to base yourself in surf towns so work and waves are both walkable.
+
+Covers Nosara, Santa Teresa, Popoyo, Puerto Escondido, El Tunco, Canggu, Uluwatu.
+
+truststay.co
+```
+
+**X post — the "wrong neighborhood" story**
+```
+read a reddit post yesterday that perfectly described why I built truststay
+
+guy went to puerto escondido to surf and work remotely. wrong neighborhood. spent his trip scootering across town for every call. had a bad time.
+
+came back, right neighborhood. walkable to the break, café 3 min away, climbing gym in the same area. completely different experience.
+
+same city. neighborhood was the whole product.
+
+truststay.co
+```
+
+**X post — the activity-first angle**
+```
+remote workers who travel for activities have a different problem than regular nomads
+
+the workspace needs to be near the activity, not just near the city center
+
+if you're surfing at 6am and working at 8am, a café 20 minutes away breaks the whole schedule
+
+truststay maps the routine around where you actually want to be
+
+truststay.co
+```
+
+**X post — specific destination screenshot**
+```
+Nosara, Costa Rica on truststay
+
+[screenshot of routine map]
+
+base area: Guiones
+work spots + wellbeing + food — all within walking distance of the break
+
+for anyone doing a surf + work month in CR
+
+truststay.co
+```
+
+**Reddit r/CostaRica**
+```
+For remote workers planning a surf stay in Costa Rica:
+
+Built truststay.co — covers Nosara, Santa Teresa, Tamarindo, Puerto Viejo.
+
+Shows you which neighborhood to base yourself in, work spots with wifi, yoga/gym options, and food nearby. Organized around the idea that if you're surfing mornings, your setup needs to be walkable — not a scooter ride away.
+
+Free to preview, $5 to unlock. Lmk if the data looks off for any of these spots.
+```
+
+---
+
+### Screenshots to prioritize for this angle
+
+When posting about surf/activity towns, use these cities for screenshots — they have the best data and strongest visual maps:
+
+1. **Nosara** — surf + yoga combination, clean neighborhood map
+2. **Santa Teresa** — popular, recognizable, good place density
+3. **Popoyo** — smaller, more "insider" feel — good for surf communities
+4. **Puerto Escondido** — La Punta neighborhood specifically
+5. **El Tunco / El Zonte** — good for the Central America surf circuit posts
+6. **Canggu, Bali** — for Southeast Asia surf nomad angle
+
+---
+
+### The through-line sentence for this audience
+
+> "You chose this spot for a reason. We make sure the rest of your day works around it."
+
+---
+
 ## Week 1 — Launch & first signal (Days 1–7)
 
 **Theme:** Show the product exists. Get first eyes on it.
