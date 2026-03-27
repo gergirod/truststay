@@ -10,29 +10,35 @@ import {
 } from "@/lib/mapMarkers";
 
 // ── Hardcoded Lisbon demo data ─────────────────────────────────────────────
-// Dense cluster around Bairro Alto / Príncipe Real / Chiado.
+// Tight cluster within ~600m of Bairro Alto core.
 
 const DEMO_BASE = { lat: 38.7125, lon: -9.1440 };
 
 const DEMO_PINS: { lat: number; lon: number; category: string }[] = [
-  // Work spots (teal laptop)
-  { lat: 38.7161, lon: -9.1503, category: "work" },   // Príncipe Real
-  { lat: 38.7107, lon: -9.1391, category: "work" },   // Chiado
-  { lat: 38.7142, lon: -9.1468, category: "work" },   // Bairro Alto
-  { lat: 38.7085, lon: -9.1425, category: "work" },   // Cais do Sodré
-  // Coffee & meals (terracotta cup)
-  { lat: 38.7157, lon: -9.1410, category: "coffee" }, // Chiado area
-  { lat: 38.7098, lon: -9.1355, category: "coffee" }, // Baixa
-  { lat: 38.7178, lon: -9.1470, category: "coffee" }, // Príncipe Real
-  { lat: 38.7065, lon: -9.1470, category: "coffee" }, // Cais do Sodré
-  // Wellbeing (amber figure)
-  { lat: 38.7148, lon: -9.1533, category: "wellbeing" }, // Rato
-  { lat: 38.7090, lon: -9.1500, category: "wellbeing" }, // Santos
-  // Locked grey dots
-  { lat: 38.7120, lon: -9.1360, category: "locked" },
-  { lat: 38.7050, lon: -9.1410, category: "locked" },
-  { lat: 38.7188, lon: -9.1390, category: "locked" },
-  { lat: 38.7132, lon: -9.1560, category: "locked" },
+  // Work spots — teal laptop
+  { lat: 38.7155, lon: -9.1490, category: "work" },
+  { lat: 38.7108, lon: -9.1398, category: "work" },
+  { lat: 38.7138, lon: -9.1455, category: "work" },
+  { lat: 38.7092, lon: -9.1450, category: "work" },
+  { lat: 38.7168, lon: -9.1420, category: "work" },
+  // Coffee & meals — terracotta cup
+  { lat: 38.7148, lon: -9.1408, category: "coffee" },
+  { lat: 38.7172, lon: -9.1468, category: "coffee" },
+  { lat: 38.7095, lon: -9.1478, category: "coffee" },
+  { lat: 38.7118, lon: -9.1375, category: "coffee" },
+  { lat: 38.7080, lon: -9.1420, category: "coffee" },
+  { lat: 38.7140, lon: -9.1510, category: "coffee" },
+  // Wellbeing — amber figure
+  { lat: 38.7158, lon: -9.1520, category: "wellbeing" },
+  { lat: 38.7085, lon: -9.1495, category: "wellbeing" },
+  { lat: 38.7112, lon: -9.1432, category: "wellbeing" },
+  // Locked — grey dots
+  { lat: 38.7125, lon: -9.1365, category: "locked" },
+  { lat: 38.7058, lon: -9.1445, category: "locked" },
+  { lat: 38.7182, lon: -9.1395, category: "locked" },
+  { lat: 38.7070, lon: -9.1480, category: "locked" },
+  { lat: 38.7145, lon: -9.1545, category: "locked" },
+  { lat: 38.7100, lon: -9.1415, category: "locked" },
 ];
 
 export function HeroMap() {
@@ -56,9 +62,10 @@ export function HeroMap() {
 
       map = new mapboxgl.Map({
         container: containerRef.current,
-        style: "mapbox://styles/mapbox/streets-v12",
+        style: "mapbox://styles/mapbox/light-v11",
         center: [DEMO_BASE.lon, DEMO_BASE.lat],
-        zoom: 14.2,           // tight zoom — pins fill the frame
+        zoom: 15,
+        minZoom: 14.5,        // prevent any drift toward wider view
         interactive: false,   // hero preview — no pan / zoom
         attributionControl: false,
       });
@@ -71,6 +78,9 @@ export function HeroMap() {
 
       map.on("load", () => {
         if (!map) return;
+
+        // Force zoom in case initial render drifted
+        map.jumpTo({ center: [DEMO_BASE.lon, DEMO_BASE.lat], zoom: 15 });
 
         // Base area marker
         const baseEl = createBaseMarker();
