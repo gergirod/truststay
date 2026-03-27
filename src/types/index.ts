@@ -17,6 +17,8 @@ export interface CitySummary {
   summaryText: string;
   recommendedArea: string;
   confidence: "low" | "medium" | "high";
+  /** Optional 1-sentence explanation of why this area is the right base.
+   *  Populated from KV narrative (admin-generated) or algorithmic fallback. */
   areaReason?: string;
 }
 

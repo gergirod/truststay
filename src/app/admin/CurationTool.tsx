@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { CityNarratives } from "./CityNarratives";
 import type { NeighborhoodEntry } from "@/data/neighborhoods";
 import { CURATED_NEIGHBORHOODS } from "@/data/neighborhoods";
 
@@ -820,6 +821,9 @@ ${lines.join(",\n")}
 
         {/* Demand queue — top searched uncurated cities from PostHog */}
         <DemandQueue secret={secret} onSelect={(city) => { setQuery(city); }} />
+
+        {/* City narrative generator (AI) */}
+        <CityNarratives secret={secret} />
 
         {/* Place feedback reports */}
         <FeedbackReports secret={secret} />

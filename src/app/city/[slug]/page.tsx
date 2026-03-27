@@ -21,6 +21,7 @@ import { PLACE_OVERRIDES } from "@/data/placeOverrides";
 import { getPlaceConfirmations } from "@/lib/confirmations";
 import { CITY_INTROS } from "@/data/cityIntros";
 import { CityIntro } from "@/components/CityIntro";
+import { getNarrative } from "@/lib/kv";
 import { discoverNeighborhoods } from "@/lib/neighborhoodDiscovery";
 import { EmailCapture } from "@/components/EmailCapture";
 import { ShareButton } from "@/components/ShareButton";
@@ -630,9 +631,10 @@ export default async function CityPage({ params, searchParams }: Props) {
     // Note: city.parentCity is used after city resolves for the PaywallCard
   })();
 
-  const [city, unlocked] = await Promise.all([
+  const [city, unlocked, kvNarrativePage] = await Promise.all([
     resolveCity(slug, sp),
     isUnlocked(slug, parentCitySlug),
+    getNarrative(slug).catch(() => null),
   ]);
 
   if (!city) {
@@ -734,10 +736,16 @@ export default async function CityPage({ params, searchParams }: Props) {
                   : city.country}
               </p>
               {(() => {
-                const intro = CITY_INTROS[city.slug] ?? null;
-                if (intro) return (
+                const kvIntro = kvNarrativePage?.intro ?? null;
+                const staticIntro = CITY_INTROS[city.slug] ?? null;
+                if (kvIntro) return (
                   <div className="mt-5 max-w-xl">
-                    <CityIntro intro={intro} />
+                    <CityIntro intro={{ summary: kvIntro, activity: kvNarrativePage?.activity ?? undefined, bestMonths: kvNarrativePage?.bestMonths ?? undefined }} />
+                  </div>
+                );
+                if (staticIntro) return (
+                  <div className="mt-5 max-w-xl">
+                    <CityIntro intro={staticIntro} />
                   </div>
                 );
                 return (
@@ -750,13 +758,13 @@ export default async function CityPage({ params, searchParams }: Props) {
               })()}
             </div>
             <Suspense fallback={<PlacesSkeleton />}>
-              <CityContent city={city} isUnlocked={unlocked} justUnlocked={justUnlocked} />
+              <CityContent city={city} isUnlocked={unlocked} justUnlocked={justUnlocked} kvNarrative={kvNarrativePage} />
             </Suspense>
           </div>
         ) : (
           // ── Top-level city: try auto-discovery, fallback to place content ─
           <Suspense fallback={<DiscoverySkeleton cityName={city.name} />}>
-            <AutoNeighborhoodOrContent city={city} isUnlocked={unlocked} justUnlocked={justUnlocked} />
+            <AutoNeighborhoodOrContent city={city} isUnlocked={unlocked} justUnlocked={justUnlocked} kvNarrative={kvNarrativePage} />
           </Suspense>
         )}
       </main>
@@ -778,10 +786,12 @@ async function AutoNeighborhoodOrContent({
   city,
   isUnlocked,
   justUnlocked,
+  kvNarrative,
 }: {
   city: City;
   isUnlocked: boolean;
   justUnlocked: boolean;
+  kvNarrative: import("@/lib/kv").StoredNarrative | null;
 }) {
   // Run both in parallel — fetchPlaces warms the unstable_cache so CityContent
   // gets an instant hit instead of waiting a second time.
@@ -828,10 +838,16 @@ async function AutoNeighborhoodOrContent({
         </div>
         <p className="mt-1.5 text-base text-umber">{city.country}</p>
         {(() => {
-          const intro = CITY_INTROS[city.slug] ?? null;
-          if (intro) return (
+          const kvIntro = kvNarrative?.intro ?? null;
+          const staticIntro = CITY_INTROS[city.slug] ?? null;
+          if (kvIntro) return (
             <div className="mt-5 max-w-xl">
-              <CityIntro intro={intro} />
+              <CityIntro intro={{ summary: kvIntro, activity: kvNarrative?.activity ?? undefined, bestMonths: kvNarrative?.bestMonths ?? undefined }} />
+            </div>
+          );
+          if (staticIntro) return (
+            <div className="mt-5 max-w-xl">
+              <CityIntro intro={staticIntro} />
             </div>
           );
           return (
@@ -845,7 +861,7 @@ async function AutoNeighborhoodOrContent({
       </div>
       {/* fetchPlaces already cache-warmed above — CityContent resolves instantly */}
       <Suspense fallback={<PlacesSkeleton />}>
-        <CityContent city={city} isUnlocked={isUnlocked} justUnlocked={justUnlocked} />
+        <CityContent city={city} isUnlocked={isUnlocked} justUnlocked={justUnlocked} kvNarrative={kvNarrative} />
       </Suspense>
     </div>
   );
@@ -876,10 +892,12 @@ async function CityContent({
   city,
   isUnlocked,
   justUnlocked = false,
+  kvNarrative = null,
 }: {
   city: City;
   isUnlocked: boolean;
   justUnlocked?: boolean;
+  kvNarrative?: import("@/lib/kv").StoredNarrative | null;
 }) {
   let allPlaces;
   try {
@@ -947,14 +965,24 @@ async function CityContent({
       ? await reverseGeocodeArea(baseCentroid.lat, baseCentroid.lon)
       : null;
 
-  const summary = computeCitySummary(city, places, areaName ?? undefined);
+  const algorithmicSummary = computeCitySummary(city, places, areaName ?? undefined);
+
+  // Merge KV narrative on top of algorithmic summary (KV wins for text fields)
+  const summary = {
+    ...algorithmicSummary,
+    ...(kvNarrative && {
+      summaryText: kvNarrative.summaryText,
+      recommendedArea: kvNarrative.baseAreaName,
+      areaReason: kvNarrative.baseAreaReason,
+    }),
+  };
 
   // ── Confirmation signals (Task 18) ───────────────────────────────────────
-  // Fetch place_feedback confirm counts from PostHog, only for unlocked pages.
-  // Fails silently — if PostHog is down the badges just don't appear.
   const confirmations = isUnlocked
     ? await getPlaceConfirmations(city.slug).catch(() => new Map())
     : new Map<string, import("@/lib/confirmations").PlaceConfirmData>();
+
+  // kvNarrative is passed in from the page level (already fetched in parallel)
 
   // ── Data coverage level ──────────────────────────────────────────────────
   const dataCoverage: "good" | "partial" | "limited" | "none" =
