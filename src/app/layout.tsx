@@ -8,8 +8,8 @@ const geist = Geist({
   subsets: ["latin"],
 });
 
-const APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://truststay.co";
+const APP_URL = "https://truststay.co";
+const OG_IMAGE = `${APP_URL}/og.png`;
 
 export const metadata: Metadata = {
   title: {
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     url: APP_URL,
     images: [
       {
-        url: "/og.png",
+        url: OG_IMAGE,
         width: 1200,
         height: 630,
         alt: "Truststay — map with work, coffee, and wellbeing pins",
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     title: "Truststay — Land in a new spot. Keep your routine from day one.",
     description:
       "Find the best neighborhood to base yourself in any city — work spots, cafes, and gyms organized around a walkable daily routine.",
-    images: ["/og.png"],
+    images: [OG_IMAGE],
   },
 };
 
