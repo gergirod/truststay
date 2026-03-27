@@ -61,6 +61,7 @@ interface EditableNeighborhood extends NeighborhoodEntry {
   editedTagline: string;
   editedName: string;
   quality?: NeighborhoodQuality;
+  coordsMoved?: boolean; // true after pin was dragged
 }
 
 function CuratedCitiesBar({
@@ -243,7 +244,7 @@ function CurationMap({
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: "13px", fontWeight: "700", color: "white",
             cursor: "grab", userSelect: "none",
-            transition: "background 0.2s",
+            transition: "background 0.3s, transform 0.3s",
           });
           el.textContent = String(idx + 1);
           el.title = n.editedName || n.name;
@@ -262,6 +263,13 @@ function CurationMap({
           marker.on("dragend", () => {
             const { lat, lng } = marker.getLngLat();
             onMoveRef.current(n.slug, lat, lng);
+            // Flash the marker gold to confirm the move
+            el.style.background = "#F2A65A";
+            el.style.transform = "scale(1.25)";
+            setTimeout(() => {
+              el.style.background = "#8FB7B3";
+              el.style.transform = "scale(1)";
+            }, 800);
           });
 
           markersRef.current.set(n.slug, { marker, el });
@@ -314,8 +322,9 @@ function CurationMap({
     <div className="rounded-xl overflow-hidden border border-[#E4DDD2] mb-6 relative" style={{ height: 380 }}>
       <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
       {/* Legend */}
-      <div className="absolute bottom-8 left-3 bg-white/90 rounded-lg px-3 py-2 text-xs text-[#5F5A54] shadow pointer-events-none">
-        <p className="font-semibold text-[#2E2A26] mb-1">Drag pins to set base</p>
+      <div className="absolute bottom-8 left-3 bg-white/90 rounded-lg px-3 py-2 text-xs text-[#5F5A54] shadow pointer-events-none space-y-0.5">
+        <p className="font-semibold text-[#2E2A26]">Drag to reposition base</p>
+        <p>Pin flashes amber when moved</p>
         <p>Teal = selected · Grey = deselected</p>
       </div>
     </div>
@@ -424,7 +433,7 @@ export default function CurationTool({ secret }: { secret: string }) {
 
   function moveNeighborhood(slug: string, lat: number, lon: number) {
     setNeighborhoods((prev) =>
-      prev.map((n) => (n.slug === slug ? { ...n, lat, lon } : n))
+      prev.map((n) => (n.slug === slug ? { ...n, lat, lon, coordsMoved: true } : n))
     );
   }
 
@@ -763,9 +772,19 @@ ${lines.join(",\n")}
                             className="w-full text-sm text-[#5F5A54] bg-stone-50 border border-[#E4DDD2] rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#8FB7B3]"
                             placeholder="Tagline for this neighborhood…"
                           />
-                          <p className="mt-1 text-xs text-[#5F5A54]">
-                            slug: <code>{n.slug}</code>
-                          </p>
+                          <div className="mt-1.5 flex items-center gap-3 flex-wrap">
+                            <p className="text-xs text-[#5F5A54]">
+                              slug: <code>{n.slug}</code>
+                            </p>
+                            <p className={`text-xs font-mono tabular-nums ${n.coordsMoved ? "text-amber-600 font-semibold" : "text-[#5F5A54]"}`}>
+                              {n.lat.toFixed(5)}, {n.lon.toFixed(5)}
+                            </p>
+                            {n.coordsMoved && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                                📍 pin moved
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         {/* Reorder */}
@@ -792,6 +811,12 @@ ${lines.join(",\n")}
 
                 {/* Generate code */}
                 <div className="border-t border-[#E4DDD2] pt-6">
+                  {neighborhoods.some((n) => n.coordsMoved) && (
+                    <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+                      <span className="font-semibold">📍 {neighborhoods.filter((n) => n.coordsMoved).length} pin{neighborhoods.filter((n) => n.coordsMoved).length > 1 ? "s" : ""} repositioned.</span>
+                      {" "}Generate the code below and paste it into <code className="text-xs bg-amber-100 px-1 rounded">src/data/neighborhoods.ts</code> to save the changes.
+                    </div>
+                  )}
                   <button
                     onClick={() => setShowCode((v) => !v)}
                     disabled={neighborhoods.filter((n) => n.selected).length === 0}
