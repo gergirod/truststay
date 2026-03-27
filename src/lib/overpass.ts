@@ -80,8 +80,11 @@ async function _fetchPlaces(city: City): Promise<Place[]> {
     ? `${city.bbox[0]},${city.bbox[1]},${city.bbox[2]},${city.bbox[3]}`
     : buildBbox(city.lat, city.lon);
 
+  // timeout:20  → Overpass server gives up after 20s instead of default 180s
+  // maxsize:1e6 → cap response at 1MB; dense cities (Recife, Arraial do Cabo)
+  //               can return 10MB+ with no limit, causing 60s+ fetches
   const query = `
-[out:json][timeout:60];
+[out:json][timeout:20][maxsize:1000000];
 (
   node["amenity"="cafe"](${bbox});
   way["amenity"="cafe"](${bbox});
@@ -114,6 +117,8 @@ out center;
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: `data=${encodeURIComponent(query)}`,
         next: { revalidate: 3600 },
+        // Client-side safety net: abort after 25s (5s buffer over Overpass timeout)
+        signal: AbortSignal.timeout(25000),
       });
       if (attempt.ok) {
         res = attempt;

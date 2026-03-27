@@ -138,7 +138,7 @@ async function fetchNeighbourhoodsAndPOIs(
   const bbox = buildQueryBbox(city.lat, city.lon);
 
   // Single query: neighbourhood nodes/ways + cafes/coworkings/gyms
-  const query = `[out:json][timeout:30];
+  const query = `[out:json][timeout:20][maxsize:500000];
 (
   node["place"~"suburb|neighbourhood"]["name"](${bbox});
   way["place"~"suburb|neighbourhood"]["name"](${bbox});
@@ -153,6 +153,7 @@ out center 500;`;
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: `data=${encodeURIComponent(query)}`,
         next: { revalidate: 86400 }, // 24 h cache
+        signal: AbortSignal.timeout(25000),
       });
       if (!res.ok) continue;
       const json = await res.json();
