@@ -464,12 +464,14 @@ async function resolveCity(
     "fortaleza":               "Fortaleza Ceará Brazil",
 
     // ── Caribbean ────────────────────────────────────────────────────────────
-    "bonaire":                 "Bonaire Caribbean Netherlands",
-    "curacao":                 "Curaçao Kingdom of the Netherlands Caribbean",
-    "aruba":                   "Aruba Caribbean Netherlands",
-    "martinique":              "Martinique France Caribbean",
-    "guadeloupe":              "Guadeloupe France Caribbean",
-    "dominica":                "Commonwealth of Dominica Caribbean",
+    // Use simple island/capital names — Nominatim doesn't handle long compound
+    // phrases like "Kingdom of the Netherlands Caribbean" and returns nothing.
+    "bonaire":                 "Kralendijk Bonaire",
+    "curacao":                 "Willemstad Curaçao",
+    "aruba":                   "Oranjestad Aruba",
+    "martinique":              "Fort-de-France Martinique",
+    "guadeloupe":              "Pointe-à-Pitre Guadeloupe",
+    "dominica":                "Roseau Dominica",
     "barbados":                "Bridgetown Barbados",
 
     // ── New surf ─────────────────────────────────────────────────────────────
