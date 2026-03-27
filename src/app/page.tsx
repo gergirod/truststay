@@ -2,6 +2,15 @@ import { CitySearch } from "@/components/CitySearch";
 import { AnalyticsEvent } from "@/components/AnalyticsEvent";
 import { HeroMap } from "@/components/HeroMap";
 
+const CATEGORY_META: Record<string, { icon: string; description: string }> = {
+  "Surf":             { icon: "🏄", description: "Pacific breaks · reef points · beach towns" },
+  "Dive":             { icon: "🤿", description: "Reefs · walls · cenotes · marine parks" },
+  "Hike":             { icon: "⛰️", description: "Volcanoes · cloud forests · Andean circuits" },
+  "Yoga & wellness":  { icon: "🧘", description: "Retreat towns · slow living · recovery" },
+  "Kite & wind":      { icon: "🪁", description: "Trade winds · lagoons · flat water" },
+  "Remote work hubs": { icon: "💻", description: "Coworkings · fast wifi · expat community" },
+};
+
 const DESTINATION_CATEGORIES = [
   {
     label: "Surf",
@@ -270,34 +279,54 @@ export default function HomePage() {
         </section>
 
         {/* ── Popular destinations ── sand ─────────────────────── */}
-        <section className="border-b border-dune bg-sand">
-          <div className="mx-auto max-w-4xl px-6 py-20">
+        <section className="border-b border-dune bg-sand overflow-hidden">
+          <div className="mx-auto max-w-4xl px-6 pt-20 pb-4">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
               Popular destinations
             </p>
             <p className="mt-2 text-sm text-umber">
               Jump straight in — or search any spot above.
             </p>
+          </div>
 
-            {DESTINATION_CATEGORIES.map((cat) => (
-              <div key={cat.label} className="mt-7">
-                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-umber/60">
-                  {cat.label}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {cat.destinations.map(({ label, slug }) => (
-                    <a
-                      key={slug}
-                      href={`/city/${slug}`}
-                      className="rounded-full border border-dune bg-white px-3.5 py-1.5 text-sm font-medium text-bark transition-colors hover:border-coral/50 hover:bg-[#FDF3EF] hover:text-coral"
-                    >
-                      {label}
-                    </a>
-                  ))}
+          {DESTINATION_CATEGORIES.map((cat) => {
+            const meta = CATEGORY_META[cat.label];
+            return (
+              <div key={cat.label} className="mb-8">
+                {/* Category header — inside the max-width container */}
+                <div className="mx-auto max-w-4xl px-6 mb-3 flex items-center gap-3">
+                  <span className="text-xl leading-none">{meta?.icon}</span>
+                  <div>
+                    <p className="text-sm font-semibold text-bark">{cat.label}</p>
+                    {meta?.description && (
+                      <p className="text-xs text-umber/60">{meta.description}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Scrollable pill row — bleeds edge to edge */}
+                <div className="relative">
+                  <div className="flex gap-2 overflow-x-auto scroll-smooth px-6 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ paddingLeft: "max(24px, calc((100vw - 896px) / 2 + 24px))" }}>
+                    {cat.destinations.map(({ label, slug }) => (
+                      <a
+                        key={slug}
+                        href={`/city/${slug}`}
+                        className="flex-shrink-0 rounded-full border border-dune bg-white px-4 py-2 text-sm font-medium text-bark transition-colors hover:border-coral/50 hover:bg-[#FDF3EF] hover:text-coral"
+                      >
+                        {label}
+                      </a>
+                    ))}
+                    {/* Right spacer so last pill doesn't butt against edge */}
+                    <span className="flex-shrink-0 w-6" />
+                  </div>
+                  {/* Fade hint — right edge */}
+                  <div className="pointer-events-none absolute right-0 top-0 h-full w-16 bg-gradient-to-l from-sand to-transparent" />
                 </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
+
+          <div className="pb-16" />
         </section>
 
         {/* ── Why Truststay ── sand ─────────────────────────────── */}
