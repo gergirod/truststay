@@ -408,19 +408,18 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── Explore the map ── white ─────────────────────────── */}
+        {/* ── Explore the map ── full width ────────────────────── */}
         <section className="border-b border-dune bg-white">
-          <div className="mx-auto max-w-4xl px-6 py-20">
+          {/* Heading constrained, map bleeds edge-to-edge */}
+          <div className="mx-auto max-w-4xl px-6 pt-20 pb-6">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
               Explore the map
             </p>
             <p className="mt-2 text-sm text-umber max-w-md">
-              160+ destinations across Latin America and the Caribbean. Filter by activity or click any pin to explore.
+              170+ destinations across Latin America and the Caribbean. Filter by activity or click any pin to explore.
             </p>
-            <div className="mt-8">
-              <DestinationsMap />
-            </div>
           </div>
+          <DestinationsMap />
         </section>
 
         {/* ── Popular destinations ── sand ─────────────────────── */}

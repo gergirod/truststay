@@ -206,7 +206,7 @@ export function DestinationsMap() {
   if (!token) return null;
 
   return (
-    <div className="relative w-full rounded-2xl overflow-hidden border border-dune shadow-sm" style={{ height: "520px" }}>
+    <div className="relative w-full overflow-hidden border-t border-b border-dune" style={{ height: "clamp(420px, 60vh, 680px)" }}>
       {/* Map canvas */}
       <div ref={containerRef} className="w-full h-full" />
 
