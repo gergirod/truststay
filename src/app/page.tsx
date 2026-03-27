@@ -133,14 +133,30 @@ const DESTINATION_CATEGORIES = [
       // Brazil
       { label: "Lençóis", slug: "lencois" },
       { label: "Alto Paraíso", slug: "alto-paraiso" },
-      // Southern Cone
+      // Argentina — NW highlands (Quebrada de Humahuaca & pre-Puna)
+      { label: "Tilcara", slug: "tilcara" },
+      { label: "Purmamarca", slug: "purmamarca" },
+      { label: "Humahuaca", slug: "humahuaca" },
+      { label: "Iruya", slug: "iruya" },
+      { label: "Cafayate", slug: "cafayate" },
+      // Argentina — Mendoza Andes
+      { label: "Uspallata", slug: "uspallata" },
+      { label: "Potrerillos", slug: "potrerillos" },
+      // Argentina — Patagonia
       { label: "Bariloche", slug: "bariloche" },
+      { label: "El Bolsón", slug: "el-bolson" },
+      { label: "San Martín de los Andes", slug: "san-martin-de-los-andes" },
+      { label: "Villa La Angostura", slug: "villa-la-angostura" },
+      { label: "Esquel", slug: "esquel" },
       { label: "El Chaltén", slug: "el-chalten" },
-      { label: "Puerto Natales", slug: "puerto-natales" },
+      // Chile
       { label: "Pucón", slug: "pucon" },
+      { label: "Cajón del Maipo", slug: "cajon-del-maipo" },
+      { label: "Cochamo", slug: "cochamo" },
+      { label: "Futaleufú", slug: "futaleufu" },
+      { label: "Conguillo", slug: "conguillo" },
+      { label: "Puerto Natales", slug: "puerto-natales" },
       { label: "San Pedro de Atacama", slug: "san-pedro-de-atacama" },
-      { label: "Mendoza", slug: "mendoza" },
-      { label: "Jujuy", slug: "jujuy" },
     ],
   },
   {

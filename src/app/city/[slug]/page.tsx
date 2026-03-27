@@ -131,9 +131,17 @@ const KNOWN_CITY_SLUGS = [
 
   // ── Chile ────────────────────────────────────────────────────────────────
   "pucon", "san-pedro-de-atacama", "pichilemu", "puerto-natales", "iquique",
+  // Chile — hike additions
+  "cajon-del-maipo", "cochamo", "futaleufu", "conguillo",
 
   // ── Argentina ────────────────────────────────────────────────────────────
   "bariloche", "mendoza", "salta", "el-chalten", "jujuy",
+  // NW Argentina — Quebrada & pre-Puna
+  "tilcara", "purmamarca", "humahuaca", "iruya", "cafayate",
+  // Mendoza Andes
+  "uspallata", "potrerillos",
+  // Patagonia Argentina additions
+  "el-bolson", "san-martin-de-los-andes", "villa-la-angostura", "esquel",
 
   // ── Brazil ───────────────────────────────────────────────────────────────
   // Surf + yoga + eco villages + kite
@@ -438,8 +446,31 @@ async function resolveCity(
     "puerto-natales":          "Puerto Natales Magallanes Chile",
     "iquique":                 "Iquique Tarapacá Chile",
 
+    // ── Chile — Patagonia & highlands hike spots ──────────────────────────────
+    "cajon-del-maipo":         "San José de Maipo Región Metropolitana Chile",
+    "cochamo":                 "Cochamó Los Lagos Chile",
+    "futaleufu":               "Futaleufú Los Lagos Chile",
+    "conguillo":               "Melipeuco Araucanía Chile",
+
     // ── Argentina (additions) ────────────────────────────────────────────────
     "jujuy":                   "San Salvador de Jujuy Jujuy Argentina",
+
+    // ── Argentina — NW highlands (Quebrada de Humahuaca & pre-Puna) ──────────
+    "tilcara":                 "Tilcara Jujuy Argentina",
+    "purmamarca":              "Purmamarca Jujuy Argentina",
+    "humahuaca":               "Humahuaca Jujuy Argentina",
+    "iruya":                   "Iruya Salta Argentina",
+    "cafayate":                "Cafayate Salta Argentina",
+
+    // ── Argentina — Mendoza Andes ─────────────────────────────────────────────
+    "uspallata":               "Uspallata Mendoza Argentina",
+    "potrerillos":             "Potrerillos Mendoza Argentina",
+
+    // ── Argentina — Patagonia additions ──────────────────────────────────────
+    "el-bolson":               "El Bolsón Río Negro Argentina",
+    "san-martin-de-los-andes": "San Martín de los Andes Neuquén Argentina",
+    "villa-la-angostura":      "Villa La Angostura Neuquén Argentina",
+    "esquel":                  "Esquel Chubut Argentina",
 
     // ── Brazil (additions) ───────────────────────────────────────────────────
     "cumbuco":                 "Cumbuco Ceará Brazil",

@@ -77,6 +77,17 @@ const SLUG_REGION: Record<string, Region> = {
   "la-paz-bolivia": "South America", "coroico": "South America",
   "bariloche": "South America", "mendoza": "South America", "salta": "South America",
   "el-chalten": "South America", "jujuy": "South America",
+  // Argentina — NW highlands
+  "tilcara": "South America", "purmamarca": "South America", "humahuaca": "South America",
+  "iruya": "South America", "cafayate": "South America",
+  // Argentina — Mendoza Andes
+  "uspallata": "South America", "potrerillos": "South America",
+  // Argentina — Patagonia additions
+  "el-bolson": "South America", "san-martin-de-los-andes": "South America",
+  "villa-la-angostura": "South America", "esquel": "South America",
+  // Chile — hike additions
+  "cajon-del-maipo": "South America", "cochamo": "South America",
+  "futaleufu": "South America", "conguillo": "South America",
   "florianopolis": "South America", "bonito": "South America",
   "lencois": "South America", "paraty": "South America",
   "trancoso": "South America", "alto-paraiso": "South America",
