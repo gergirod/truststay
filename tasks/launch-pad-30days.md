@@ -346,20 +346,61 @@ Not just surfers. **Activity-first remote workers** — people who chose a desti
 
 ### Subreddits to add (rotate these alongside the main plan)
 
+**🏄 Surf**
 | Subreddit | Size | Angle |
 |---|---|---|
 | r/surftravel | 180K | "For remote workers surfing on the road" |
-| r/digitalnomad | 1.4M | Surf + remote work framing |
 | r/surfing | 3M | Use carefully — only post when you have real data for a famous surf spot |
 | r/nosara | small | Hyper-local, very engaged |
 | r/PuertoEscondido | small | Direct city community |
 | r/CostaRica | 150K | "Remote workers heading to surf towns in CR" |
 | r/NicaraguaTravel | small | Popoyo, San Juan del Sur |
 | r/Bali | 100K | Canggu, Uluwatu angle |
+| r/SantaTeresa | small | Very engaged surf + wellness crowd |
+| r/MexicoTravel | 200K | Puerto Escondido, Sayulita, Mazunte angle |
+| r/Peru | 200K | Chicama, Lobitos angle |
+| r/chile | 100K | Pichilemu angle |
+
+**🤿 Dive**
+| Subreddit | Size | Angle |
+|---|---|---|
+| r/scuba | 500K | Dive + work framing — biggest dive community |
+| r/diving | 200K | Secondary dive community |
+| r/Honduras | small | Roatán + Utila angle |
+| r/Belize | small | Caye Caulker, San Pedro angle |
+| r/Mexico | 500K | Cozumel, Isla Mujeres angle |
+| r/Colombia | 400K | Taganga, San Andrés angle |
+| r/Brazil | 400K | Bonito freshwater diving angle |
+
+**🪁 Kite & wind**
+| Subreddit | Size | Angle |
+|---|---|---|
+| r/Kiteboarding | 90K | Best kite community — use for Cabarete, Cumbuco, Cabo de la Vela |
+| r/KiteSurf | 60K | Secondary kite community |
+| r/DominicanRepublic | 100K | Cabarete angle — huge kite town |
+| r/Brazil | 400K | Cumbuco, São Miguel do Gostoso |
+
+**⛰️ Hike**
+| Subreddit | Size | Angle |
+|---|---|---|
+| r/hiking | 3M | Use carefully for iconic hikes (Acatenango, Quilotoa) |
+| r/backpacking | 1.5M | Multi-destination LATAM hike angle |
+| r/Guatemala | small | Acatenango, Lago Atitlán, Antigua |
+| r/Ecuador | 80K | Baños, Quilotoa, Vilcabamba |
+| r/argentina | 200K | El Chaltén, Jujuy, Bariloche |
+| r/chile | 100K | Pucón, Puerto Natales angle |
+| r/southamerica | 300K | Broad LATAM hike + nomad angle |
+
+**🧘 Yoga & wellness**
+| Subreddit | Size | Angle |
+|---|---|---|
+| r/yogaretreats | 50K | San Marcos, Nosara, Vilcabamba angle |
+| r/yoga | 500K | Use carefully — must be helpful, not promotional |
+| r/Ayahuasca | 200K | Pisac, Vilcabamba (ceremony + wellness towns) |
 
 ---
 
-### Post templates — activity-first angle
+### Post templates — Surf angle
 
 **Reddit r/surftravel (use early in week 1)**
 ```
@@ -369,7 +410,7 @@ Built truststay.co because I kept seeing the same problem — people show up to 
 
 Search any surf destination — shows you where to base yourself (walkable to everything), which cafes have reliable wifi, gyms and yoga studios nearby. Built around the idea that if you're surfing at 6am, your work setup needs to be 5 minutes away, not 20.
 
-Works well for: Nosara, Santa Teresa, Popoyo, Puerto Escondido, El Tunco, Tamarindo, Sayulita, Canggu.
+Works for the main LATAM circuit: Nosara, Santa Teresa, Puerto Escondido, Popoyo, El Tunco, Tamarindo, Sayulita, Dominical, El Paredon, Pavones, Chicama, Lobitos, Pichilemu, Montañita, Máncora, Jericoacoara, Pipa, Itacaré.
 
 Free to preview. $5 to unlock the full neighborhood.
 
@@ -384,7 +425,7 @@ The neighborhood you pick matters more than anything else. Wrong neighborhood in
 
 Built truststay.co to make that choice easier. Shows you where to base yourself in surf towns so work and waves are both walkable.
 
-Covers Nosara, Santa Teresa, Popoyo, Puerto Escondido, El Tunco, Canggu, Uluwatu.
+Covers the full LATAM surf circuit — Mexico, Central America, Ecuador, Peru, Brazil, Chile.
 
 truststay.co
 ```
@@ -433,7 +474,7 @@ truststay.co
 ```
 For remote workers planning a surf stay in Costa Rica:
 
-Built truststay.co — covers Nosara, Santa Teresa, Tamarindo, Puerto Viejo.
+Built truststay.co — covers Nosara, Santa Teresa, Tamarindo, Dominical, Pavones, Puerto Viejo, Montezuma, Arenal, Monteverde.
 
 Shows you which neighborhood to base yourself in, work spots with wifi, yoga/gym options, and food nearby. Organized around the idea that if you're surfing mornings, your setup needs to be walkable — not a scooter ride away.
 
@@ -442,16 +483,117 @@ Free to preview, $5 to unlock. Lmk if the data looks off for any of these spots.
 
 ---
 
-### Screenshots to prioritize for this angle
+### Post templates — Dive angle
 
-When posting about surf/activity towns, use these cities for screenshots — they have the best data and strongest visual maps:
+**Reddit r/scuba (use in week 2)**
+```
+For remote workers who dive:
 
+Built truststay.co — maps your work setup around wherever you're diving.
+
+Shows you the best neighborhood to base yourself in dive towns, which cafes have reliable wifi, coworkings nearby, and food options. The idea: if you're doing a 2-tank morning dive, your work setup needs to be ready when you surface — not 30 minutes away.
+
+Covers the main dive spots in the Caribbean and LATAM: Roatán, Utila, Caye Caulker, San Pedro, Bocas del Toro, Cozumel, Isla Mujeres, Taganga, San Andrés, Coiba, Bonito (freshwater).
+
+Free to preview. $5 to unlock the full neighborhood.
+
+Anyone doing a live-aboard or extended dive stay who's also working remotely?
+```
+
+**Reddit r/Honduras — Roatán / Utila angle**
+```
+For remote workers planning a dive stay in the Bay Islands:
+
+Just added Roatán and Utila to truststay.co — shows you where to base yourself (West End for Roatán, Main Street area for Utila), work spots with wifi, food options, all within walking distance of the dive schools.
+
+Free to preview, $5 for the full neighborhood. Lmk if anything's off — I'll fix it.
+```
+
+**X post — dive angle**
+```
+added dive destinations to truststay
+
+Roatán, Utila, Caye Caulker, Cozumel, Taganga, Bonito
+
+[screenshot of a dive town map]
+
+if you're doing a dive stay and working remotely — this maps your routine around the dive school, not around the city center
+
+truststay.co
+```
+
+---
+
+### Post templates — Kite & wind angle
+
+**Reddit r/Kiteboarding**
+```
+For remote workers who kite:
+
+Built truststay.co — maps your work setup around your kite spot.
+
+The problem kite travel has that surf doesn't: you're usually in a more remote location (Cabarete, Cumbuco, Cabo de la Vela, São Miguel do Gostoso), and the "good kite window" is afternoon — which means you need a solid morning work setup close by.
+
+Covers: Cabarete (DR), Cumbuco (Brazil), São Miguel do Gostoso (Brazil), Cabo de la Vela (Colombia), Iquique (Chile).
+
+Free to preview. $5 to unlock.
+
+Where are you all kiting this year?
+```
+
+**X post — kite angle**
+```
+added kite destinations to truststay
+
+Cabarete · Cumbuco · São Miguel do Gostoso · Cabo de la Vela · Iquique
+
+[screenshot]
+
+kite windows are usually 2-5pm — which means your morning is for work
+
+truststay maps that: where to work 8am-1pm so you're ready for the session
+
+truststay.co
+```
+
+**Reddit r/DominicanRepublic — Cabarete**
+```
+For anyone doing a kite or surf stay in Cabarete:
+
+Added it to truststay.co — shows you where to base yourself, which cafes have reliable wifi for morning work sessions, food options nearby.
+
+Cabarete is interesting because the kite window is afternoon, so the morning work setup matters a lot. Free to preview, $5 to unlock.
+
+Anyone done a kite + work month in Cabarete? What's the best spot to work mornings?
+```
+
+---
+
+### Screenshots to prioritize by activity
+
+**🏄 Surf**
 1. **Nosara** — surf + yoga combination, clean neighborhood map
 2. **Santa Teresa** — popular, recognizable, good place density
-3. **Popoyo** — smaller, more "insider" feel — good for surf communities
-4. **Puerto Escondido** — La Punta neighborhood specifically
-5. **El Tunco / El Zonte** — good for the Central America surf circuit posts
-6. **Canggu, Bali** — for Southeast Asia surf nomad angle
+3. **Puerto Escondido** — La Punta neighborhood specifically
+4. **Popoyo** — smaller, "insider" feel — good for surf communities
+5. **El Tunco / El Zonte** — Central America surf circuit
+6. **Chicama / Lobitos** — South America surf, unique (world's longest wave)
+
+**🤿 Dive**
+1. **Roatán** — West End neighborhood, most recognized Caribbean dive spot
+2. **Caye Caulker** — Belize, iconic backpacker + dive town
+3. **Cozumel** — Mexico, world-famous, large search volume
+4. **Utila** — budget dive capital, strong community
+
+**⛰️ Hike**
+1. **Lago Atitlán** — strong visual, multiple villages
+2. **Baños** — volcano + adventure base, good place density
+3. **Boquete** — Panama, well-known hiking base
+4. **Pucón** — Chile, iconic volcano
+
+**🪁 Kite**
+1. **Cabarete** — the most recognized kite town globally
+2. **Cumbuco** — Brazil, growing international reputation
 
 ---
 
@@ -2111,15 +2253,40 @@ Thanks to everyone who followed along. Still building.
 
 ## Subreddit quick reference
 
+**General nomad & remote work**
 | Subreddit | Size | Best post type |
 |---|---|---|
 | r/digitalnomad | 1.4M | City-specific tool posts, feedback asks |
 | r/remotework | 400K | Workflow/friction posts, product shares |
 | r/solotravel | 800K | Personal experience + tool share |
 | r/geographicarbitrage | 80K | Latin America + cost/setup angle |
-| r/eupersonalfinance | 400K | Europe city rotation angle |
-| r/chiang_mai | 100K | Nimman/local setup angle |
+| r/southamerica | 300K | LATAM coverage angle |
+| r/financialindependence | 2M | Geo-arbitrage + routine angle |
+
+**City-specific (big nomad communities)**
+| Subreddit | Size | Best post type |
+|---|---|---|
 | r/medellin | 150K | El Poblado / Laureles setup |
+| r/chiang_mai | 100K | Nimman/local setup angle |
 | r/lisboa | 80K | Bairro Alto / Cais do Sodré setup |
 | r/berlin | 200K | Prenzlauer Berg / Mitte setup |
-| r/financialindependence | 2M | Geo-arbitrage + routine angle |
+| r/bali | 100K | Canggu setup angle |
+| r/Colombia | 400K | Medellín + Cartagena + Santa Marta angle |
+| r/Mexico | 500K | Oaxaca + Playa del Carmen + Tulum angle |
+| r/CostaRica | 150K | Surf + remote work circuit |
+| r/Peru | 200K | Cusco + surf towns (Chicama, Lobitos) |
+| r/argentina | 200K | Buenos Aires + Patagonia hike towns |
+| r/chile | 100K | Santiago + surf (Pichilemu) + hike (Pucón) |
+| r/Brazil | 400K | Floripa + kite towns + Paraty |
+
+**Activity-specific**
+| Subreddit | Size | Best post type |
+|---|---|---|
+| r/surftravel | 180K | Full surf + work angle |
+| r/surfing | 3M | Use only for iconic spots with real data |
+| r/scuba | 500K | Dive + remote work angle |
+| r/diving | 200K | Secondary dive community |
+| r/Kiteboarding | 90K | Kite + work morning routine angle |
+| r/hiking | 3M | Use for iconic LATAM treks only |
+| r/backpacking | 1.5M | LATAM multi-destination angle |
+| r/yoga | 500K | Wellness towns: San Marcos, Vilcabamba, Pisac |
