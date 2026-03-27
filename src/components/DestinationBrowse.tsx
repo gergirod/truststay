@@ -88,6 +88,18 @@ const SLUG_REGION: Record<string, Region> = {
   // Chile — hike additions
   "cajon-del-maipo": "South America", "cochamo": "South America",
   "futaleufu": "South America", "conguillo": "South America",
+  // Chile — Easter Island
+  "hanga-roa": "South America",
+  // Argentina — Patagonia coast dive
+  "puerto-madryn": "South America", "ushuaia": "South America",
+  // Ecuador — Galápagos
+  "galapagos": "South America",
+  // Colombia — Pacific dive
+  "nuqui": "South America",
+  // Venezuela
+  "los-roques": "South America",
+  // Brazil — dive
+  "fernando-de-noronha": "South America", "abrolhos": "South America",
   "florianopolis": "South America", "bonito": "South America",
   "lencois": "South America", "paraty": "South America",
   "trancoso": "South America", "alto-paraiso": "South America",

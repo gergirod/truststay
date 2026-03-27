@@ -90,8 +90,22 @@ const DESTINATION_CATEGORIES = [
       { label: "Curaçao", slug: "curacao" },
       { label: "Aruba", slug: "aruba" },
       { label: "Dominica", slug: "dominica" },
-      // South America
+      // South America — Brazil
+      { label: "Fernando de Noronha", slug: "fernando-de-noronha" },
+      { label: "Arraial do Cabo", slug: "arraial-do-cabo" },
+      { label: "Abrolhos", slug: "abrolhos" },
       { label: "Bonito", slug: "bonito" },
+      // South America — Ecuador
+      { label: "Galápagos", slug: "galapagos" },
+      // South America — Colombia Pacific
+      { label: "Nuquí", slug: "nuqui" },
+      // South America — Argentina
+      { label: "Puerto Madryn", slug: "puerto-madryn" },
+      { label: "Ushuaia", slug: "ushuaia" },
+      // South America — Chile
+      { label: "Hanga Roa", slug: "hanga-roa" },
+      // South America — Venezuela
+      { label: "Los Roques", slug: "los-roques" },
     ],
   },
   {

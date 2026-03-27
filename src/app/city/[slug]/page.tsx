@@ -115,11 +115,15 @@ const KNOWN_CITY_SLUGS = [
   // Cities + activity destinations
   "minca", "palomino", "santa-marta", "cartagena",
   "villa-de-leyva", "salento", "taganga", "san-andres", "cabo-de-la-vela",
+  // Pacific coast dive
+  "nuqui",
 
   // ── Ecuador ──────────────────────────────────────────────────────────────
   // Coast surf + Andes + Amazon + wellness
   "montanita", "olon", "banos", "canoa", "cuenca",
   "quilotoa", "vilcabamba", "mindo",
+  // Galápagos dive
+  "galapagos",
 
   // ── Peru ─────────────────────────────────────────────────────────────────
   // Surf village + trekking + Sacred Valley bases
@@ -133,9 +137,13 @@ const KNOWN_CITY_SLUGS = [
   "pucon", "san-pedro-de-atacama", "pichilemu", "puerto-natales", "iquique",
   // Chile — hike additions
   "cajon-del-maipo", "cochamo", "futaleufu", "conguillo",
+  // Easter Island dive
+  "hanga-roa",
 
   // ── Argentina ────────────────────────────────────────────────────────────
   "bariloche", "mendoza", "salta", "el-chalten", "jujuy",
+  // Patagonia coast dive
+  "puerto-madryn", "ushuaia",
   // NW Argentina — Quebrada & pre-Puna
   "tilcara", "purmamarca", "humahuaca", "iruya", "cafayate",
   // Mendoza Andes
@@ -147,6 +155,8 @@ const KNOWN_CITY_SLUGS = [
   // Surf + yoga + eco villages + kite
   "florianopolis", "itacare", "jericoacoara",
   "pipa", "paraty", "arraial-do-cabo",
+  // Brazil dive additions
+  "fernando-de-noronha", "abrolhos",
   "cumbuco", "sao-miguel-do-gostoso", "lencois", "bonito",
 
   // ── Dominican Republic ───────────────────────────────────────────────────
@@ -159,6 +169,9 @@ const KNOWN_CITY_SLUGS = [
   // ── South America hubs ───────────────────────────────────────────────────
   "lima", "quito", "panama-city", "montevideo",
   "santiago", "valparaiso", "sao-paulo", "rio-de-janeiro", "fortaleza",
+
+  // ── Venezuela ────────────────────────────────────────────────────────────
+  "los-roques",
 
   // ── Caribbean ─────────────────────────────────────────────────────────────
   // ABC islands
@@ -429,11 +442,13 @@ async function resolveCity(
     "taganga":                 "Taganga Magdalena Colombia",
     "san-andres":              "San Andrés Archipiélago de San Andrés Colombia",
     "cabo-de-la-vela":         "Cabo de la Vela La Guajira Colombia",
+    "nuqui":                   "Nuquí Chocó Colombia",
 
     // ── Ecuador (additions) ──────────────────────────────────────────────────
     "quilotoa":                "Quilotoa Cotopaxi Ecuador",
     "vilcabamba":              "Vilcabamba Loja Ecuador",
     "mindo":                   "Mindo Pichincha Ecuador",
+    "galapagos":               "Puerto Ayora Santa Cruz Galápagos Ecuador",
 
     // ── Peru (additions) ─────────────────────────────────────────────────────
     "lobitos":                 "Lobitos Piura Peru",
@@ -451,9 +466,13 @@ async function resolveCity(
     "cochamo":                 "Cochamó Los Lagos Chile",
     "futaleufu":               "Futaleufú Los Lagos Chile",
     "conguillo":               "Melipeuco Araucanía Chile",
+    // ── Chile — Easter Island dive ────────────────────────────────────────────
+    "hanga-roa":               "Hanga Roa Isla de Pascua Valparaíso Chile",
 
     // ── Argentina (additions) ────────────────────────────────────────────────
     "jujuy":                   "San Salvador de Jujuy Jujuy Argentina",
+    "puerto-madryn":           "Puerto Madryn Chubut Argentina",
+    "ushuaia":                 "Ushuaia Tierra del Fuego Argentina",
 
     // ── Argentina — NW highlands (Quebrada de Humahuaca & pre-Puna) ──────────
     "tilcara":                 "Tilcara Jujuy Argentina",
@@ -473,6 +492,8 @@ async function resolveCity(
     "esquel":                  "Esquel Chubut Argentina",
 
     // ── Brazil (additions) ───────────────────────────────────────────────────
+    "fernando-de-noronha":     "Vila dos Remédios Fernando de Noronha Pernambuco Brazil",
+    "abrolhos":                "Caravelas Bahia Brazil",
     "cumbuco":                 "Cumbuco Ceará Brazil",
     "sao-miguel-do-gostoso":   "São Miguel do Gostoso Rio Grande do Norte Brazil",
     "lencois":                 "Lençóis Bahia Brazil",
@@ -555,6 +576,9 @@ async function resolveCity(
     "asuncion":                "Asunción Paraguay",
     "cali":                    "Cali Valle del Cauca Colombia",
     "punta-del-este":          "Punta del Este Maldonado Uruguay",
+
+    // ── Venezuela ─────────────────────────────────────────────────────────────
+    "los-roques":              "Los Roques Dependencias Federales Venezuela",
   };
 
   const query = GEOCODE_HINTS[slug] ?? slug.replace(/-/g, " ");
