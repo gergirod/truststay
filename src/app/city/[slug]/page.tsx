@@ -18,6 +18,8 @@ import CityNeighborhoodGrid from "@/components/CityNeighborhoodGrid";
 import { CURATED_NEIGHBORHOODS } from "@/data/neighborhoods";
 import type { CityNeighborhoodConfig } from "@/data/neighborhoods";
 import { PLACE_OVERRIDES } from "@/data/placeOverrides";
+import { CITY_INTROS } from "@/data/cityIntros";
+import { CityIntro } from "@/components/CityIntro";
 import { discoverNeighborhoods } from "@/lib/neighborhoodDiscovery";
 import { EmailCapture } from "@/components/EmailCapture";
 import { ShareButton } from "@/components/ShareButton";
@@ -277,7 +279,10 @@ export async function generateMetadata({
   // City: "Work, coffee & routine in Lisbon"
   const displayName = parentCity ? `${cityName}, ${parentCity}` : cityName;
   const title = `Work, coffee & routine in ${displayName}`;
-  const description = parentCity
+  const introSummary = CITY_INTROS[slug]?.summary ?? null;
+  const description = introSummary
+    ? introSummary
+    : parentCity
     ? `Find the best work spots, cafés, and training options in ${cityName} — a neighborhood in ${parentCity} — organized for remote workers.`
     : `Find where to base yourself in ${cityName}, with places to work, grab coffee or meals, and keep your training routine — organized for remote workers on the move.`;
 
@@ -727,11 +732,21 @@ export default async function CityPage({ params, searchParams }: Props) {
                   ? `${city.parentCity ?? sp.parentCity}${city.country ? `, ${city.country}` : ""}`
                   : city.country}
               </p>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-umber">
-                Find a base area, places to work, nearby coffee and meals, and
-                wellbeing spots — so you can settle into {city.name} without
-                losing your routine.
-              </p>
+              {(() => {
+                const intro = CITY_INTROS[city.slug] ?? null;
+                if (intro) return (
+                  <div className="mt-5 max-w-xl">
+                    <CityIntro intro={intro} />
+                  </div>
+                );
+                return (
+                  <p className="mt-3 max-w-xl text-sm leading-6 text-umber">
+                    Find a base area, places to work, nearby coffee and meals, and
+                    wellbeing spots — so you can settle into {city.name} without
+                    losing your routine.
+                  </p>
+                );
+              })()}
             </div>
             <Suspense fallback={<PlacesSkeleton />}>
               <CityContent city={city} isUnlocked={unlocked} justUnlocked={justUnlocked} />
@@ -811,11 +826,21 @@ async function AutoNeighborhoodOrContent({
           />
         </div>
         <p className="mt-1.5 text-base text-umber">{city.country}</p>
-        <p className="mt-3 max-w-xl text-sm leading-6 text-umber">
-          Find a base area, places to work, nearby coffee and meals, and
-          training spots — so you can settle into {city.name} without losing
-          your routine.
-        </p>
+        {(() => {
+          const intro = CITY_INTROS[city.slug] ?? null;
+          if (intro) return (
+            <div className="mt-5 max-w-xl">
+              <CityIntro intro={intro} />
+            </div>
+          );
+          return (
+            <p className="mt-3 max-w-xl text-sm leading-6 text-umber">
+              Find a base area, places to work, nearby coffee and meals, and
+              training spots — so you can settle into {city.name} without losing
+              your routine.
+            </p>
+          );
+        })()}
       </div>
       {/* fetchPlaces already cache-warmed above — CityContent resolves instantly */}
       <Suspense fallback={<PlacesSkeleton />}>
