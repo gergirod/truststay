@@ -41,12 +41,14 @@ function isCafeWorkSection(place: Place): boolean {
   // Explicit low-work signal — definitely Coffee & meals
   if (confidence.workFit === "low") return false;
 
-  // Strong positive work signals
+  // Strong positive work signals — only high workFit or explicit deep_work tag
   if (confidence.workFit === "high") return true;
-  const workTags: string[] = ["deep_work", "backup_work", "calls", "short_session"];
-  if (bestFor.some((t) => workTags.includes(t))) return true;
+  // "deep_work" is only set for work-named cafes — not generic cafes
+  if (bestFor.includes("deep_work")) return true;
 
-  // Work-capable with decent wifi and acceptable noise
+  // Work-capable only when wifi is actually confirmed + noise is acceptable
+  // wifiConfidence reaches "medium"/"verified" only via explicit OSM internet_access
+  // tag or Google editorial summary mentioning wifi — not by default
   if (
     confidence.workFit === "medium" &&
     (confidence.wifiConfidence === "medium" ||
@@ -56,7 +58,7 @@ function isCafeWorkSection(place: Place): boolean {
     return true;
   }
 
-  // Ambiguous — default to Coffee & meals per product spec
+  // Everything else — no verified work signals → Coffee & meals
   return false;
 }
 

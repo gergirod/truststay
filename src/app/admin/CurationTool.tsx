@@ -8,6 +8,17 @@ const CURATED_CITY_NAMES = Object.values(CURATED_NEIGHBORHOODS).map(
   (c) => c.cityName
 );
 
+interface QualityReason {
+  pass: boolean;
+  label: string;
+}
+
+interface QualityCheck {
+  passes: boolean;
+  score: number;
+  reasons: QualityReason[];
+}
+
 interface DiscoverResult {
   city: {
     name: string;
@@ -26,6 +37,14 @@ interface DiscoverResult {
     enriched?: number;
   };
   neighborhoods: NeighborhoodEntry[];
+  qualityCheck?: QualityCheck;
+}
+
+interface DemandCity {
+  slug: string;
+  name: string;
+  searches: number;
+  isCurated: boolean;
 }
 
 interface NeighborhoodQuality {
@@ -62,6 +81,131 @@ function CuratedCitiesBar({
           >
             ✓ {name}
           </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DemandQueue({
+  secret,
+  onSelect,
+}: {
+  secret: string;
+  onSelect: (city: string) => void;
+}) {
+  const [cities, setCities] = useState<DemandCity[] | null>(null);
+  const [status, setStatus] = useState<"loading" | "ready" | "not_configured" | "error">("loading");
+
+  useEffect(() => {
+    fetch(`/api/admin/demand?secret=${encodeURIComponent(secret)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error === "not_configured") {
+          setStatus("not_configured");
+        } else if (data.cities) {
+          setCities(data.cities);
+          setStatus("ready");
+        } else {
+          setStatus("error");
+        }
+      })
+      .catch(() => setStatus("error"));
+  }, [secret]);
+
+  return (
+    <div className="mb-8 rounded-xl border border-[#E4DDD2] bg-white px-5 py-5">
+      <div className="flex items-center gap-2 mb-3">
+        <p className="text-sm font-semibold text-[#2E2A26]">Demand queue</p>
+        <span className="text-xs text-[#5F5A54]">— top searched cities in last 30 days</span>
+      </div>
+
+      {status === "loading" && (
+        <p className="text-xs text-[#5F5A54]">Loading PostHog data…</p>
+      )}
+
+      {status === "not_configured" && (
+        <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800">
+          <p className="font-semibold mb-1">PostHog API not configured</p>
+          <p className="mb-2">Add these to your <code>.env.local</code> and Vercel env vars:</p>
+          <pre className="bg-amber-100 rounded p-2 text-xs leading-5">{`POSTHOG_PERSONAL_API_KEY=phx_...
+POSTHOG_PROJECT_ID=12345`}</pre>
+          <p className="mt-2">Get your personal API key from PostHog → Settings → Personal API keys. Project ID is the number in your PostHog project URL.</p>
+        </div>
+      )}
+
+      {status === "error" && (
+        <p className="text-xs text-red-600">Could not fetch demand data. Check console.</p>
+      )}
+
+      {status === "ready" && cities && (
+        <>
+          {cities.length === 0 ? (
+            <p className="text-xs text-[#5F5A54]">No searches recorded yet. Start posting and come back.</p>
+          ) : (
+            <div className="space-y-1">
+              {cities.map((city) => (
+                <div
+                  key={city.slug}
+                  className="flex items-center gap-3 py-1.5"
+                >
+                  <div className="w-20 text-right">
+                    <span className="text-xs font-semibold text-[#2E2A26]">{city.searches}</span>
+                    <span className="text-xs text-[#5F5A54]"> searches</span>
+                  </div>
+                  <div className="flex-1 flex items-center gap-2">
+                    <span className="text-sm text-[#2E2A26]">{city.name}</span>
+                    <span className="text-xs text-[#8FB7B3] font-mono">{city.slug}</span>
+                    {city.isCurated ? (
+                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-[#DCEBE9] text-[#2E2A26]">✓ curated</span>
+                    ) : (
+                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">needs curation</span>
+                    )}
+                  </div>
+                  {!city.isCurated && (
+                    <button
+                      onClick={() => onSelect(city.name)}
+                      className="text-xs px-3 py-1.5 bg-[#2E2A26] text-white rounded-lg hover:bg-[#3d3832] transition-colors font-medium"
+                    >
+                      Discover →
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function QualityBadge({ check }: { check: QualityCheck }) {
+  return (
+    <div className="mt-3">
+      <div className="flex items-center gap-2 mb-2">
+        <span
+          className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+            check.passes
+              ? "bg-green-50 text-green-700 border border-green-200"
+              : "bg-red-50 text-red-700 border border-red-200"
+          }`}
+        >
+          {check.passes ? "✓ Passes quality check" : "✗ Fails quality check"} · {check.score}%
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {check.reasons.map((r) => (
+          <span
+            key={r.label}
+            className={`text-xs px-2 py-0.5 rounded-full ${
+              r.pass
+                ? "bg-stone-100 text-stone-600"
+                : "bg-red-50 text-red-600 border border-red-100"
+            }`}
+          >
+            {r.pass ? "✓" : "✗"} {r.label}
+          </span>
         ))}
       </div>
     </div>
@@ -213,6 +357,9 @@ ${lines.join(",\n")}
           </p>
         </div>
 
+        {/* Demand queue — top searched uncurated cities from PostHog */}
+        <DemandQueue secret={secret} onSelect={(city) => { setQuery(city); }} />
+
         {/* Curated cities quick-access */}
         <CuratedCitiesBar onSelect={(city) => { setQuery(city); }} />
 
@@ -273,6 +420,9 @@ ${lines.join(",\n")}
                     slug: <code>{result.city.slug}</code> · {result.city.lat.toFixed(4)},{" "}
                     {result.city.lon.toFixed(4)}
                   </p>
+                  {result.qualityCheck && (
+                    <QualityBadge check={result.qualityCheck} />
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-[#5F5A54] mb-1">City-wide place counts</p>

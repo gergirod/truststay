@@ -6,6 +6,56 @@ import { enrichPlaces } from "@/lib/enrichment";
 import { CURATED_NEIGHBORHOODS } from "@/data/neighborhoods";
 import type { NeighborhoodEntry } from "@/data/neighborhoods";
 
+// ── Quality thresholds ────────────────────────────────────────────────────────
+// A city passes auto-curation quality if it clears at least 4 of 5 checks.
+// These ensure we don't surface empty or near-empty city pages.
+
+interface QualityReason {
+  pass: boolean;
+  label: string;
+}
+
+interface QualityCheck {
+  passes: boolean;
+  score: number; // 0–100
+  reasons: QualityReason[];
+}
+
+function checkQuality(
+  placeCounts: { cafes: number; coworkings: number; gyms: number; food: number; total: number },
+  neighborhoodCount: number
+): QualityCheck {
+  const reasons: QualityReason[] = [
+    {
+      pass: placeCounts.total >= 6,
+      label: `Total places ≥ 6 (found ${placeCounts.total})`,
+    },
+    {
+      pass: placeCounts.coworkings >= 1 || placeCounts.cafes >= 3,
+      label: `Work spots — coworkings: ${placeCounts.coworkings}, cafes: ${placeCounts.cafes}`,
+    },
+    {
+      pass: placeCounts.gyms >= 1,
+      label: `Wellbeing spots ≥ 1 (found ${placeCounts.gyms})`,
+    },
+    {
+      pass: placeCounts.food >= 1,
+      label: `Food/restaurants ≥ 1 (found ${placeCounts.food})`,
+    },
+    {
+      pass: neighborhoodCount >= 2,
+      label: `Neighborhoods discovered ≥ 2 (found ${neighborhoodCount})`,
+    },
+  ];
+
+  const passed = reasons.filter((r) => r.pass).length;
+  return {
+    passes: passed >= 4,
+    score: Math.round((passed / reasons.length) * 100),
+    reasons,
+  };
+}
+
 function checkSecret(req: NextRequest): boolean {
   const secret = req.nextUrl.searchParams.get("secret") ?? "";
   return !!process.env.ADMIN_SECRET && secret === process.env.ADMIN_SECRET;
@@ -101,6 +151,8 @@ export async function GET(req: NextRequest) {
     quality: computeNeighbourhoodQuality(n, places),
   }));
 
+  const qualityCheck = checkQuality(placeCounts, neighborhoods.length);
+
   return NextResponse.json({
     city: {
       name: city.name,
@@ -112,5 +164,6 @@ export async function GET(req: NextRequest) {
     source,
     placeCounts,
     neighborhoods: neighborhoodsWithQuality,
+    qualityCheck,
   });
 }

@@ -46,10 +46,14 @@ export function deriveConfidence(
 
     const bestFor: BestForTag[] = ["coffee_break", "quick_stop"];
     if (workFit === "high") {
-      bestFor.push("deep_work");
-    } else {
-      bestFor.push("short_session", "backup_work");
+      // Work-named cafes — strong positive signal
+      bestFor.push("deep_work", "backup_work");
+    } else if (hasInternet) {
+      // Explicit wifi tag in OSM — reasonable work backup
+      bestFor.push("backup_work", "short_session");
     }
+    // Generic cafes with no signals → only coffee_break / quick_stop
+    // This prevents routing ambiguous espresso bars into the Work section
 
     // Natural sentence explanations rather than comma-joined fragments
     let explanation: string;

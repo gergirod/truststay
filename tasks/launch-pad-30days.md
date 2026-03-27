@@ -20,6 +20,270 @@
 
 ---
 
+## Account Setup (do this before day 1)
+
+### Reddit
+
+Reddit es el canal más importante para distribución. Pero si tu cuenta es nueva, no podés postear de entrada — los subreddits tienen karma mínimo y los posts de cuentas nuevas se filtran automáticamente.
+
+**Step 1 — Crear la cuenta**
+1. Ir a [reddit.com](https://reddit.com) → "Sign Up"
+2. Elegí un username que no suene corporativo. Idealmente tu nombre o algo relacionado con vos como persona, no con Truststay. La gente confía más en personas que en brands.
+3. Verificá el email.
+
+**Step 2 — Construir karma (mínimo 3–5 días antes de postear)**
+
+Reddit bloquea posts de cuentas con poco karma. Hay que ganarlo siendo genuino.
+
+Target: ~50–100 karma de comentarios antes de tu primer post.
+
+**Dónde comentar y qué buscar:**
+
+Entrá a cada subreddit y buscá threads activos de las últimas 24–48 horas. Buscá estos tipos de preguntas:
+
+---
+
+**r/digitalnomad** — buscá: `best neighborhood`, `where to work`, `coworking`, `routine`, `gym`, `first time in`
+
+Tipos de threads donde podés agregar valor:
+- "Moving to Medellin for a month, any tips?" → respondé sobre El Poblado vs Laureles, dónde trabajar
+- "Best cities for routine-oriented remote workers?" → hablá de lo que hace que un lugar funcione: densidad de cafés, gym cerca, área caminable
+- "Chiang Mai vs Lisbon for remote work?" → compará con criterios concretos (no solo "vibe")
+- "How do you set up your routine when you arrive somewhere new?" → este es el tuyo, respondé con tu proceso real
+
+**r/remotework** — buscá: `new city`, `coworking`, `productivity`, `setup`, `workspace`
+
+Tipos de threads:
+- "How do you find good work cafes when you travel?" → respondé con tu método real (buscar alta densidad, leer reviews de laptop-friendliness)
+- "Tips for maintaining routine while traveling?" → experiencia personal, cómo lo resolvés vos
+
+**r/solotravel** — buscá: `remote work`, `long stay`, `base`, `neighborhood`, `month`
+
+Tipos de threads:
+- "Doing my first month-long stay in [ciudad], any advice?" → respondé con consejos sobre elegir la zona antes del airbnb
+- "How do you pick a neighborhood when you arrive?" → esto es exactamente el problema que resolvés
+
+**r/chiang_mai** — buscá: `coworking`, `gym`, `Nimman`, `work from`, `remote`
+
+Tipos de threads:
+- "Best area to stay in CM for remote work?" → podés hablar de Nimman con datos específicos
+- "Gym recommendations in Nimman?" → si sabés algo, aportá
+
+**r/medellin** — buscá: `remote work`, `El Poblado`, `Laureles`, `gym`, `café`
+
+Tipos de threads:
+- "El Poblado vs Laureles for a month?" → respondé con criterios concretos de rutina diaria
+- "Best cafes to work from in Medellin?" → nombrar lugares específicos con contexto
+
+**r/lisboa** — buscá: `remote work`, `coworking`, `Bairro Alto`, `neighborhood`
+
+Tipos de threads:
+- "Best neighborhood for remote work in Lisbon?" → respondé con lo que sabés
+
+---
+
+**Cómo escribir los comentarios:**
+
+✓ Arrancá con la respuesta directa, sin rodeos
+✓ Usá experiencia personal o datos concretos ("en El Poblado hay 3-4 cafés con buen wifi en un radio de 400m")
+✓ Si es largo, usá puntos — Reddit los lee mejor
+✓ Terminá con una pregunta o algo que invite respuesta
+✓ No menciones Truststay todavía — solo sé útil
+
+✗ No escribas "great question!"
+✗ No escribas comentarios de 1 sola oración solo para estar
+✗ No copies el mismo comentario en múltiples posts
+
+---
+
+**Ejemplo de comentario bien hecho:**
+
+Thread: *"Moving to Medellin for 6 weeks, El Poblado or Laureles?"*
+
+```
+Depends a lot on what your day looks like.
+
+El Poblado: higher density of cafes and coworkings, more English-spoken, more expensive. 
+If you need reliable wifi options within walking distance of each other, it's easier to set up quickly.
+
+Laureles: more local feel, cheaper, but you'll spend more time figuring out which cafes 
+actually work for laptops vs which ones are just nice to look at.
+
+One thing I've found useful: pick the neighborhood before you book accommodation, 
+not the other way around. Figure out where you'll work day 1, then find an Airbnb 
+inside walking distance of that. Saves a lot of commuting.
+
+What's your typical day structure — mostly working from cafes, coworkings, or home?
+```
+
+---
+
+**Cuánto tiempo por día:**
+
+- 15–20 min por día durante 5 días
+- 2–3 comentarios buenos > 10 comentarios mediocres
+- Hacé esto antes de Day 1 del plan
+
+**Step 3 — Leer las reglas de cada subreddit**
+- Antes de postear en cualquier sub, entrá a "About" y leé las reglas. Algunos subs (r/digitalnomad) requieren que el post sea una pregunta o discusión, no un link directo.
+- Si el sub no permite links externos, pegá el contenido como texto y mencioná la URL al final naturalmente.
+
+**Step 4 — Primer post**
+- Esperá a tener al menos 50 karma
+- Empezá por r/digitalnomad o r/solotravel — son más permisivos con nuevas cuentas que los city-specific subs
+- Nunca pongas el link en el título. Siempre en el cuerpo del post.
+
+---
+
+### Indie Hackers
+
+**Step 1 — Crear la cuenta**
+1. Ir a [indiehackers.com](https://indiehackers.com) → "Sign up"
+2. Podés loguearte con GitHub o Google — recomendado para no gestionar otra password.
+
+**Step 2 — Completar el perfil**
+- Foto de perfil real (la misma que usás en X si podés — consistencia de marca personal)
+- Bio corta: "Building Truststay — helping remote workers set up their routine when they land somewhere new."
+- Agregá el link a truststay.co en el perfil.
+
+**Step 3 — Participar antes de postear**
+- Pasá por r/indiehackers y comentá en 3–5 posts de otros founders antes de tu launch post. No es obligatorio pero IH premia la participación genuina con más visibilidad.
+
+**Step 4 — Tu primer post (Day 1)**
+- Ir a "Share" → "Show IH" para el launch post
+- El título importa mucho: algo como *"I built a tool that maps your remote work routine for any city — would love brutal feedback"* funciona mejor que algo genérico.
+
+---
+
+### Resumen: qué crear antes del Day 1
+
+| Cuenta | Tiempo de creación | Tiempo de "calentamiento" | Listo para postear |
+|---|---|---|---|
+| Reddit | 5 min | 3–7 días (karma) | Después del warm-up |
+| Indie Hackers | 5 min | 0 días | Inmediato |
+| X | Ya tenés ✓ | — | Inmediato |
+
+**Orden recomendado:**
+1. Hoy → crear Reddit + Indie Hackers
+2. Próximos 5 días → solo comentar en Reddit para build karma
+3. Day 1 → postear en X + IH + Reddit (si ya tenés karma suficiente)
+
+---
+
+## Channel Storylines
+
+Each channel has its own narrative arc. Before posting, remember which chapter you're in.
+
+---
+
+### X (Twitter) — The builder's diary
+
+**Character:** Founder building something real. No hype. Shares data, doubts, wins, and process.
+
+**The arc:**
+
+| Days | Chapter | What you're doing |
+|---|---|---|
+| 1–3 | **Launch** | "I shipped this. Here's what it does. Here's a screenshot." |
+| 4–7 | **First signal** | "Here's what the data is showing after 3 days. I'm adjusting." |
+| 8–14 | **Going deeper** | "This city is blowing up. Here's why. Here's the map." |
+| 15–21 | **Pattern recognition** | "I see what's working. People search neighborhoods, not cities. Changing strategy." |
+| 22–28 | **Talking to users** | "Paying users are telling me X. Building around that." |
+| 29–30 | **Honest wrap** | "30 days. Real numbers. What I'd do differently." |
+
+**Voice rules for X:**
+- Short sentences. One idea per post.
+- Always include either a screenshot OR a real number.
+- Vulnerability > polish. "This didn't work" gets more engagement than "this is great."
+- End posts with a question when you want replies, or just silence when you want shares.
+- Never post the same angle twice in the same week — rotate: insight / screenshot / question / data.
+
+**The through-line sentence to come back to:**
+> "You've decided where you're going. We get your routine set up before day 1."
+
+---
+
+### Reddit — The local expert
+
+**Character:** Remote worker who actually lives this problem. You built the tool for yourself. You're sharing it with communities that will genuinely find it useful. You're not selling — you're contributing.
+
+**The arc:**
+
+| Days | Chapter | What you're doing |
+|---|---|---|
+| 1–3 | **Broad launch** | Hit r/digitalnomad, r/remotework, r/solotravel with the origin story: "I built this because I had the problem" |
+| 4–10 | **City-specific** | Go deep into r/medellin, r/chiang_mai, r/lisboa, r/berlin. Talk about THAT city. Use real data from the tool. |
+| 11–21 | **Niche angle** | r/geographicarbitrage, r/financialindependence, r/freelance, r/expats — reframe the problem for each community |
+| 22–30 | **Month 1 honest update** | Return to the original subs with real data. "3 weeks ago I posted this. Here's what happened." |
+
+**Voice rules for Reddit:**
+- First sentence must not sound like an ad. Lead with the problem or the city.
+- Always ask a genuine question at the end — you want comments, not just upvotes.
+- Name specific places. "Fabrica Coffee Roasters 0.3km ★4.8" lands better than "a café nearby."
+- Acknowledge what the tool doesn't do yet. Reddit punishes overconfidence.
+- Engage every comment the same day you post. Reddit's algorithm rewards early engagement.
+
+**The through-line sentence to come back to:**
+> "I got tired of spending my first 3 days in every new city figuring this out from scratch."
+
+**Subreddit rotation (never repeat within 7 days):**
+```
+Week 1: r/digitalnomad → r/remotework → r/solotravel → r/chiang_mai → r/medellin
+Week 2: r/berlin → r/lisboa → r/geographicarbitrage → r/remotework → r/solotravel
+Week 3: r/financialindependence → r/freelance → r/expats → r/digitalnomad → r/leanfire
+Week 4: Return to top 3 with data update + r/IndieHackers + r/entrepreneur
+```
+
+---
+
+### Indie Hackers — The build in public founder
+
+**Character:** Technical founder building something real. Sharing honest numbers, lessons, and product decisions. The IH audience respects transparency and technical depth over marketing.
+
+**The arc:**
+
+| Post | When | What |
+|---|---|---|
+| **Launch post** | Day 1 | "I launched. Here's what it does, how it's built, and what I want feedback on." |
+| **Week 1 update** | Day 6 | "First 6 days of data. What's working, what's not. Adjusting." |
+| **Technical deep dive** | Day 17 | "How I built neighborhood discovery with no database and ~$0 infra." |
+| **Week 3 update** | Day 21 | "Revenue, searches, insights. What changed my thinking." |
+| **Month 1 honest recap** | Day 25 | "Real numbers. What I'd do differently at day 0." |
+| **30-day wrap** | Day 30 | "Did I hit 10 paying users? Here's the full story." |
+
+**Voice rules for Indie Hackers:**
+- Lead with numbers when you have them. IH readers respect data.
+- Share the "how I built it" angle — IH loves technical depth.
+- Be honest about what's not working. Fake success posts get ignored.
+- Ask one real question at the end — IH readers give good feedback.
+- Link to live product always — people want to see it working.
+
+**The through-line sentence to come back to:**
+> "Narrow product. Real problem. No database. $0 infra. Building in public."
+
+---
+
+### City subreddits — The helpful local
+
+**Character:** Someone who knows the remote work scene in that city and built something that organizes what they already know. Not a tourist. Not a marketer. A person who's been there.
+
+**The arc:**
+
+| Phase | What you post |
+|---|---|
+| **First visit** | "For remote workers in [city]: I added [city] to truststay.co. Here's what the data shows for [neighborhood]. Lmk if it's off." |
+| **Update visit (2 weeks later)** | "Updated [city] on truststay — better gym data, cleaner work spot list for [neighborhood]. Thanks to the feedback." |
+| **Month close** | "[City] has been our most searched city. Here's what the full [neighborhood] setup looks like. [screenshot + real numbers]" |
+
+**Voice rules for city subreddits:**
+- Name the specific neighborhood in the first sentence.
+- Use real numbers from the tool — distance, ratings, place names.
+- Show the routine map screenshot — it communicates faster than text.
+- Always invite corrections. "Lmk if anything looks off" builds trust.
+- Never start with "I built a tool." Start with the city or the problem.
+
+---
+
 ## Analytics check-ins (every 3 days)
 
 Every 3 days, open PostHog and review:
@@ -215,9 +479,22 @@ this is what the tool is for — day 1 setup without the 3 days of google maps
 the reason I didn't just use ChatGPT for this:
 
 ChatGPT gives you a list
-Truststay gives you distance, ratings, opening hours, and a suggested area to base yourself
+Truststay gives you a map, distance, ratings, opening hours, and a suggested area to base yourself
 
 there's a difference between a list and a setup
+
+truststay.co
+```
+
+**X post 4 (map feature)**
+```
+truststay now has a routine map
+
+[screenshot]
+
+each pin is a real place — laptop icon for work spots, coffee cup for meals, figure with arms up for gyms
+
+grey dots = locked places (unlock for $5 to reveal)
 
 truststay.co
 ```
@@ -414,10 +691,10 @@ What city are you heading to next?
 ```
 how truststay works:
 
-1. search a city or neighborhood
+1. search a city, neighborhood, or surf spot
 2. get a suggested base area (weighted by café + cowork + gym density)
-3. see work spots, coffee/meals, gyms ranked by distance from that base
-4. free preview, $5 to unlock full list
+3. see a routine map with work spots, coffee/meals, and wellbeing pins
+4. free preview, $5 to unlock full list with names, ratings, hours
 
 no accounts. no subscriptions.
 
@@ -518,11 +795,11 @@ Does this match how you approach it or do you have a different system?
 ```
 most underrated part of working remotely from different cities:
 
-the gym problem
+the wellbeing problem
 
-you know you need one. you don't know which ones are actually good until you've wasted 3 days trialing different places.
+gym, yoga studio, fitness center — you know you need one. you don't know which ones are actually good until you've wasted 3 days trialing different places.
 
-truststay shows gyms near your suggested base with Google ratings
+truststay shows wellbeing spots near your suggested base with Google ratings, mapped so you can see what's actually walkable
 
 small thing, but it matters for keeping a routine
 ```
@@ -777,9 +1054,9 @@ building in public question:
 
 what's missing from truststay that would make you use it every time you move cities?
 
-- maps view
 - price range for coworkings
 - neighborhood comparison
+- offline / saved setups
 - something else
 
 genuinely curious before I build anything new
@@ -841,7 +1118,7 @@ Data from OpenStreetMap + Google ratings. Lmk if anything's off — I update it 
 
 [screenshot]
 
-this is the full setup view: base area + work + coffee/meals + training
+this is the full setup view: base area + work + coffee/meals + wellbeing
 
 truststay.co
 ```
@@ -1050,9 +1327,11 @@ the places people care most about in truststay:
 
 1. coworkings (with opening hours + website)
 2. work cafés (with rating + "laptop-friendly" signal)
-3. gyms (with distance from base)
+3. wellbeing spots — gym, yoga, fitness (with distance from base)
 
-food and coffee breaks are secondary — people mostly want the work infrastructure first
+the routine map makes it obvious why: you can visually see if your setup is walkable or not
+
+truststay.co
 ```
 
 **Reddit r/freelance**
@@ -1112,15 +1391,15 @@ Free to preview. $5 to unlock the full neighborhood. No account needed.
 
 **X post 3**
 ```
-built truststay without a map view because I wanted to prove the product worked without it
+added a map view to truststay this week
 
-still no map view after 3 weeks
+[screenshot of routine map with custom pins]
 
-the routine score + distance numbers + place list is enough to make a decision
+teal = work spots · terracotta = coffee & meals · amber = wellbeing · grey = locked
 
-interesting to see people use it without needing a visual
+you can see the full routine layout before unlocking
 
-maybe a map view later, but it's not the blocker I thought it would be
+truststay.co
 ```
 
 ---
@@ -1631,7 +1910,7 @@ Coffee & meals:
 - [Place] — ★[X], [distance]km
 - [Place] — ★[X], [distance]km
 
-Training:
+Wellbeing:
 - [Gym] — ★[X], [distance]km
 
 Free to preview, $5 for the full list.
