@@ -9,17 +9,17 @@ interface Props {
 }
 
 const ISSUES = [
-  { value: "closed", label: "Permanently closed" },
-  { value: "wifi", label: "Wi-Fi doesn't work" },
-  { value: "hours", label: "Wrong opening hours" },
+  { value: "closed",   label: "Permanently closed" },
+  { value: "wifi",     label: "Wi-Fi doesn't work" },
+  { value: "hours",    label: "Wrong opening hours" },
   { value: "location", label: "Wrong location" },
-  { value: "other", label: "Other issue" },
+  { value: "other",    label: "Other issue" },
 ] as const;
 
 type IssueValue = (typeof ISSUES)[number]["value"];
 
-function storageKey(placeId: string) {
-  return `ts_fb_${placeId}`;
+function storageKey(id: string) {
+  return `ts_fb_${id}`;
 }
 
 export function PlaceFeedback({ placeId, placeName, citySlug }: Props) {
@@ -28,7 +28,6 @@ export function PlaceFeedback({ placeId, placeName, citySlug }: Props) {
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Read prior state from localStorage on mount
   useEffect(() => {
     try {
       const stored = localStorage.getItem(storageKey(placeId));
@@ -36,7 +35,6 @@ export function PlaceFeedback({ placeId, placeName, citySlug }: Props) {
     } catch {}
   }, [placeId]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     if (!showDropdown) return;
     function handler(e: MouseEvent) {
@@ -58,59 +56,68 @@ export function PlaceFeedback({ placeId, placeName, citySlug }: Props) {
         body: JSON.stringify({ type, issue: issue ?? null, placeId, placeName, citySlug }),
       });
     } catch {
-      // silent — never break the page over feedback
+      // silent
     }
     setDone(type);
     setLoading(false);
-    try {
-      localStorage.setItem(storageKey(placeId), type);
-    } catch {}
+    try { localStorage.setItem(storageKey(placeId), type); } catch {}
   }
 
-  if (done) {
+  // ── Already actioned ──────────────────────────────────────────────────────
+  if (done === "confirm") {
     return (
-      <p className="text-xs text-teal-600 font-medium">
-        {done === "confirm" ? "✓ Thanks" : "✓ Reported"}
-      </p>
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-3 py-1 text-xs font-medium text-teal-700">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5"><path fillRule="evenodd" d="M12.416 3.376a.75.75 0 0 1 .208 1.04l-5 7.5a.75.75 0 0 1-1.154.114l-3-3a.75.75 0 0 1 1.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 0 1 1.04-.207Z" clipRule="evenodd" /></svg>
+        Thanks for confirming
+      </span>
     );
   }
 
+  if (done === "report") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-500">
+        ✓ Reported — we&apos;ll review it
+      </span>
+    );
+  }
+
+  // ── Default state ──────────────────────────────────────────────────────────
   return (
-    <div className="relative flex items-center gap-2" ref={dropdownRef}>
-      {/* Thumbs up */}
+    <div className="flex items-center gap-2" ref={dropdownRef}>
+      <span className="text-xs text-stone-400">Still accurate?</span>
+
+      {/* Confirm pill */}
       <button
         onClick={() => !loading && submit("confirm")}
         disabled={loading}
-        title="Still good — confirm this place"
-        className="text-stone-400 hover:text-teal-600 transition-colors disabled:opacity-40"
-        aria-label="Confirm this place is still accurate"
+        className="inline-flex items-center gap-1 rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-medium text-teal-700 transition-colors hover:bg-teal-100 disabled:opacity-40"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-          <path d="M1 8.25a1.25 1.25 0 1 1 2.5 0v7.5a1.25 1.25 0 0 1-2.5 0v-7.5ZM11 3V1.7c0-.268.14-.526.395-.607A2 2 0 0 1 14 3c0 .995-.182 1.948-.514 2.826-.204.54.166 1.174.744 1.174h2.52c1.243 0 2.261 1.01 2.146 2.247a23.864 23.864 0 0 1-2.096 7.34c-.230.520-.752.853-1.327.853H9.626c-.619 0-1.12-.499-1.12-1.116V9.958c0-.31.128-.607.354-.818A5.26 5.26 0 0 0 10.35 7.5c.355-.714.55-1.52.55-2.35-.001-.468-.127-.909-.35-1.287A1 1 0 0 1 11 3Z" />
-        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3 w-3"><path fillRule="evenodd" d="M12.416 3.376a.75.75 0 0 1 .208 1.04l-5 7.5a.75.75 0 0 1-1.154.114l-3-3a.75.75 0 0 1 1.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 0 1 1.04-.207Z" clipRule="evenodd" /></svg>
+        Yes, still good
       </button>
 
-      {/* Flag */}
+      {/* Report pill + dropdown */}
       <div className="relative">
         <button
           onClick={() => !loading && setShowDropdown((v) => !v)}
           disabled={loading}
-          title="Report an issue with this place"
-          className="text-stone-400 hover:text-red-400 transition-colors disabled:opacity-40"
-          aria-label="Report an issue with this place"
+          className="inline-flex items-center gap-1 rounded-full border border-dune bg-white px-3 py-1 text-xs font-medium text-umber transition-colors hover:border-stone-300 hover:bg-stone-50 disabled:opacity-40"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path d="M3.5 2.75a.75.75 0 0 0-1.5 0v14.5a.75.75 0 0 0 1.5 0v-4.392l1.657-.348a6.449 6.449 0 0 1 4.271.572 7.948 7.948 0 0 0 5.965.524l2.078-.64A.75.75 0 0 0 18 12.25v-8.5a.75.75 0 0 0-.904-.734l-2.38.501a7.25 7.25 0 0 1-4.186-.363l-.502-.2a8.75 8.75 0 0 0-5.053-.439L3.5 3.16V2.75Z" />
-          </svg>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3 w-3 text-stone-400"><path d="M2.5 2A1.5 1.5 0 0 0 1 3.5v.793c.026.009.051.02.076.032L7.674 7.08a1.75 1.75 0 0 0 .652.17v6.087a1.505 1.505 0 0 1-.978-.396l-5.5-5a1.5 1.5 0 0 1-.848-1.353V6.5h-.001a1.5 1.5 0 0 1 .001-.129V3.5A1.5 1.5 0 0 1 2.5 2ZM15 3.5A1.5 1.5 0 0 0 13.5 2H6l9 4.11V3.5Z" /></svg>
+          Report issue
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3 w-3 text-stone-300"><path fillRule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" /></svg>
         </button>
 
         {showDropdown && (
-          <div className="absolute bottom-full right-0 mb-2 z-30 w-48 rounded-xl border border-dune bg-white shadow-lg py-1">
+          <div className="absolute bottom-full right-0 mb-2 z-30 w-52 rounded-xl border border-dune bg-white shadow-lg py-1.5 overflow-hidden">
+            <p className="px-4 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-widest text-stone-400">
+              What&apos;s the issue?
+            </p>
             {ISSUES.map((issue) => (
               <button
                 key={issue.value}
                 onClick={() => submit("report", issue.value)}
-                className="w-full px-4 py-2.5 text-left text-xs text-umber hover:bg-sand transition-colors"
+                className="w-full px-4 py-2 text-left text-xs text-umber hover:bg-sand transition-colors"
               >
                 {issue.label}
               </button>

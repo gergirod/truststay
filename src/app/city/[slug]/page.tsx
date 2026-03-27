@@ -19,6 +19,7 @@ import { CURATED_NEIGHBORHOODS } from "@/data/neighborhoods";
 import type { CityNeighborhoodConfig } from "@/data/neighborhoods";
 import { discoverNeighborhoods } from "@/lib/neighborhoodDiscovery";
 import { EmailCapture } from "@/components/EmailCapture";
+import { ShareButton } from "@/components/ShareButton";
 import type { City } from "@/types";
 
 // Free tier limits — per merged section
@@ -704,9 +705,16 @@ export default async function CityPage({ params, searchParams }: Props) {
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
                 Area setup
               </p>
-              <h1 className="mt-3 text-4xl font-semibold tracking-tight text-bark sm:text-5xl">
-                {city.name}
-              </h1>
+              <div className="mt-3 flex items-start justify-between gap-4">
+                <h1 className="text-4xl font-semibold tracking-tight text-bark sm:text-5xl">
+                  {city.name}
+                </h1>
+                <ShareButton
+                  cityName={city.parentCity ?? city.name}
+                  citySlug={city.slug}
+                  neighborhoodName={city.name}
+                />
+              </div>
               <p className="mt-1.5 text-base text-umber">
                 {(city.parentCity ?? (typeof sp.parentCity === "string" ? sp.parentCity.trim() : null))
                   ? `${city.parentCity ?? sp.parentCity}${city.country ? `, ${city.country}` : ""}`
@@ -785,9 +793,16 @@ async function AutoNeighborhoodOrContent({
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
           City setup
         </p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-bark sm:text-5xl">
-          {city.name}
-        </h1>
+        <div className="mt-3 flex items-start justify-between gap-4">
+          <h1 className="text-4xl font-semibold tracking-tight text-bark sm:text-5xl">
+            {city.name}
+          </h1>
+          <ShareButton
+            cityName={city.name}
+            citySlug={city.slug}
+            neighborhoodName={city.name}
+          />
+        </div>
         <p className="mt-1.5 text-base text-umber">{city.country}</p>
         <p className="mt-3 max-w-xl text-sm leading-6 text-umber">
           Find a base area, places to work, nearby coffee and meals, and
@@ -1045,8 +1060,6 @@ async function CityContent({
           summary={summary}
           centroidLat={baseCentroid?.lat}
           centroidLon={baseCentroid?.lon}
-          cityName={city.name}
-          citySlug={city.slug}
         />
       </div>
 
