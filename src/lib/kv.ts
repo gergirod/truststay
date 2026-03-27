@@ -88,9 +88,11 @@ export async function listNarratives(): Promise<StoredNarrative[]> {
 export interface CachedPlaces {
   citySlug: string;
   cityName: string;
-  /** Raw OSM places (pre-Google-enrichment) */
+  /** Place list — raw OSM on first save, Google-enriched once an unlocked user visits */
   places: Place[];
   cachedAt: string;
+  /** Set when Google enrichment data has been merged in */
+  enrichedAt?: string;
   /** How many places of each type */
   counts: { work: number; food: number; wellbeing: number; total: number };
 }
@@ -113,7 +115,8 @@ export async function getPlacesCache(slug: string): Promise<CachedPlaces | null>
 export async function savePlacesCache(
   citySlug: string,
   cityName: string,
-  places: Place[]
+  places: Place[],
+  opts: { enriched?: boolean; existingCachedAt?: string } = {}
 ): Promise<boolean> {
   if (!redis) return false;
   try {
@@ -123,11 +126,13 @@ export async function savePlacesCache(
       wellbeing: places.filter((p) => p.category === "gym").length,
       total: places.length,
     };
+    const now = new Date().toISOString();
     const payload: CachedPlaces = {
       citySlug,
       cityName,
       places,
-      cachedAt: new Date().toISOString(),
+      cachedAt: opts.existingCachedAt ?? now,
+      ...(opts.enriched ? { enrichedAt: now } : {}),
       counts,
     };
     await redis.set(PLACES_KEY(citySlug), JSON.stringify(payload), {

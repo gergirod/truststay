@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { geocodeCity, reverseGeocodeArea, toSlug } from "@/lib/geocode";
 import { sortByDistance, haversineKm } from "@/lib/overpass";
-import { getPlacesWithCache } from "@/lib/placesCache";
+import { getPlacesWithCache, saveEnrichedPlaces } from "@/lib/placesCache";
 import { computeCitySummary, computeBaseCentroid } from "@/lib/scoring";
 import { enrichPlaces } from "@/lib/enrichment";
 import type { Place } from "@/types";
@@ -798,7 +798,7 @@ async function AutoNeighborhoodOrContent({
   // CityContent gets an instant hit instead of waiting a second time.
   const [neighborhoods] = await Promise.all([
     discoverNeighborhoods(city),
-    getPlacesWithCache(city).catch(() => []),
+    getPlacesWithCache(city).catch(() => ({ places: [], needsEnrichment: false })),
   ]);
 
   if (neighborhoods.length >= 3) {
@@ -899,9 +899,14 @@ async function CityContent({
   justUnlocked?: boolean;
   kvNarrative?: import("@/lib/kv").StoredNarrative | null;
 }) {
-  let allPlaces;
+  let allPlaces: Place[];
+  let placesCachedAt: string | undefined;
+  let needsEnrichment = true;
   try {
-    allPlaces = await getPlacesWithCache(city);
+    const result = await getPlacesWithCache(city);
+    allPlaces = result.places;
+    placesCachedAt = result.cachedAt;
+    needsEnrichment = result.needsEnrichment;
   } catch (err) {
     const errorType =
       err instanceof Error ? err.message : "upstream_fetch_failed";
@@ -933,13 +938,18 @@ async function CityContent({
   }
 
   // ── Google Places enrichment ─────────────────────────────────────────────
-  // Only run for unlocked users — saves ~800ms (4 Google API calls) for the
-  // majority of visitors who are on the free tier.
-  // Non-unlocked users still see OSM confidence signals on their 3 free cards.
-  // When a user unlocks, the page re-renders with full enrichment.
-  const enrichedPlaces = isUnlocked
-    ? await enrichPlaces(allPlaces, city.lat, city.lon)
-    : allPlaces;
+  // Only run for unlocked users AND when the KV cache needs refreshing.
+  // Once enriched data is in KV (enrichedAt set, < 7 days old), all users
+  // benefit from the cached Google data — zero extra API calls.
+  const enrichedPlaces =
+    isUnlocked && needsEnrichment
+      ? await enrichPlaces(allPlaces, city.lat, city.lon)
+      : allPlaces;
+
+  // Persist enriched places back to KV so future visits skip Google API
+  if (isUnlocked && needsEnrichment) {
+    saveEnrichedPlaces(city, enrichedPlaces, placesCachedAt);
+  }
 
   // ── Base area centroid ───────────────────────────────────────────────────
   // Weighted average of cafe + coworking coordinates — more actionable than

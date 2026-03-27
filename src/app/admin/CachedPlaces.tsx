@@ -6,6 +6,7 @@ interface CacheMeta {
   citySlug: string;
   cityName: string;
   cachedAt: string;
+  enrichedAt?: string;
   counts: { work: number; food: number; wellbeing: number; total: number };
 }
 
@@ -110,10 +111,20 @@ export function CachedPlaces({ secret }: { secret: string }) {
                       <span className="rounded-full bg-teal-50 px-2 py-0.5 text-[10px] text-teal-700 font-medium">
                         {c.counts.total} places
                       </span>
+                      {c.enrichedAt ? (
+                        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] text-blue-700 font-medium">
+                          ✦ Google enriched
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] text-stone-500 font-medium">
+                          OSM only
+                        </span>
+                      )}
                     </div>
                     <p className="mt-0.5 text-[10px] text-stone-400">
-                      Cached {ago(c.cachedAt)} ·{" "}
-                      {c.counts.work} work · {c.counts.food} food · {c.counts.wellbeing} wellbeing
+                      Cached {ago(c.cachedAt)}
+                      {c.enrichedAt && <> · Google enriched {ago(c.enrichedAt)}</>}
+                      {" · "}{c.counts.work} work · {c.counts.food} food · {c.counts.wellbeing} wellbeing
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-2">
