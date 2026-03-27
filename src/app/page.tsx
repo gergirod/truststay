@@ -16,21 +16,51 @@ const POPULAR_CITIES = [
 ];
 
 const SURF_NATURE_DESTINATIONS = [
+  // Surf
   { label: "Puerto Escondido", slug: "puerto-escondido" },
   { label: "Santa Teresa", slug: "santa-teresa" },
   { label: "Nosara", slug: "nosara" },
   { label: "Popoyo", slug: "popoyo" },
-  { label: "Antigua Guatemala", slug: "antigua-guatemala" },
-  { label: "Boquete", slug: "boquete" },
+  { label: "Sayulita", slug: "sayulita" },
+  { label: "El Tunco", slug: "el-tunco" },
+  { label: "El Zonte", slug: "el-zonte" },
+  { label: "Tamarindo", slug: "tamarindo" },
+  { label: "Dominical", slug: "dominical" },
   { label: "Jericoacoara", slug: "jericoacoara" },
   { label: "Itacaré", slug: "itacare" },
   { label: "Montañita", slug: "montanita" },
-  { label: "Baños", slug: "banos" },
-  { label: "Minca", slug: "minca" },
   { label: "Máncora", slug: "mancora" },
-  { label: "Sayulita", slug: "sayulita" },
-  { label: "El Zonte", slug: "el-zonte" },
+  { label: "Cabarete", slug: "cabarete" },
+  { label: "Pipa", slug: "pipa" },
+  { label: "Gigante", slug: "gigante" },
+  { label: "Tulum", slug: "tulum" },
+  { label: "Mazunte", slug: "mazunte" },
+  // Diving
+  { label: "Roatán", slug: "roatan" },
+  { label: "Utila", slug: "utila" },
+  { label: "Caye Caulker", slug: "caye-caulker" },
   { label: "Bocas del Toro", slug: "bocas-del-toro" },
+  // Hiking & nature
+  { label: "Lago Atitlán", slug: "lago-atitlan" },
+  { label: "Antigua Guatemala", slug: "antigua-guatemala" },
+  { label: "Boquete", slug: "boquete" },
+  { label: "Minca", slug: "minca" },
+  { label: "Baños", slug: "banos" },
+  { label: "Huaraz", slug: "huaraz" },
+  { label: "Bariloche", slug: "bariloche" },
+  { label: "Pucón", slug: "pucon" },
+  { label: "El Chaltén", slug: "el-chalten" },
+  // Yoga & wellness
+  { label: "San Marcos La Laguna", slug: "san-marcos-la-laguna" },
+  { label: "Montezuma", slug: "montezuma" },
+  // Culture & colonial
+  { label: "Palomino", slug: "palomino" },
+  { label: "Salento", slug: "salento" },
+  { label: "Villa de Leyva", slug: "villa-de-leyva" },
+  { label: "Granada", slug: "granada" },
+  { label: "Sucre", slug: "sucre" },
+  { label: "Paraty", slug: "paraty" },
+  { label: "Las Terrenas", slug: "las-terrenas" },
 ];
 
 const HOW_IT_WORKS = [
@@ -201,10 +231,10 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Surf & nature */}
+            {/* Surf, dive, hike & activity destinations */}
             <div className="mt-7">
               <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-umber/60">
-                Surf &amp; nature
+                Surf · dive · hike · yoga
               </p>
               <div className="flex flex-wrap gap-2">
                 {SURF_NATURE_DESTINATIONS.map(({ label, slug }) => (
