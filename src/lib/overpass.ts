@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import type { City, Place, PlaceCategory } from "@/types";
 import { deriveConfidence } from "./confidence";
 
@@ -74,7 +75,7 @@ export function haversineKm(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-export async function fetchPlaces(city: City): Promise<Place[]> {
+async function _fetchPlaces(city: City): Promise<Place[]> {
   const bbox = city.bbox
     ? `${city.bbox[0]},${city.bbox[1]},${city.bbox[2]},${city.bbox[3]}`
     : buildBbox(city.lat, city.lon);
@@ -182,6 +183,17 @@ out center;
 
   return places;
 }
+
+/**
+ * Cached version of _fetchPlaces.
+ * next: { revalidate } has no effect on POST fetches — unstable_cache is the
+ * only way to persist Overpass results across requests on the server.
+ */
+export const fetchPlaces = unstable_cache(
+  _fetchPlaces,
+  ["overpass-places"],
+  { revalidate: 3600 }
+);
 
 export function sortByDistance(places: Place[]): Place[] {
   return [...places].sort(

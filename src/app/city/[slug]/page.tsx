@@ -151,6 +151,31 @@ const KNOWN_CITY_SLUGS = [
   // ── South America hubs ───────────────────────────────────────────────────
   "lima", "quito", "panama-city", "montevideo",
   "santiago", "valparaiso", "sao-paulo", "rio-de-janeiro", "fortaleza",
+
+  // ── New surf destinations ─────────────────────────────────────────────────
+  "playa-venao", "ayampe", "praia-do-rosa", "punta-del-diablo",
+  "rincon",
+
+  // ── New dive destinations ─────────────────────────────────────────────────
+  "mahahual", "cahuita", "providencia", "bayahibe",
+
+  // ── New hike destinations ─────────────────────────────────────────────────
+  "tayrona", "chachapoyas", "sorata", "rurrenabaque", "alto-paraiso",
+
+  // ── New yoga / wellness destinations ─────────────────────────────────────
+  "tepoztlan", "uvita", "trancoso",
+
+  // ── New kite & wind destinations ─────────────────────────────────────────
+  "prea", "atins", "canoa-quebrada", "la-ventana", "los-barriles",
+  "paracas", "la-paloma",
+
+  // ── New remote work hubs ──────────────────────────────────────────────────
+  "guadalajara", "puerto-vallarta",
+  "san-jose-costa-rica", "san-juan-puerto-rico",
+  "arequipa", "la-paz-bolivia",
+  "curitiba", "porto-alegre", "recife", "salvador",
+  "cordoba", "rosario", "asuncion",
+  "cali", "punta-del-este",
 ];
 
 export async function generateStaticParams() {
@@ -429,6 +454,57 @@ async function resolveCity(
     "sao-paulo":               "São Paulo São Paulo Brazil",
     "rio-de-janeiro":          "Rio de Janeiro Rio de Janeiro Brazil",
     "fortaleza":               "Fortaleza Ceará Brazil",
+
+    // ── New surf ─────────────────────────────────────────────────────────────
+    "playa-venao":             "Playa Venao Los Santos Panama",
+    "ayampe":                  "Ayampe Manabí Ecuador",
+    "praia-do-rosa":           "Praia do Rosa Imbituba Santa Catarina Brazil",
+    "punta-del-diablo":        "Punta del Diablo Rocha Uruguay",
+    "rincon":                  "Rincón Añasco Puerto Rico",
+
+    // ── New dive ─────────────────────────────────────────────────────────────
+    "mahahual":                "Mahahual Quintana Roo Mexico",
+    "cahuita":                 "Cahuita Limón Costa Rica",
+    "providencia":             "Providencia Archipiélago de San Andrés Providencia Colombia",
+    "bayahibe":                "Bayahíbe La Romana Dominican Republic",
+
+    // ── New hike ─────────────────────────────────────────────────────────────
+    "tayrona":                 "El Zaino Magdalena Colombia",
+    "chachapoyas":             "Chachapoyas Amazonas Peru",
+    "sorata":                  "Sorata La Paz Bolivia",
+    "rurrenabaque":            "Rurrenabaque Beni Bolivia",
+    "alto-paraiso":            "Alto Paraíso de Goiás Goiás Brazil",
+
+    // ── New yoga / wellness ───────────────────────────────────────────────────
+    "tepoztlan":               "Tepoztlán Morelos Mexico",
+    "uvita":                   "Uvita Puntarenas Costa Rica",
+    "trancoso":                "Trancoso Porto Seguro Bahia Brazil",
+
+    // ── New kite & wind ───────────────────────────────────────────────────────
+    "prea":                    "Preá Cruz Ceará Brazil",
+    "atins":                   "Atins Maranhão Brazil",
+    "canoa-quebrada":          "Canoa Quebrada Aracati Ceará Brazil",
+    "la-ventana":              "La Ventana Baja California Sur Mexico",
+    "los-barriles":            "Los Barriles Baja California Sur Mexico",
+    "paracas":                 "Paracas Ica Peru",
+    "la-paloma":               "La Paloma Rocha Uruguay",
+
+    // ── New remote work hubs ──────────────────────────────────────────────────
+    "guadalajara":             "Guadalajara Jalisco Mexico",
+    "puerto-vallarta":         "Puerto Vallarta Jalisco Mexico",
+    "san-jose-costa-rica":     "San José Costa Rica",
+    "san-juan-puerto-rico":    "San Juan Puerto Rico",
+    "arequipa":                "Arequipa Arequipa Peru",
+    "la-paz-bolivia":          "La Paz Bolivia",
+    "curitiba":                "Curitiba Paraná Brazil",
+    "porto-alegre":            "Porto Alegre Rio Grande do Sul Brazil",
+    "recife":                  "Recife Pernambuco Brazil",
+    "salvador":                "Salvador Bahia Brazil",
+    "cordoba":                 "Córdoba Córdoba Argentina",
+    "rosario":                 "Rosario Santa Fe Argentina",
+    "asuncion":                "Asunción Paraguay",
+    "cali":                    "Cali Valle del Cauca Colombia",
+    "punta-del-este":          "Punta del Este Maldonado Uruguay",
   };
 
   const query = GEOCODE_HINTS[slug] ?? slug.replace(/-/g, " ");

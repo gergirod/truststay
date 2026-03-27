@@ -11,6 +11,8 @@
  *   - Called only from server-side code (GOOGLE_MAPS_API_KEY stays server-only)
  */
 
+import { unstable_cache } from "next/cache";
+
 const PLACES_SEARCH_URL =
   "https://places.googleapis.com/v1/places:searchNearby";
 
@@ -74,7 +76,7 @@ const FIELD_MASK = [
  * @param apiKey     GOOGLE_MAPS_API_KEY
  * @param maxResults Hard cap on results (controls cost)
  */
-export async function searchNearbyPlaces(
+async function _searchNearbyPlaces(
   lat: number,
   lon: number,
   type: "cafe" | "coworking_space" | "restaurant" | "gym",
@@ -117,3 +119,13 @@ export async function searchNearbyPlaces(
     return [];
   }
 }
+
+/**
+ * Cached wrapper — Google Places uses POST, so Next.js fetch cache ignores
+ * the next: { revalidate } hint. unstable_cache persists results server-side.
+ */
+export const searchNearbyPlaces = unstable_cache(
+  _searchNearbyPlaces,
+  ["google-places-nearby"],
+  { revalidate: 3600 }
+);

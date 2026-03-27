@@ -12,6 +12,7 @@
  * Falls back to [] on any error so the city page gracefully shows normal content.
  */
 
+import { unstable_cache } from "next/cache";
 import type { City } from "@/types";
 import { haversineKm } from "@/lib/overpass";
 import { toSlug } from "@/lib/geocode";
@@ -170,7 +171,7 @@ out center 500;`;
  * Discovers and scores neighborhoods for a city automatically.
  * Returns [] on failure or when data is too sparse.
  */
-export async function discoverNeighborhoods(
+async function _discoverNeighborhoods(
   city: City
 ): Promise<NeighborhoodEntry[]> {
   try {
@@ -288,3 +289,14 @@ export async function discoverNeighborhoods(
     return [];
   }
 }
+
+/**
+ * Cached wrapper — Overpass POST requests are not cached by Next.js fetch cache,
+ * so unstable_cache is required to persist results across requests.
+ * 24-hour revalidation matches the neighborhood topology change rate.
+ */
+export const discoverNeighborhoods = unstable_cache(
+  _discoverNeighborhoods,
+  ["neighborhood-discovery"],
+  { revalidate: 86400 }
+);
