@@ -66,8 +66,8 @@ const SURF_NATURE_DESTINATIONS = [
 const HOW_IT_WORKS = [
   {
     n: "01",
-    title: "Search a city",
-    body: "Enter any city where you plan to spend time as a remote worker.",
+    title: "Search any spot",
+    body: "Enter any city, surf town, or activity destination where you plan to spend time.",
   },
   {
     n: "02",
@@ -112,7 +112,7 @@ const PASS_FEATURES = [
 ];
 
 const BUNDLE_FEATURES = [
-  "All neighborhoods in a city unlocked",
+  "All neighborhoods in one spot unlocked",
   "Everything in the Neighborhood Pass",
   "One payment — explore freely",
 ];
@@ -127,7 +127,7 @@ export default function HomePage() {
             Trusts<span className="text-teal">tay</span>
           </span>
           <span className="hidden sm:block text-xs text-umber">
-            Remote worker city setup
+            Remote work setup
           </span>
         </div>
       </header>
@@ -210,7 +210,7 @@ export default function HomePage() {
               Popular destinations
             </p>
             <p className="mt-2 text-sm text-umber">
-              Jump straight in — or search any city above.
+              Jump straight in — or search any spot above.
             </p>
 
             {/* Cities */}
@@ -340,7 +340,7 @@ export default function HomePage() {
                 <p className="mt-3 text-3xl font-bold tracking-tight text-bark">
                   ${process.env.NEXT_PUBLIC_CITY_BUNDLE_PRICE ?? "15"}
                 </p>
-                <p className="mt-1 text-xs text-[#5F5A54]">All neighborhoods, one city</p>
+                <p className="mt-1 text-xs text-[#5F5A54]">All neighborhoods, one spot</p>
                 <ul className="mt-5 flex-1 space-y-2.5">
                   {BUNDLE_FEATURES.map((f) => (
                     <li
