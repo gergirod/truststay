@@ -3,6 +3,7 @@ import { ImageResponse } from "next/og";
 export const size = { width: 32, height: 32 };
 export const contentType = "image/png";
 
+// Sand background + bark "T" + coral accent dot
 export default function Icon() {
   return new ImageResponse(
     (
@@ -10,28 +11,38 @@ export default function Icon() {
         style={{
           width: 32,
           height: 32,
-          borderRadius: 8,
+          borderRadius: 7,
           background: "#F5F0EA",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          gap: 3,
-          paddingLeft: 3,
-          paddingRight: 3,
+          position: "relative",
         }}
       >
-        {/* Three pin dots — teal, coral, amber */}
-        {(["#8FB7B3", "#E07A5F", "#F2A65A"] as const).map((color) => (
-          <div
-            key={color}
-            style={{
-              width: 7,
-              height: 10,
-              borderRadius: "50% 50% 50% 50% / 60% 60% 40% 40%",
-              background: color,
-            }}
-          />
-        ))}
+        {/* T crossbar */}
+        <div style={{
+          position: "absolute",
+          top: 8, left: 8,
+          width: 16, height: 3,
+          borderRadius: 1.5,
+          background: "#2E2A26",
+        }} />
+        {/* T stem */}
+        <div style={{
+          position: "absolute",
+          top: 11, left: 14.5,
+          width: 3, height: 13,
+          borderRadius: 1.5,
+          background: "#2E2A26",
+        }} />
+        {/* Coral accent dot */}
+        <div style={{
+          position: "absolute",
+          top: 5.5, right: 5.5,
+          width: 6, height: 6,
+          borderRadius: "50%",
+          background: "#E07A5F",
+        }} />
       </div>
     ),
     { ...size }

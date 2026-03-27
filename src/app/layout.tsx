@@ -16,6 +16,14 @@ export const metadata: Metadata = {
     default: "Truststay — Land in a new spot. Keep your routine from day one.",
     template: "%s | Truststay",
   },
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icon", type: "image/png", sizes: "32x32" },
+    ],
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
   description:
     "Find the best neighborhood to base yourself in any city — work spots, cafes, and gyms organized around a walkable daily routine. Built for remote workers.",
   metadataBase: new URL(APP_URL),
