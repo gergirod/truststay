@@ -1,5 +1,179 @@
 # Truststay — 30 Day Launch Pad
 
+---
+
+## What is Truststay (full context — read this first)
+
+This section is the complete reference for anyone helping with content, strategy, or design. Read it before writing any post, designing any visual, or giving any advice.
+
+---
+
+### The one-sentence pitch
+
+**Truststay helps remote workers find the right neighborhood to base themselves in a new city — with work spots, food, and wellbeing options organized around a walkable daily routine.**
+
+---
+
+### The problem it solves
+
+Remote workers who travel — especially those who go to a new city for weeks or months at a time — face the same painful setup problem every time they arrive:
+
+- Where should I book my Airbnb? Which neighborhood?
+- Where can I work reliably with good wifi?
+- Is there a gym close enough to not break my morning routine?
+- Where do I eat lunch that's nearby and affordable?
+- Is this whole area actually walkable or will I need a scooter?
+
+This takes 2–3 days to figure out manually. Most people Google, fall into Reddit rabbit holes, ask in Facebook groups, and still end up uncertain. They often book the wrong neighborhood and spend the whole trip compensating.
+
+The pain is most acute for:
+1. **Activity-first remote workers** — people who picked the destination for a specific activity (surfing, diving, hiking, yoga, kitesurfing). Their workspace needs to be near the activity, not just near the city center. A café 20 minutes from the break breaks a 6am surf → 9am work schedule.
+2. **Frequent movers** — people moving cities every 1–3 months who've felt this pain before and are tired of repeating it.
+3. **First-timers to a specific city** — about to book accommodation with no idea which neighborhood to pick.
+
+---
+
+### What the product actually does
+
+1. **You search any city, surf town, or activity destination** — e.g. "Puerto Escondido", "Nosara", "Medellín", "Canggu"
+2. **It geocodes the city and queries OpenStreetMap + Google Places data in real time** — no database, serverless, $0 infra
+3. **It discovers neighborhoods within that city** and scores each one on a "routine score" — a 0–100 score based on density and quality of work spots, food, and wellbeing options within walking distance
+4. **It recommends a base neighborhood** — the one with the highest routine score
+5. **It shows categorized place lists** for that neighborhood:
+   - **Work** — coworking spaces and laptop-friendly cafes (filtered by wifi signals, ratings, hours)
+   - **Coffee & meals** — cafes and restaurants
+   - **Wellbeing** — gyms, yoga studios, CrossFit, martial arts
+6. **Each place shows confidence signals** — wifi labeled as "verified", "likely", or "unknown" — never fake certainty
+7. **A map view** shows all places as custom pins (teal = work, terracotta = coffee, amber = wellbeing) so you can see the full routine layout before committing
+8. **Free preview** shows the structure and top picks. **$5 one-time** unlocks the full list for one neighborhood. **$15 bundle** unlocks all neighborhoods in one city.
+
+---
+
+### The tech stack (for IH / technical posts)
+
+- **Next.js 15 App Router** — serverless, no backend, deployed on Vercel
+- **OpenStreetMap / Overpass API** — primary place data source (free, global)
+- **Nominatim** — geocoding (free, open source)
+- **Google Places API** — enrichment layer: ratings, reviews, opening hours, wifi signals
+- **Mapbox GL JS** — interactive map with custom SVG pins per category
+- **PostHog** — analytics (search events, paywall views, conversion funnel)
+- **Stripe** — payments ($5 one-time per neighborhood, $15 city bundle)
+- **No database** — all data fetched live and cached at the edge
+- **No accounts required** — pay once, access stored in browser
+
+---
+
+### The business model
+
+| Tier | Price | What you get |
+|---|---|---|
+| Free | $0 | Neighborhood grid, routine score, suggested base, top pick per category |
+| Neighborhood Pass | $5 one-time | Full place list for one neighborhood, ratings, hours, Maps links, confidence breakdown |
+| City Bundle | $15 one-time | All neighborhoods in one city unlocked |
+
+No subscription. No account. Pay once, access forever.
+
+---
+
+### Who pays and when
+
+The $5 unlock happens at a very specific moment: **the person has already committed to a destination and is now figuring out where inside it to stay.**
+
+Most likely to pay:
+- Remote worker going to Puerto Escondido for 6 weeks to surf + work — about to book Airbnb, doesn't know La Punta from Zicatela
+- Nomad moving to Medellín for 2 months — first time there, needs to pick El Poblado vs Laureles
+- Diver doing 3 weeks in Roatán — needs reliable wifi close to the dive school
+
+**The conversion moment:** night before booking accommodation. Maximum intent, maximum willingness to pay $5 for certainty.
+
+---
+
+### The positioning (what makes it different from Nomadlist, Teleport, etc.)
+
+| | Truststay | Nomadlist | Teleport / Google |
+|---|---|---|---|
+| **Unit of planning** | Neighborhood | City | City |
+| **Purpose** | Arrive and get functional fast | Discover & compare cities | General research |
+| **Data type** | Real places, real distances, real hours | City-level scores, crowdsourced | General info |
+| **Activity-first** | ✅ Built for surf/dive/hike towns | ❌ | ❌ |
+| **Confidence signals** | Explicit (verified/likely/unknown) | Not shown | Not shown |
+| **Price** | $5 one-time | $15/month subscription | Free |
+| **Accounts required** | No | Yes | No |
+
+Truststay's moat: **neighborhood-level, activity-aware routine setup for remote workers who already know where they're going.** Not discovery. Not comparison. The layer between "I've decided on a city" and "I'm functional on day 1."
+
+---
+
+### The audience (activity-first remote workers)
+
+Primary: **Remote workers who travel for a specific activity** and need their work setup to fit around it.
+
+| Activity | Destinations covered | Their specific pain |
+|---|---|---|
+| 🏄 Surf | Puerto Escondido, Santa Teresa, Nosara, Popoyo, El Tunco, Tamarindo, Dominical, El Paredon, Pavones, Sayulita, Chicama, Lobitos, Pichilemu, Jericoacoara, Itacaré, Pipa, Montañita, Máncora, Gigante + more | Wrong neighborhood = scooter to every call |
+| 🤿 Dive | Roatán, Utila, Caye Caulker, San Pedro, Bocas del Toro, Cozumel, Isla Mujeres, Taganga, San Andrés, Coiba, Bonito | Need work setup 5 min from dive school |
+| ⛰️ Hike | Lago Atitlán, Acatenango, Boquete, Baños, Quilotoa, Huaraz, Pucón, Bariloche, El Chaltén, Puerto Natales, Lençóis, Jujuy, Monteverde, Arenal + more | Need base in hiking area, not tourist center |
+| 🧘 Yoga | San Marcos La Laguna, Nosara, Montezuma, Bacalar, Vilcabamba, Pisac, Mindo, Palomino | Retreat town setup: yoga studio walkable, workspace quiet |
+| 🪁 Kite & wind | Cabarete, Cumbuco, São Miguel do Gostoso, Cabo de la Vela, Iquique | Kite window is 2–5pm → morning work setup critical |
+| 💻 Remote work hubs | Medellín, Buenos Aires, Mexico City, Lima, Quito, Santiago, São Paulo, Panama City, Montevideo + more | Classic neighborhood decision problem |
+
+Total destinations covered: **120+** across Latin America, Central America, and beyond.
+
+---
+
+### The brand voice
+
+- **Honest builder** — shares doubts, data, process. Not a marketer.
+- **No hype** — "verified/likely/unknown" not "best cafes in the city"
+- **Practical** — every piece of content answers a real question
+- **Activity-first** — speaks to the person who chose the spot for a reason, not a generic nomad
+- **LATAM-focused right now** — strongest data and coverage in Latin America and Central America
+
+**Phrases that work:**
+- "Land in a new spot. Keep your routine from day one."
+- "You chose this spot for a reason. We make sure the rest of your day works around it."
+- "You've decided where you're going. We get your routine set up before day 1."
+- "I got tired of spending my first 3 days in every new city figuring this out from scratch."
+- "Same city. The neighborhood was the whole product."
+
+**Phrases to avoid:**
+- "game-changer", "revolutionary", "disrupting", "AI-powered"
+- "the best tool for digital nomads"
+- Anything that sounds like a press release
+
+---
+
+### Visual identity
+
+- **Colors:** Teal (`#8FB7B3`) = work, Coral (`#E07A5F`) = coffee/meals, Amber (`#F2A65A`) = wellbeing, Sand (`#F5F0EA`) = background, Bark (`#2E2A26`) = primary text
+- **Map pins:** Custom SVG — laptop icon for work, coffee cup for coffee/meals, person with arms raised for wellbeing
+- **Style:** Clean, minimal, warm. Not a dark tech product. Not a tourist app.
+- **Hero:** Full-bleed Mapbox map (light style) with custom pins. Glass card with `bg-white/85` floats on top.
+- **Typography:** System font stack, tight tracking, bold numbers
+
+**Screenshot types that work well for posts:**
+1. The routine map with custom pins for a well-known surf/dive/hike town
+2. The neighborhood comparison grid showing routine scores
+3. The place list with distance, rating, wifi confidence
+4. The "suggested base" card showing the recommended neighborhood
+
+---
+
+### What's been built (current state)
+
+- ✅ Full city/neighborhood discovery pipeline (OSM + Google enrichment)
+- ✅ Routine scoring per neighborhood
+- ✅ Interactive map with custom activity-specific pins (Mapbox GL JS)
+- ✅ Paywall with Stripe integration ($5 / $15)
+- ✅ PostHog analytics (search events, paywall views, conversion)
+- ✅ Admin curation tool with demand queue (shows which uncurated cities are being searched)
+- ✅ 120+ destinations pre-configured with geocoding hints for accuracy
+- ✅ Multi-neighborhood curated cities (Lago Atitlán, Roatán with multiple villages/zones)
+- ✅ SEO metadata per city/neighborhood
+- ✅ Mobile responsive with map hero background
+
+---
+
 ## Strategy
 
 **Goal:** First 10 paying users in 30 days.
