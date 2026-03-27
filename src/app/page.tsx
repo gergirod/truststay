@@ -2,65 +2,84 @@ import { CitySearch } from "@/components/CitySearch";
 import { AnalyticsEvent } from "@/components/AnalyticsEvent";
 import { HeroMap } from "@/components/HeroMap";
 
-const POPULAR_CITIES = [
-  { label: "Medellín", slug: "medellin" },
-  { label: "Lisbon", slug: "lisbon" },
-  { label: "Chiang Mai", slug: "chiang-mai" },
-  { label: "Bali", slug: "bali" },
-  { label: "Barcelona", slug: "barcelona" },
-  { label: "Mexico City", slug: "mexico-city" },
-  { label: "Buenos Aires", slug: "buenos-aires" },
-  { label: "Bangkok", slug: "bangkok" },
-  { label: "Berlin", slug: "berlin" },
-  { label: "Tbilisi", slug: "tbilisi" },
-];
-
-const SURF_NATURE_DESTINATIONS = [
-  // Surf
-  { label: "Puerto Escondido", slug: "puerto-escondido" },
-  { label: "Santa Teresa", slug: "santa-teresa" },
-  { label: "Nosara", slug: "nosara" },
-  { label: "Popoyo", slug: "popoyo" },
-  { label: "Sayulita", slug: "sayulita" },
-  { label: "El Tunco", slug: "el-tunco" },
-  { label: "El Zonte", slug: "el-zonte" },
-  { label: "Tamarindo", slug: "tamarindo" },
-  { label: "Dominical", slug: "dominical" },
-  { label: "Jericoacoara", slug: "jericoacoara" },
-  { label: "Itacaré", slug: "itacare" },
-  { label: "Montañita", slug: "montanita" },
-  { label: "Máncora", slug: "mancora" },
-  { label: "Cabarete", slug: "cabarete" },
-  { label: "Pipa", slug: "pipa" },
-  { label: "Gigante", slug: "gigante" },
-  { label: "Tulum", slug: "tulum" },
-  { label: "Mazunte", slug: "mazunte" },
-  // Diving
-  { label: "Roatán", slug: "roatan" },
-  { label: "Utila", slug: "utila" },
-  { label: "Caye Caulker", slug: "caye-caulker" },
-  { label: "Bocas del Toro", slug: "bocas-del-toro" },
-  // Hiking & nature
-  { label: "Lago Atitlán", slug: "lago-atitlan" },
-  { label: "Antigua Guatemala", slug: "antigua-guatemala" },
-  { label: "Boquete", slug: "boquete" },
-  { label: "Minca", slug: "minca" },
-  { label: "Baños", slug: "banos" },
-  { label: "Huaraz", slug: "huaraz" },
-  { label: "Bariloche", slug: "bariloche" },
-  { label: "Pucón", slug: "pucon" },
-  { label: "El Chaltén", slug: "el-chalten" },
-  // Yoga & wellness
-  { label: "San Marcos La Laguna", slug: "san-marcos-la-laguna" },
-  { label: "Montezuma", slug: "montezuma" },
-  // Culture & colonial
-  { label: "Palomino", slug: "palomino" },
-  { label: "Salento", slug: "salento" },
-  { label: "Villa de Leyva", slug: "villa-de-leyva" },
-  { label: "Granada", slug: "granada" },
-  { label: "Sucre", slug: "sucre" },
-  { label: "Paraty", slug: "paraty" },
-  { label: "Las Terrenas", slug: "las-terrenas" },
+const DESTINATION_CATEGORIES = [
+  {
+    label: "Surf",
+    destinations: [
+      { label: "Puerto Escondido", slug: "puerto-escondido" },
+      { label: "Santa Teresa", slug: "santa-teresa" },
+      { label: "Nosara", slug: "nosara" },
+      { label: "Popoyo", slug: "popoyo" },
+      { label: "Sayulita", slug: "sayulita" },
+      { label: "El Tunco", slug: "el-tunco" },
+      { label: "El Zonte", slug: "el-zonte" },
+      { label: "Tamarindo", slug: "tamarindo" },
+      { label: "Dominical", slug: "dominical" },
+      { label: "Jericoacoara", slug: "jericoacoara" },
+      { label: "Itacaré", slug: "itacare" },
+      { label: "Montañita", slug: "montanita" },
+      { label: "Máncora", slug: "mancora" },
+      { label: "Cabarete", slug: "cabarete" },
+      { label: "Pipa", slug: "pipa" },
+      { label: "Tulum", slug: "tulum" },
+      { label: "Mazunte", slug: "mazunte" },
+      { label: "Gigante", slug: "gigante" },
+    ],
+  },
+  {
+    label: "Dive",
+    destinations: [
+      { label: "Roatán", slug: "roatan" },
+      { label: "Utila", slug: "utila" },
+      { label: "Caye Caulker", slug: "caye-caulker" },
+      { label: "Bocas del Toro", slug: "bocas-del-toro" },
+      { label: "San Pedro", slug: "san-pedro-belize" },
+      { label: "Placencia", slug: "placencia" },
+    ],
+  },
+  {
+    label: "Hike",
+    destinations: [
+      { label: "Lago Atitlán", slug: "lago-atitlan" },
+      { label: "Antigua Guatemala", slug: "antigua-guatemala" },
+      { label: "Boquete", slug: "boquete" },
+      { label: "Minca", slug: "minca" },
+      { label: "Baños", slug: "banos" },
+      { label: "Huaraz", slug: "huaraz" },
+      { label: "Bariloche", slug: "bariloche" },
+      { label: "Pucón", slug: "pucon" },
+      { label: "El Chaltén", slug: "el-chalten" },
+      { label: "San Pedro de Atacama", slug: "san-pedro-de-atacama" },
+      { label: "Copán Ruinas", slug: "copan-ruinas" },
+    ],
+  },
+  {
+    label: "Yoga & wellness",
+    destinations: [
+      { label: "San Marcos La Laguna", slug: "san-marcos-la-laguna" },
+      { label: "Montezuma", slug: "montezuma" },
+      { label: "Nosara", slug: "nosara" },
+    ],
+  },
+  {
+    label: "Remote work hubs",
+    destinations: [
+      { label: "Medellín", slug: "medellin" },
+      { label: "Buenos Aires", slug: "buenos-aires" },
+      { label: "Mexico City", slug: "mexico-city" },
+      { label: "Oaxaca", slug: "oaxaca" },
+      { label: "Bogotá", slug: "bogota" },
+      { label: "Cartagena", slug: "cartagena" },
+      { label: "Santa Marta", slug: "santa-marta" },
+      { label: "Palomino", slug: "palomino" },
+      { label: "Salento", slug: "salento" },
+      { label: "Playa del Carmen", slug: "playa-del-carmen" },
+      { label: "Granada", slug: "granada" },
+      { label: "Las Terrenas", slug: "las-terrenas" },
+      { label: "Paraty", slug: "paraty" },
+      { label: "Sucre", slug: "sucre" },
+    ],
+  },
 ];
 
 const HOW_IT_WORKS = [
@@ -213,41 +232,24 @@ export default function HomePage() {
               Jump straight in — or search any spot above.
             </p>
 
-            {/* Cities */}
-            <div className="mt-8">
-              <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-umber/60">
-                Cities
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {POPULAR_CITIES.map(({ label, slug }) => (
-                  <a
-                    key={slug}
-                    href={`/city/${slug}`}
-                    className="rounded-full border border-dune bg-white px-3.5 py-1.5 text-sm font-medium text-bark transition-colors hover:border-teal/50 hover:bg-mist hover:text-teal"
-                  >
-                    {label}
-                  </a>
-                ))}
+            {DESTINATION_CATEGORIES.map((cat) => (
+              <div key={cat.label} className="mt-7">
+                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-umber/60">
+                  {cat.label}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {cat.destinations.map(({ label, slug }) => (
+                    <a
+                      key={slug}
+                      href={`/city/${slug}`}
+                      className="rounded-full border border-dune bg-white px-3.5 py-1.5 text-sm font-medium text-bark transition-colors hover:border-coral/50 hover:bg-[#FDF3EF] hover:text-coral"
+                    >
+                      {label}
+                    </a>
+                  ))}
+                </div>
               </div>
-            </div>
-
-            {/* Surf, dive, hike & activity destinations */}
-            <div className="mt-7">
-              <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-umber/60">
-                Surf · dive · hike · yoga
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {SURF_NATURE_DESTINATIONS.map(({ label, slug }) => (
-                  <a
-                    key={slug}
-                    href={`/city/${slug}`}
-                    className="rounded-full border border-dune bg-white px-3.5 py-1.5 text-sm font-medium text-bark transition-colors hover:border-coral/50 hover:bg-[#FDF3EF] hover:text-coral"
-                  >
-                    {label}
-                  </a>
-                ))}
-              </div>
-            </div>
+            ))}
           </div>
         </section>
 
