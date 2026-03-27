@@ -279,54 +279,52 @@ export default function HomePage() {
         </section>
 
         {/* ── Popular destinations ── sand ─────────────────────── */}
-        <section className="border-b border-dune bg-sand overflow-hidden">
-          <div className="mx-auto max-w-4xl px-6 pt-20 pb-4">
+        <section className="border-b border-dune bg-sand">
+          <div className="mx-auto max-w-4xl px-6 py-20">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
               Popular destinations
             </p>
             <p className="mt-2 text-sm text-umber">
               Jump straight in — or search any spot above.
             </p>
+
+            <div className="mt-10 space-y-10">
+              {DESTINATION_CATEGORIES.map((cat) => {
+                const meta = CATEGORY_META[cat.label];
+                return (
+                  <div key={cat.label}>
+                    {/* Category header */}
+                    <div className="flex items-center gap-2.5 mb-4">
+                      <span className="text-lg leading-none">{meta?.icon}</span>
+                      <div>
+                        <span className="text-sm font-semibold text-bark">{cat.label}</span>
+                        {meta?.description && (
+                          <span className="ml-2 text-xs text-umber/50">{meta.description}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Mobile: horizontal scroll · Desktop: wrap */}
+                    <div className="relative">
+                      <div className="flex gap-2 overflow-x-auto sm:flex-wrap sm:overflow-visible pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        {cat.destinations.map(({ label, slug }) => (
+                          <a
+                            key={slug}
+                            href={`/city/${slug}`}
+                            className="flex-shrink-0 sm:flex-shrink rounded-full border border-dune bg-white px-4 py-2 text-sm font-medium text-bark transition-colors hover:border-coral/50 hover:bg-[#FDF3EF] hover:text-coral"
+                          >
+                            {label}
+                          </a>
+                        ))}
+                      </div>
+                      {/* Fade hint on mobile only */}
+                      <div className="pointer-events-none absolute right-0 top-0 h-full w-12 bg-gradient-to-l from-sand to-transparent sm:hidden" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-
-          {DESTINATION_CATEGORIES.map((cat) => {
-            const meta = CATEGORY_META[cat.label];
-            return (
-              <div key={cat.label} className="mb-8">
-                {/* Category header — inside the max-width container */}
-                <div className="mx-auto max-w-4xl px-6 mb-3 flex items-center gap-3">
-                  <span className="text-xl leading-none">{meta?.icon}</span>
-                  <div>
-                    <p className="text-sm font-semibold text-bark">{cat.label}</p>
-                    {meta?.description && (
-                      <p className="text-xs text-umber/60">{meta.description}</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Scrollable pill row — bleeds edge to edge */}
-                <div className="relative">
-                  <div className="flex gap-2 overflow-x-auto scroll-smooth px-6 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ paddingLeft: "max(24px, calc((100vw - 896px) / 2 + 24px))" }}>
-                    {cat.destinations.map(({ label, slug }) => (
-                      <a
-                        key={slug}
-                        href={`/city/${slug}`}
-                        className="flex-shrink-0 rounded-full border border-dune bg-white px-4 py-2 text-sm font-medium text-bark transition-colors hover:border-coral/50 hover:bg-[#FDF3EF] hover:text-coral"
-                      >
-                        {label}
-                      </a>
-                    ))}
-                    {/* Right spacer so last pill doesn't butt against edge */}
-                    <span className="flex-shrink-0 w-6" />
-                  </div>
-                  {/* Fade hint — right edge */}
-                  <div className="pointer-events-none absolute right-0 top-0 h-full w-16 bg-gradient-to-l from-sand to-transparent" />
-                </div>
-              </div>
-            );
-          })}
-
-          <div className="pb-16" />
         </section>
 
         {/* ── Why Truststay ── sand ─────────────────────────────── */}
