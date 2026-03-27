@@ -649,12 +649,18 @@ export default async function CityPage({ params, searchParams }: Props) {
                 </span>
                 . Try searching again with a different spelling.
               </p>
-              <div className="mt-8">
+              <div className="mt-8 flex flex-wrap gap-3">
                 <Link
                   href="/"
                   className="inline-block rounded-xl bg-bark px-5 py-3 text-sm font-medium text-white transition-colors hover:opacity-90"
                 >
                   Search again
+                </Link>
+                <Link
+                  href={`/city-requests?city=${encodeURIComponent(slug)}`}
+                  className="inline-block rounded-xl border border-dune bg-white px-5 py-3 text-sm font-medium text-umber transition-colors hover:bg-cream"
+                >
+                  Vote to add it →
                 </Link>
               </div>
             </div>

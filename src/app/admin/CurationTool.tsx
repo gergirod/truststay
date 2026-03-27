@@ -172,6 +172,107 @@ function FeedbackReports({ secret }: { secret: string }) {
   );
 }
 
+interface VoteRow {
+  citySlug: string;
+  cityName: string;
+  country: string | null;
+  action: string;
+  count: number;
+  lastAt: string;
+}
+
+function VoteRequests({ secret }: { secret: string }) {
+  const [rows, setRows] = useState<VoteRow[] | null>(null);
+  const [status, setStatus] = useState<"loading" | "ready" | "not_configured" | "error">("loading");
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    fetch(`/api/admin/votes?secret=${encodeURIComponent(secret)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error === "not_configured") setStatus("not_configured");
+        else if (data.votes) { setRows(data.votes); setStatus("ready"); }
+        else setStatus("error");
+      })
+      .catch(() => setStatus("error"));
+  }, [open, secret]);
+
+  return (
+    <div className="mb-8 rounded-xl border border-[#E4DDD2] bg-white px-5 py-5">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-2"
+      >
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold text-[#2E2A26]">City vote requests</p>
+          <span className="text-xs text-[#5F5A54]">— from /city-requests page</span>
+        </div>
+        <span className="text-xs text-[#5F5A54]">{open ? "▲" : "▼"}</span>
+      </button>
+
+      {open && (
+        <div className="mt-4">
+          {status === "loading" && <p className="text-xs text-[#5F5A54]">Loading…</p>}
+          {status === "not_configured" && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              PostHog not configured.
+            </p>
+          )}
+          {status === "error" && <p className="text-xs text-red-600">Failed to load.</p>}
+          {status === "ready" && rows && (
+            rows.length === 0 ? (
+              <p className="text-xs text-[#5F5A54]">No votes yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#E4DDD2] text-[#5F5A54]">
+                      <th className="pb-2 pr-4 font-semibold">City</th>
+                      <th className="pb-2 pr-4 font-semibold">Country</th>
+                      <th className="pb-2 pr-4 font-semibold">Action</th>
+                      <th className="pb-2 pr-4 font-semibold">×</th>
+                      <th className="pb-2 font-semibold">Last</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r, i) => (
+                      <tr key={i} className="border-b border-[#F0EBE3]">
+                        <td className="py-2 pr-4 font-medium text-[#2E2A26]">
+                          <button
+                            onClick={() => {/* could trigger discover */}}
+                            className="hover:underline"
+                          >
+                            {r.cityName || r.citySlug}
+                          </button>
+                        </td>
+                        <td className="py-2 pr-4 text-[#5F5A54]">{r.country ?? "—"}</td>
+                        <td className="py-2 pr-4">
+                          <span className={`rounded-full px-2 py-0.5 font-semibold text-[10px] ${
+                            r.action === "request"
+                              ? "bg-amber-50 text-amber-700"
+                              : "bg-[#DCEBE9] text-[#2E6B65]"
+                          }`}>
+                            {r.action}
+                          </span>
+                        </td>
+                        <td className="py-2 pr-4 font-bold text-[#2E2A26]">{r.count}</td>
+                        <td className="py-2 text-[#5F5A54]">
+                          {new Date(r.lastAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CuratedCitiesBar({
   onSelect,
 }: {
@@ -627,6 +728,9 @@ ${lines.join(",\n")}
 
         {/* Place feedback reports */}
         <FeedbackReports secret={secret} />
+
+        {/* City vote requests */}
+        <VoteRequests secret={secret} />
 
         {/* Curated cities quick-access */}
         <CuratedCitiesBar onSelect={(city) => { setQuery(city); }} />
