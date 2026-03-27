@@ -143,24 +143,28 @@ export function DestinationsMap() {
           const isHub = pin.category === "Remote work hubs";
           const color = CATEGORY_COLORS[pin.category];
 
+          // el is passed directly to mapboxgl.Marker — in Mapbox GL v3 the
+          // positioning transform (translate X,Y) is applied to el itself.
+          // NEVER set el.style.transform or it overwrites the position → pin
+          // jumps to top-left. Scale an inner wrapper instead.
           const el = document.createElement("div");
           el.style.cursor = "pointer";
-          el.style.transition = "transform 0.15s ease, opacity 0.15s ease";
-          el.style.width = isHub ? "26px" : "22px";
-          el.style.height = isHub ? "26px" : "30px";
-          // transform-origin at bottom for teardrops so the tip stays anchored
-          el.style.transformOrigin = isHub ? "center center" : "center bottom";
-          el.innerHTML = isHub ? hubPinSVG(color) : activityPinSVG(color);
 
-          // Hover scale — zIndex must go on the Mapbox wrapper (.mapboxgl-marker),
-          // not on el itself, because the wrapper is the positioned ancestor.
+          const inner = document.createElement("div");
+          inner.style.width = isHub ? "26px" : "22px";
+          inner.style.height = isHub ? "26px" : "30px";
+          inner.style.transformOrigin = isHub ? "center center" : "center bottom";
+          inner.style.transition = "transform 0.15s ease";
+          inner.innerHTML = isHub ? hubPinSVG(color) : activityPinSVG(color);
+          el.appendChild(inner);
+
           el.addEventListener("mouseenter", () => {
-            el.style.transform = "scale(1.3)";
-            if (el.parentElement) el.parentElement.style.zIndex = "100";
+            inner.style.transform = "scale(1.3)";
+            el.style.zIndex = "100";
           });
           el.addEventListener("mouseleave", () => {
-            el.style.transform = "scale(1)";
-            if (el.parentElement) el.parentElement.style.zIndex = "";
+            inner.style.transform = "scale(1)";
+            el.style.zIndex = "";
           });
 
           const popup = new mapboxgl.Popup({
