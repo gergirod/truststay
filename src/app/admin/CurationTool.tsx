@@ -3,12 +3,27 @@
 import { useState, useEffect, useRef } from "react";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { CityNarratives } from "./CityNarratives";
+import { CachedPlaces } from "./CachedPlaces";
 import type { NeighborhoodEntry } from "@/data/neighborhoods";
 import { CURATED_NEIGHBORHOODS } from "@/data/neighborhoods";
+import { CITY_INTROS } from "@/data/cityIntros";
 
 const CURATED_CITY_NAMES = Object.values(CURATED_NEIGHBORHOODS).map(
   (c) => c.cityName
 );
+
+// All slugs that have a hand-written static intro
+const STATIC_INTRO_SLUGS = new Set(Object.keys(CITY_INTROS));
+
+function slugToName(slug: string) {
+  return slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
+
+// Cities with static intros but no full neighborhood grid
+const INTRO_ONLY_CITIES = Object.keys(CITY_INTROS)
+  .filter((slug) => !Object.keys(CURATED_NEIGHBORHOODS).includes(slug))
+  .map((slug) => ({ slug, name: slugToName(slug) }))
+  .sort((a, b) => a.name.localeCompare(b.name));
 
 interface QualityReason {
   pass: boolean;
@@ -374,22 +389,82 @@ function CuratedCitiesBar({
 }: {
   onSelect: (city: string) => void;
 }) {
+  const [search, setSearch] = useState("");
+
+  const filteredIntroOnly = search.trim()
+    ? INTRO_ONLY_CITIES.filter(
+        (c) => c.name.toLowerCase().includes(search.toLowerCase()) || c.slug.includes(search.toLowerCase())
+      )
+    : INTRO_ONLY_CITIES;
+
+  const filteredGridCities = search.trim()
+    ? CURATED_CITY_NAMES.filter((name) => name.toLowerCase().includes(search.toLowerCase()))
+    : CURATED_CITY_NAMES;
+
   return (
-    <div className="mb-6">
-      <p className="text-xs font-semibold uppercase tracking-widest text-[#5F5A54] mb-2">
-        Already curated — click to review
-      </p>
-      <div className="flex flex-wrap gap-2">
-        {CURATED_CITY_NAMES.map((name) => (
-          <button
-            key={name}
-            onClick={() => onSelect(name)}
-            className="text-sm px-3 py-1.5 rounded-lg border border-[#8FB7B3] bg-[#DCEBE9] text-[#2E2A26] hover:bg-[#c8dedd] transition-colors font-medium"
-          >
-            ✓ {name}
-          </button>
-        ))}
+    <div className="mb-6 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-widest text-[#5F5A54]">
+          Curated destinations — click to discover
+        </p>
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Filter…"
+          className="w-36 rounded-lg border border-[#E4DDD2] bg-white px-2.5 py-1.5 text-xs text-[#2E2A26] focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+        />
       </div>
+
+      {/* Full neighborhood grid cities */}
+      {filteredGridCities.length > 0 && (
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-teal-600 mb-1.5">
+            Full grid ({filteredGridCities.length})
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {filteredGridCities.map((name) => (
+              <button
+                key={name}
+                onClick={() => onSelect(name)}
+                className="text-xs px-3 py-1.5 rounded-lg border border-[#8FB7B3] bg-[#DCEBE9] text-[#2E2A26] hover:bg-[#c8dedd] transition-colors font-medium"
+              >
+                ✓ {name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Cities with static intros only */}
+      {filteredIntroOnly.length > 0 && (
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-600 mb-1.5">
+            Has static intro ({filteredIntroOnly.length})
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {filteredIntroOnly.map((c) => (
+              <button
+                key={c.slug}
+                onClick={() => onSelect(c.name)}
+                className="text-xs px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50 text-[#2E2A26] hover:bg-amber-100 transition-colors font-medium"
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {filteredGridCities.length === 0 && filteredIntroOnly.length === 0 && (
+        <p className="text-xs text-[#5F5A54]">No match — type any city in the search box above.</p>
+      )}
+
+      <p className="text-[10px] text-stone-400">
+        <span className="font-semibold text-teal-600">Full grid</span> = neighborhoods.ts ·{" "}
+        <span className="font-semibold text-amber-600">Has static intro</span> = cityIntros.ts ·{" "}
+        Any other city → type it in the search box below
+      </p>
     </div>
   );
 }
@@ -675,14 +750,18 @@ export default function CurationTool({ secret }: { secret: string }) {
   const [error, setError] = useState<string | null>(null);
   const [neighborhoods, setNeighborhoods] = useState<EditableNeighborhood[]>([]);
   const [showCode, setShowCode] = useState(false);
+  const [autoDiscover, setAutoDiscover] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
 
-  // When a curated city pill is clicked, load it automatically
+  // Auto-discover when a city is selected from DemandQueue or CuratedCitiesBar
   useEffect(() => {
-    if (query && CURATED_CITY_NAMES.includes(query)) {
+    if (autoDiscover && query) {
+      setAutoDiscover(false);
       handleDiscover();
+      searchRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
+  }, [autoDiscover, query]);
 
   async function handleDiscover() {
     if (!query.trim()) return;
@@ -820,10 +899,13 @@ ${lines.join(",\n")}
         </div>
 
         {/* Demand queue — top searched uncurated cities from PostHog */}
-        <DemandQueue secret={secret} onSelect={(city) => { setQuery(city); }} />
+        <DemandQueue secret={secret} onSelect={(city) => { setQuery(city); setAutoDiscover(true); }} />
 
         {/* City narrative generator (AI) */}
         <CityNarratives secret={secret} />
+
+        {/* Cached place lists */}
+        <CachedPlaces secret={secret} />
 
         {/* Place feedback reports */}
         <FeedbackReports secret={secret} />
@@ -835,10 +917,10 @@ ${lines.join(",\n")}
         <SuggestedPlaces secret={secret} />
 
         {/* Curated cities quick-access */}
-        <CuratedCitiesBar onSelect={(city) => { setQuery(city); }} />
+        <CuratedCitiesBar onSelect={(city) => { setQuery(city); setAutoDiscover(true); }} />
 
         {/* Search */}
-        <div className="flex gap-3 mb-8">
+        <div ref={searchRef} className="flex gap-3 mb-8">
           <input
             type="text"
             value={query}

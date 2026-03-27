@@ -1,23 +1,48 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { StoredNarrative } from "@/lib/kv";
 import type { NarrativeOption } from "@/lib/narrativeAI";
+import { CITY_INTROS } from "@/data/cityIntros";
+import { CURATED_NEIGHBORHOODS } from "@/data/neighborhoods";
+
+// Build a combined city list: curated + static intros
+const STATIC_INTRO_SLUGS = Object.keys(CITY_INTROS);
+const CURATED_SLUGS = Object.entries(CURATED_NEIGHBORHOODS).map(([slug, cfg]) => ({
+  slug,
+  name: cfg.cityName,
+}));
+
+function slugToName(slug: string) {
+  return slug
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+// Merge curated + static intro slugs into a deduplicated city list
+const ALL_KNOWN_CITIES: { slug: string; name: string }[] = (() => {
+  const map = new Map<string, string>();
+  CURATED_SLUGS.forEach(({ slug, name }) => map.set(slug, name));
+  STATIC_INTRO_SLUGS.forEach((slug) => {
+    if (!map.has(slug)) map.set(slug, slugToName(slug));
+  });
+  return Array.from(map.entries())
+    .map(([slug, name]) => ({ slug, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+})();
 
 interface Props {
   secret: string;
 }
 
 function toSlug(name: string) {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
+  return name.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 }
 
 export function CityNarratives({ secret }: Props) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const [cityName, setCityName] = useState("");
   const [citySlug, setCitySlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
@@ -25,7 +50,10 @@ export function CityNarratives({ secret }: Props) {
   const [genStatus, setGenStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [genError, setGenError] = useState<string | null>(null);
   const [options, setOptions] = useState<NarrativeOption[] | null>(null);
-  const [meta, setMeta] = useState<{ routineScore: number; totalPlaces: number; baseCentroidAddress: string | null; confirmedCount: number } | null>(null);
+  const [meta, setMeta] = useState<{
+    routineScore: number; totalPlaces: number;
+    baseCentroidAddress: string | null; confirmedCount: number;
+  } | null>(null);
 
   const [selected, setSelected] = useState<NarrativeOption | null>(null);
   const [editedIntro, setEditedIntro] = useState("");
@@ -34,11 +62,12 @@ export function CityNarratives({ secret }: Props) {
   const [editedBaseAreaReason, setEditedBaseAreaReason] = useState("");
   const [editedActivity, setEditedActivity] = useState<string>("");
   const [editedBestMonths, setEditedBestMonths] = useState("");
-
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   const [savedList, setSavedList] = useState<StoredNarrative[] | null>(null);
   const [listLoading, setListLoading] = useState(false);
+
+  const generatorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!slugEdited) setCitySlug(toSlug(cityName));
@@ -72,6 +101,18 @@ export function CityNarratives({ secret }: Props) {
     if (open) loadList();
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  function pickCity(slug: string, name: string) {
+    setCityName(name);
+    setCitySlug(slug);
+    setSlugEdited(true);
+    setOptions(null);
+    setSelected(null);
+    setSaveStatus("idle");
+    setGenStatus("idle");
+    setGenError(null);
+    setTimeout(() => generatorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+  }
+
   async function handleGenerate() {
     if (!cityName.trim() || !citySlug.trim()) return;
     setGenStatus("loading");
@@ -94,7 +135,6 @@ export function CityNarratives({ secret }: Props) {
           city_not_found: "City not found — check the slug and try again.",
           overpass_failed: "Could not fetch place data from Overpass. Try again.",
           llm_failed: "LLM call failed. Try again.",
-          kv_not_configured: "Upstash KV not configured — narrative generated but cannot be saved.",
         };
         setGenError(msgs[data.error] ?? data.error);
         setGenStatus("error");
@@ -113,7 +153,6 @@ export function CityNarratives({ secret }: Props) {
   async function handleSave() {
     if (!selected) return;
     setSaveStatus("saving");
-
     const narrative: StoredNarrative = {
       citySlug: citySlug.trim(),
       cityName: cityName.trim(),
@@ -127,7 +166,6 @@ export function CityNarratives({ secret }: Props) {
       generatedAt: new Date().toISOString(),
       editedAt: null,
     };
-
     try {
       const res = await fetch(`/api/admin/save-narrative?secret=${encodeURIComponent(secret)}`, {
         method: "POST",
@@ -135,15 +173,9 @@ export function CityNarratives({ secret }: Props) {
         body: JSON.stringify(narrative),
       });
       const data = await res.json();
-      if (data.ok) {
-        setSaveStatus("saved");
-        loadList();
-      } else {
-        setSaveStatus("error");
-      }
-    } catch {
-      setSaveStatus("error");
-    }
+      if (data.ok) { setSaveStatus("saved"); loadList(); }
+      else setSaveStatus("error");
+    } catch { setSaveStatus("error"); }
   }
 
   async function handleDelete(slug: string) {
@@ -169,8 +201,18 @@ export function CityNarratives({ secret }: Props) {
     setSelected({ intro: n.intro, summaryText: n.summaryText, baseAreaName: n.baseAreaName, baseAreaReason: n.baseAreaReason, activity: n.activity, bestMonths: n.bestMonths });
     setGenStatus("done");
     setOptions(null);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    generatorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+
+  const savedSlugs = new Set(savedList?.map((n) => n.citySlug) ?? []);
+
+  const filteredCities = search.trim()
+    ? ALL_KNOWN_CITIES.filter(
+        (c) =>
+          c.name.toLowerCase().includes(search.toLowerCase()) ||
+          c.slug.includes(search.toLowerCase())
+      )
+    : ALL_KNOWN_CITIES;
 
   return (
     <div className="mb-8 rounded-xl border border-[#E4DDD2] bg-white px-5 py-5">
@@ -181,6 +223,11 @@ export function CityNarratives({ secret }: Props) {
         <div className="flex items-center gap-2">
           <p className="text-sm font-semibold text-[#2E2A26]">City narratives</p>
           <span className="text-xs text-[#5F5A54]">— AI-generated intros & base area reasoning</span>
+          {savedList && savedList.length > 0 && (
+            <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold text-teal-700">
+              {savedList.length} saved
+            </span>
+          )}
         </div>
         <span className="text-xs text-[#5F5A54]">{open ? "▲" : "▼"}</span>
       </button>
@@ -188,8 +235,61 @@ export function CityNarratives({ secret }: Props) {
       {open && (
         <div className="mt-5 space-y-6">
 
+          {/* ── City Picker ───────────────────────────────────────────────── */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold uppercase tracking-widest text-[#5F5A54]">
+                Select a city
+              </p>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search…"
+                className="w-40 rounded-lg border border-[#E4DDD2] bg-[#FAFAF8] px-2.5 py-1.5 text-xs text-[#2E2A26] focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
+              {filteredCities.map((c) => {
+                const hasSaved = savedSlugs.has(c.slug);
+                const hasStatic = STATIC_INTRO_SLUGS.includes(c.slug);
+                const isActive = citySlug === c.slug;
+                return (
+                  <button
+                    key={c.slug}
+                    onClick={() => pickCity(c.slug, c.name)}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors border ${
+                      isActive
+                        ? "bg-[#2E2A26] text-white border-[#2E2A26]"
+                        : "bg-white text-[#2E2A26] border-[#E4DDD2] hover:bg-[#FAFAF8]"
+                    }`}
+                  >
+                    {c.name}
+                    {hasSaved && (
+                      <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${isActive ? "bg-teal-400 text-white" : "bg-teal-100 text-teal-700"}`}>
+                        KV
+                      </span>
+                    )}
+                    {!hasSaved && hasStatic && (
+                      <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${isActive ? "bg-amber-300 text-white" : "bg-amber-100 text-amber-700"}`}>
+                        static
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+              {filteredCities.length === 0 && (
+                <p className="text-xs text-[#5F5A54]">No match — type any city name below and generate.</p>
+              )}
+            </div>
+            <p className="mt-2 text-[10px] text-stone-400">
+              <span className="font-semibold text-teal-600">KV</span> = saved in Upstash (live on site) ·{" "}
+              <span className="font-semibold text-amber-600">static</span> = hand-written in cityIntros.ts
+            </p>
+          </div>
+
           {/* ── Generator ────────────────────────────────────────────────── */}
-          <div className="rounded-xl border border-[#E4DDD2] bg-[#FAFAF8] p-4 space-y-4">
+          <div ref={generatorRef} className="rounded-xl border border-[#E4DDD2] bg-[#FAFAF8] p-4 space-y-4">
             <p className="text-xs font-semibold uppercase tracking-widest text-[#5F5A54]">Generate</p>
 
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -198,7 +298,7 @@ export function CityNarratives({ secret }: Props) {
                 <input
                   type="text"
                   value={cityName}
-                  onChange={(e) => setCityName(e.target.value)}
+                  onChange={(e) => { setCityName(e.target.value); setSlugEdited(false); }}
                   placeholder="Puerto Escondido"
                   className="w-full rounded-lg border border-[#E4DDD2] bg-white px-3 py-2 text-sm text-[#2E2A26] focus:outline-none focus:ring-2 focus:ring-teal-500/30"
                 />
@@ -233,12 +333,13 @@ export function CityNarratives({ secret }: Props) {
             {genStatus === "error" && genError && (
               <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{genError}</p>
             )}
-
             {meta && (
               <p className="text-xs text-[#5F5A54]">
                 Score: <strong>{meta.routineScore}/100</strong> · {meta.totalPlaces} places found
-                {meta.baseCentroidAddress && <> · Base area: <em>{meta.baseCentroidAddress}</em></>}
-                {meta.confirmedCount > 0 && <> · <span className="text-teal-600">{meta.confirmedCount} user-confirmed place{meta.confirmedCount > 1 ? "s" : ""}</span></>}
+                {meta.baseCentroidAddress && <> · Base: <em>{meta.baseCentroidAddress}</em></>}
+                {meta.confirmedCount > 0 && (
+                  <> · <span className="text-teal-600">{meta.confirmedCount} user-confirmed</span></>
+                )}
               </p>
             )}
           </div>
@@ -246,7 +347,9 @@ export function CityNarratives({ secret }: Props) {
           {/* ── Options ──────────────────────────────────────────────────── */}
           {options && options.length > 0 && (
             <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-widest text-[#5F5A54]">Choose a base area option</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-[#5F5A54]">
+                Choose a base area option
+              </p>
               {options.map((opt, i) => (
                 <button
                   key={i}
@@ -270,7 +373,9 @@ export function CityNarratives({ secret }: Props) {
           {/* ── Edit & Save ──────────────────────────────────────────────── */}
           {selected && (
             <div className="space-y-4 rounded-xl border border-[#E4DDD2] bg-[#FAFAF8] p-4">
-              <p className="text-xs font-semibold uppercase tracking-widest text-[#5F5A54]">Review & edit before saving</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-[#5F5A54]">
+                Review & edit before saving
+              </p>
 
               <div>
                 <label className="block text-xs font-medium text-[#5F5A54] mb-1">Base area name</label>
@@ -283,7 +388,9 @@ export function CityNarratives({ secret }: Props) {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[#5F5A54] mb-1">Base area reason <span className="font-normal">(shown to unlocked users)</span></label>
+                <label className="block text-xs font-medium text-[#5F5A54] mb-1">
+                  Base area reason <span className="font-normal text-stone-400">(unlocked users)</span>
+                </label>
                 <textarea
                   value={editedBaseAreaReason}
                   onChange={(e) => setEditedBaseAreaReason(e.target.value)}
@@ -293,7 +400,9 @@ export function CityNarratives({ secret }: Props) {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[#5F5A54] mb-1">Intro <span className="font-normal">(shown to all users)</span></label>
+                <label className="block text-xs font-medium text-[#5F5A54] mb-1">
+                  Intro <span className="font-normal text-stone-400">(all users — shown above place list)</span>
+                </label>
                 <textarea
                   value={editedIntro}
                   onChange={(e) => setEditedIntro(e.target.value)}
@@ -303,7 +412,9 @@ export function CityNarratives({ secret }: Props) {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[#5F5A54] mb-1">Summary text <span className="font-normal">(shown to unlocked users)</span></label>
+                <label className="block text-xs font-medium text-[#5F5A54] mb-1">
+                  Summary text <span className="font-normal text-stone-400">(unlocked — RoutineSummaryCard)</span>
+                </label>
                 <textarea
                   value={editedSummary}
                   onChange={(e) => setEditedSummary(e.target.value)}
@@ -349,6 +460,12 @@ export function CityNarratives({ secret }: Props) {
                 >
                   {saveStatus === "saving" ? "Saving…" : "Save narrative"}
                 </button>
+                <button
+                  onClick={() => { setSelected(null); setOptions(null); setGenStatus("idle"); }}
+                  className="rounded-lg border border-[#E4DDD2] px-3 py-2.5 text-sm text-[#5F5A54] hover:bg-[#FAFAF8]"
+                >
+                  Cancel
+                </button>
                 {saveStatus === "saved" && (
                   <span className="text-xs font-medium text-teal-600">✓ Saved — live on the city page</span>
                 )}
@@ -363,21 +480,18 @@ export function CityNarratives({ secret }: Props) {
           <div>
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs font-semibold uppercase tracking-widest text-[#5F5A54]">
-                Saved narratives {savedList ? `(${savedList.length})` : ""}
+                Saved {savedList ? `(${savedList.length})` : ""}
               </p>
               <button onClick={loadList} className="text-xs text-[#5F5A54] hover:text-[#2E2A26]">
                 ↻ Refresh
               </button>
             </div>
-
             {listLoading && <p className="text-xs text-[#5F5A54]">Loading…</p>}
-
-            {!listLoading && savedList && savedList.length === 0 && (
+            {!listLoading && savedList?.length === 0 && (
               <p className="text-xs text-[#5F5A54]">
-                No saved narratives yet.{!process.env.NEXT_PUBLIC_UPSTASH_CONFIGURED && " (Upstash KV not configured — add UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN)"}
+                No saved narratives yet. Pick a city above and generate.
               </p>
             )}
-
             {savedList && savedList.length > 0 && (
               <div className="space-y-2">
                 {savedList.map((n) => (
@@ -391,8 +505,8 @@ export function CityNarratives({ secret }: Props) {
                         {n.baseAreaName} — {n.baseAreaReason}
                       </p>
                       <p className="mt-0.5 text-[10px] text-stone-400">
-                        Generated {new Date(n.generatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                        {n.editedAt && ` · Edited ${new Date(n.editedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
+                        {new Date(n.generatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        {n.editedAt && ` · edited ${new Date(n.editedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
                       </p>
                     </div>
                     <div className="flex shrink-0 gap-2">
@@ -414,7 +528,7 @@ export function CityNarratives({ secret }: Props) {
                         onClick={() => handleDelete(n.citySlug)}
                         className="rounded border border-red-200 px-2.5 py-1 text-xs text-red-400 hover:text-red-600"
                       >
-                        Delete
+                        ✕
                       </button>
                     </div>
                   </div>

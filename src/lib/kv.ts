@@ -1,4 +1,5 @@
 import { Redis } from "@upstash/redis";
+import type { Place } from "@/types";
 
 /**
  * Upstash Redis client — returns null if not configured.
@@ -77,6 +78,99 @@ export async function listNarratives(): Promise<StoredNarrative[]> {
       })
       .filter((v): v is StoredNarrative => v !== null)
       .sort((a, b) => b.generatedAt.localeCompare(a.generatedAt));
+  } catch {
+    return [];
+  }
+}
+
+// ── Place cache ──────────────────────────────────────────────────────────────
+
+export interface CachedPlaces {
+  citySlug: string;
+  cityName: string;
+  /** Raw OSM places (pre-Google-enrichment) */
+  places: Place[];
+  cachedAt: string;
+  /** How many places of each type */
+  counts: { work: number; food: number; wellbeing: number; total: number };
+}
+
+const PLACES_KEY = (slug: string) => `city-places:${slug}`;
+/** 14 days — OSM data is stable; admin can force-refresh anytime */
+const PLACES_TTL_SECONDS = 14 * 24 * 60 * 60;
+
+export async function getPlacesCache(slug: string): Promise<CachedPlaces | null> {
+  if (!redis) return null;
+  try {
+    const data = await redis.get(PLACES_KEY(slug));
+    if (!data) return null;
+    return typeof data === "string" ? JSON.parse(data) : (data as CachedPlaces);
+  } catch {
+    return null;
+  }
+}
+
+export async function savePlacesCache(
+  citySlug: string,
+  cityName: string,
+  places: Place[]
+): Promise<boolean> {
+  if (!redis) return false;
+  try {
+    const counts = {
+      work: places.filter((p) => p.category === "coworking" || p.category === "cafe").length,
+      food: places.filter((p) => p.category === "food").length,
+      wellbeing: places.filter((p) => p.category === "gym").length,
+      total: places.length,
+    };
+    const payload: CachedPlaces = {
+      citySlug,
+      cityName,
+      places,
+      cachedAt: new Date().toISOString(),
+      counts,
+    };
+    await redis.set(PLACES_KEY(citySlug), JSON.stringify(payload), {
+      ex: PLACES_TTL_SECONDS,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function deletePlacesCache(slug: string): Promise<boolean> {
+  if (!redis) return false;
+  try {
+    await redis.del(PLACES_KEY(slug));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function listPlacesCaches(): Promise<Omit<CachedPlaces, "places">[]> {
+  if (!redis) return [];
+  try {
+    const keys = await redis.keys("city-places:*");
+    if (!keys.length) return [];
+    const values = await redis.mget<(string | CachedPlaces)[]>(...keys);
+    return values
+      .map((v) => {
+        if (!v) return null;
+        try {
+          const parsed: CachedPlaces =
+            typeof v === "string" ? JSON.parse(v) : v;
+          // Return metadata only — omit the full places array to keep response small
+          const { places: _places, ...meta } = parsed;
+          void _places;
+          return meta;
+        } catch {
+          return null;
+        }
+      })
+      .filter((v): v is Omit<CachedPlaces, "places"> => v !== null)
+      .sort((a, b) => b.cachedAt.localeCompare(a.cachedAt));
   } catch {
     return [];
   }

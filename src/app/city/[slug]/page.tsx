@@ -2,7 +2,8 @@ import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { geocodeCity, reverseGeocodeArea, toSlug } from "@/lib/geocode";
-import { fetchPlaces, sortByDistance, haversineKm } from "@/lib/overpass";
+import { sortByDistance, haversineKm } from "@/lib/overpass";
+import { getPlacesWithCache } from "@/lib/placesCache";
 import { computeCitySummary, computeBaseCentroid } from "@/lib/scoring";
 import { enrichPlaces } from "@/lib/enrichment";
 import type { Place } from "@/types";
@@ -793,11 +794,11 @@ async function AutoNeighborhoodOrContent({
   justUnlocked: boolean;
   kvNarrative: import("@/lib/kv").StoredNarrative | null;
 }) {
-  // Run both in parallel — fetchPlaces warms the unstable_cache so CityContent
-  // gets an instant hit instead of waiting a second time.
+  // Run both in parallel — getPlacesWithCache warms the KV/fetch cache so
+  // CityContent gets an instant hit instead of waiting a second time.
   const [neighborhoods] = await Promise.all([
     discoverNeighborhoods(city),
-    fetchPlaces(city).catch(() => []),
+    getPlacesWithCache(city).catch(() => []),
   ]);
 
   if (neighborhoods.length >= 3) {
@@ -859,7 +860,7 @@ async function AutoNeighborhoodOrContent({
           );
         })()}
       </div>
-      {/* fetchPlaces already cache-warmed above — CityContent resolves instantly */}
+      {/* getPlacesWithCache already called above — KV/fetch cache warm, CityContent resolves instantly */}
       <Suspense fallback={<PlacesSkeleton />}>
         <CityContent city={city} isUnlocked={isUnlocked} justUnlocked={justUnlocked} kvNarrative={kvNarrative} />
       </Suspense>
@@ -885,9 +886,8 @@ function DiscoverySkeleton({ cityName }: { cityName: string }) {
   );
 }
 
-// Async server component — runs Overpass + scoring, streams into the page.
-// Wraps fetchPlaces in a try-catch so upstream failures show a graceful message
-// (and fire city_data_failed) instead of crashing to the error boundary.
+// Async server component — runs place fetch + scoring, streams into the page.
+// getPlacesWithCache checks KV first (instant), falls back to Overpass.
 async function CityContent({
   city,
   isUnlocked,
@@ -901,7 +901,7 @@ async function CityContent({
 }) {
   let allPlaces;
   try {
-    allPlaces = await fetchPlaces(city);
+    allPlaces = await getPlacesWithCache(city);
   } catch (err) {
     const errorType =
       err instanceof Error ? err.message : "upstream_fetch_failed";
