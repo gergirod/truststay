@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import "mapbox-gl/dist/mapbox-gl.css";
 import type { NeighborhoodEntry } from "@/data/neighborhoods";
 import { CURATED_NEIGHBORHOODS } from "@/data/neighborhoods";
 
@@ -180,6 +181,147 @@ POSTHOG_PROJECT_ID=12345`}</pre>
   );
 }
 
+// ── Draggable curation map ───────────────────────────────────────────────────
+
+function CurationMap({
+  city,
+  neighborhoods,
+  onMove,
+}: {
+  city: { lat: number; lon: number };
+  neighborhoods: EditableNeighborhood[];
+  onMove: (slug: string, lat: number, lon: number) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mapRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const markersRef = useRef<Map<string, any>>(new Map());
+  const onMoveRef = useRef(onMove);
+  onMoveRef.current = onMove;
+
+  // Init / reinit map when city changes
+  useEffect(() => {
+    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+    if (!containerRef.current || !token) return;
+    let cancelled = false;
+
+    async function init() {
+      const mapboxgl = (await import("mapbox-gl")).default;
+      if (cancelled || !containerRef.current) return;
+
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        markersRef.current.clear();
+      }
+
+      mapboxgl.accessToken = token!;
+      const map = new mapboxgl.Map({
+        container: containerRef.current,
+        style: "mapbox://styles/mapbox/light-v11",
+        center: [city.lon, city.lat],
+        zoom: 12,
+        attributionControl: false,
+      });
+      mapRef.current = map;
+
+      map.addControl(new mapboxgl.AttributionControl({ compact: true }), "bottom-right");
+      map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
+
+      map.on("load", () => {
+        if (!mapRef.current) return;
+
+        // Build all neighborhood markers
+        neighborhoods.forEach((n, idx) => {
+          const el = document.createElement("div");
+          Object.assign(el.style, {
+            width: "34px", height: "34px", borderRadius: "50%",
+            background: n.selected ? "#8FB7B3" : "#aaa",
+            border: "3px solid white",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.28)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "13px", fontWeight: "700", color: "white",
+            cursor: "grab", userSelect: "none",
+            transition: "background 0.2s",
+          });
+          el.textContent = String(idx + 1);
+          el.title = n.editedName || n.name;
+
+          const marker = new mapboxgl.Marker({ element: el, draggable: true })
+            .setLngLat([n.lon, n.lat])
+            .setPopup(
+              new mapboxgl.Popup({ offset: 22, closeButton: false })
+                .setHTML(`<strong>${n.editedName || n.name}</strong><br/><span style="font-size:11px;color:#888">drag to reposition base</span>`)
+            )
+            .addTo(map);
+
+          el.addEventListener("mouseenter", () => marker.togglePopup());
+          el.addEventListener("mouseleave", () => marker.togglePopup());
+
+          marker.on("dragend", () => {
+            const { lat, lng } = marker.getLngLat();
+            onMoveRef.current(n.slug, lat, lng);
+          });
+
+          markersRef.current.set(n.slug, { marker, el });
+        });
+
+        // Fit all markers in view
+        if (neighborhoods.length > 0) {
+          const lons = neighborhoods.map((n) => n.lon);
+          const lats = neighborhoods.map((n) => n.lat);
+          if (neighborhoods.length === 1) {
+            map.flyTo({ center: [lons[0], lats[0]], zoom: 14 });
+          } else {
+            map.fitBounds(
+              [
+                [Math.min(...lons) - 0.015, Math.min(...lats) - 0.015],
+                [Math.max(...lons) + 0.015, Math.max(...lats) + 0.015],
+              ],
+              { padding: 60, maxZoom: 14, duration: 800 }
+            );
+          }
+        }
+      });
+    }
+
+    init().catch(console.warn);
+
+    return () => {
+      cancelled = true;
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        markersRef.current.clear();
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [city.lat, city.lon]);
+
+  // Update marker appearance when selection / name changes (no map rebuild)
+  useEffect(() => {
+    neighborhoods.forEach((n, idx) => {
+      const entry = markersRef.current.get(n.slug);
+      if (!entry) return;
+      entry.el.style.background = n.selected ? "#8FB7B3" : "#aaa";
+      entry.el.textContent = String(idx + 1);
+      entry.el.title = n.editedName || n.name;
+    });
+  }, [neighborhoods]);
+
+  return (
+    <div className="rounded-xl overflow-hidden border border-[#E4DDD2] mb-6 relative" style={{ height: 380 }}>
+      <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
+      {/* Legend */}
+      <div className="absolute bottom-8 left-3 bg-white/90 rounded-lg px-3 py-2 text-xs text-[#5F5A54] shadow pointer-events-none">
+        <p className="font-semibold text-[#2E2A26] mb-1">Drag pins to set base</p>
+        <p>Teal = selected · Grey = deselected</p>
+      </div>
+    </div>
+  );
+}
+
 function QualityBadge({ check }: { check: QualityCheck }) {
   return (
     <div className="mt-3">
@@ -280,6 +422,12 @@ export default function CurationTool({ secret }: { secret: string }) {
     );
   }
 
+  function moveNeighborhood(slug: string, lat: number, lon: number) {
+    setNeighborhoods((prev) =>
+      prev.map((n) => (n.slug === slug ? { ...n, lat, lon } : n))
+    );
+  }
+
   function moveUp(idx: number) {
     if (idx === 0) return;
     setNeighborhoods((prev) => {
@@ -308,8 +456,8 @@ export default function CurationTool({ secret }: { secret: string }) {
       return `      {
         name: "${n.editedName}",
         slug: "${n.slug}",
-        lat: ${n.lat},
-        lon: ${n.lon},
+        lat: ${n.lat.toFixed(6)},
+        lon: ${n.lon.toFixed(6)},
         bbox: ${bboxStr} as [number, number, number, number],
         tagline: "${n.editedTagline.replace(/"/g, '\\"')}",
         directionFromCenter: "${n.directionFromCenter}",
@@ -445,6 +593,15 @@ ${lines.join(",\n")}
                 </div>
               </div>
             </div>
+
+            {/* Map — always show when we have city coords */}
+            {neighborhoods.length > 0 && (
+              <CurationMap
+                city={{ lat: result.city.lat, lon: result.city.lon }}
+                neighborhoods={neighborhoods}
+                onMove={moveNeighborhood}
+              />
+            )}
 
             {neighborhoods.length === 0 ? (
               <div className="rounded-xl border border-[#E4DDD2] bg-white px-5 py-8 text-center">
