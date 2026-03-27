@@ -539,4 +539,93 @@ export const CURATED_NEIGHBORHOODS: Record<string, CityNeighborhoodConfig> = {
       },
     ],
   },
+
+  // ── Lake Atitlán — distinct villages, each with its own character ─────────
+  // Users searching "Lago Atitlán" should choose the village that fits their
+  // vibe: yoga-first (San Marcos), social/budget (San Pedro), or gateway (Panajachel).
+  "lago-atitlan": {
+    cityName: "Lago Atitlán",
+    citySlug: "lago-atitlan",
+    neighborhoods: [
+      {
+        name: "San Marcos La Laguna",
+        slug: "san-marcos-la-laguna",
+        lat: 14.7194,
+        lon: -91.2644,
+        bbox: [14.713, -91.272, 14.726, -91.257],
+        tagline: "Yoga capital of Central America — quiet, spiritual, good café options",
+        directionFromCenter: "NW",
+        distanceFromCenterKm: 8.2,
+      },
+      {
+        name: "San Pedro La Laguna",
+        slug: "san-pedro-la-laguna",
+        lat: 14.6903,
+        lon: -91.2697,
+        bbox: [14.683, -91.278, 14.698, -91.261],
+        tagline: "Budget-friendly, social scene, language schools, cafés with lake views",
+        directionFromCenter: "SW",
+        distanceFromCenterKm: 7.5,
+      },
+      {
+        name: "Panajachel",
+        slug: "panajachel",
+        lat: 14.7423,
+        lon: -91.1584,
+        bbox: [14.735, -91.168, 14.750, -91.148],
+        tagline: "Gateway town — most infrastructure, ATMs, and transport connections",
+        directionFromCenter: "E",
+        distanceFromCenterKm: 6.1,
+      },
+      {
+        name: "Santa Cruz La Laguna",
+        slug: "santa-cruz-la-laguna",
+        lat: 14.7333,
+        lon: -91.2258,
+        bbox: [14.727, -91.233, 14.740, -91.218],
+        tagline: "Small, peaceful village — ideal if you want to disconnect but still work",
+        directionFromCenter: "N",
+        distanceFromCenterKm: 5.4,
+      },
+    ],
+  },
+
+  // ── Roatán — two distinct work zones on the island ────────────────────────
+  // West End is the backpacker/diver hub; West Bay is quieter and more upscale.
+  "roatan": {
+    cityName: "Roatán",
+    citySlug: "roatan",
+    neighborhoods: [
+      {
+        name: "West End",
+        slug: "roatan-west-end",
+        lat: 16.3053,
+        lon: -86.5725,
+        bbox: [16.299, -86.581, 16.312, -86.564],
+        tagline: "Dive-shop hub — most cafés, restaurants, and coworking options on the island",
+        directionFromCenter: "W",
+        distanceFromCenterKm: 11.2,
+      },
+      {
+        name: "West Bay",
+        slug: "roatan-west-bay",
+        lat: 16.2953,
+        lon: -86.5736,
+        bbox: [16.289, -86.581, 16.302, -86.566],
+        tagline: "Quieter beach strip — fewer distractions, good for focus with the reef nearby",
+        directionFromCenter: "SW",
+        distanceFromCenterKm: 12.5,
+      },
+      {
+        name: "French Harbour",
+        slug: "roatan-french-harbour",
+        lat: 16.3278,
+        lon: -86.4631,
+        bbox: [16.320, -86.472, 16.336, -86.454],
+        tagline: "Local town with more everyday amenities — less touristy than West End",
+        directionFromCenter: "Center",
+        distanceFromCenterKm: 1.2,
+      },
+    ],
+  },
 };

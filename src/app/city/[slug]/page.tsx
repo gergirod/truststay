@@ -69,26 +69,73 @@ const KNOWN_CITY_SLUGS = [
   "chiang-mai", "berlin", "barcelona", "amsterdam", "ho-chi-minh-city",
   "tbilisi", "budapest", "prague", "bansko", "bogota",
   "taipei", "kuala-lumpur",
-  // Mexico
+
+  // ── Mexico ───────────────────────────────────────────────────────────────
+  // Pacific coast surf + yoga towns
   "playa-del-carmen", "oaxaca", "puerto-escondido", "sayulita",
-  // El Salvador
+  "tulum", "todos-santos", "mazunte", "troncones", "zihuatanejo",
+  "huatulco", "la-paz",
+  // Inland / cultural
+  "san-cristobal-de-las-casas", "guanajuato", "merida",
+
+  // ── Belize ───────────────────────────────────────────────────────────────
+  // Diving + island remote work
+  "caye-caulker", "san-pedro-belize", "placencia",
+
+  // ── Guatemala ────────────────────────────────────────────────────────────
+  // Volcano hiking, yoga, Lake Atitlán villages
+  "antigua-guatemala", "lago-atitlan",
+  "san-marcos-la-laguna", "san-pedro-la-laguna", "panajachel",
+  "quetzaltenango",
+
+  // ── Honduras ─────────────────────────────────────────────────────────────
+  // Bay Islands diving, ruins
+  "roatan", "utila", "copan-ruinas",
+
+  // ── El Salvador ──────────────────────────────────────────────────────────
   "el-tunco", "el-zonte",
-  // Nicaragua
-  "san-juan-del-sur", "popoyo",
-  // Costa Rica
-  "santa-teresa", "nosara", "tamarindo", "puerto-viejo",
-  // Panama
-  "bocas-del-toro", "boquete",
-  // Guatemala
-  "antigua-guatemala",
-  // Ecuador
-  "montanita", "olon", "banos",
-  // Colombia
-  "minca",
-  // Peru
-  "mancora",
-  // Brazil
+
+  // ── Nicaragua ────────────────────────────────────────────────────────────
+  "san-juan-del-sur", "popoyo", "gigante", "leon", "granada",
+
+  // ── Costa Rica ───────────────────────────────────────────────────────────
+  // Pacific surf + wellness towns
+  "santa-teresa", "nosara", "tamarindo", "dominical", "montezuma",
+  "jaco", "puerto-viejo",
+
+  // ── Panama ───────────────────────────────────────────────────────────────
+  "bocas-del-toro", "boquete", "santa-catalina", "pedasi",
+
+  // ── Colombia ─────────────────────────────────────────────────────────────
+  // Cities + activity destinations
+  "minca", "palomino", "santa-marta", "cartagena",
+  "villa-de-leyva", "salento",
+
+  // ── Ecuador ──────────────────────────────────────────────────────────────
+  // Coast surf + Andes + Amazon
+  "montanita", "olon", "banos", "canoa", "cuenca",
+
+  // ── Peru ─────────────────────────────────────────────────────────────────
+  // Surf village + trekking bases
+  "mancora", "huanchaco", "huaraz", "cusco",
+
+  // ── Bolivia ──────────────────────────────────────────────────────────────
+  "sucre", "coroico",
+
+  // ── Chile ────────────────────────────────────────────────────────────────
+  "pucon", "san-pedro-de-atacama",
+
+  // ── Argentina ────────────────────────────────────────────────────────────
+  "bariloche", "mendoza", "salta", "el-chalten",
+
+  // ── Brazil ───────────────────────────────────────────────────────────────
+  // Surf + yoga + eco villages
   "florianopolis", "itacare", "jericoacoara",
+  "pipa", "paraty", "arraial-do-cabo",
+
+  // ── Dominican Republic ───────────────────────────────────────────────────
+  // Kite + surf + nomad community
+  "cabarete", "las-terrenas",
 ];
 
 export async function generateStaticParams() {
@@ -201,27 +248,110 @@ async function resolveCity(
   // avoid Nominatim picking a high-importance place in the wrong country
   // (e.g. "minca" → München without a hint).
   const GEOCODE_HINTS: Record<string, string> = {
-    "minca":             "Minca Magdalena Colombia",
-    "banos":             "Baños Tungurahua Ecuador",
-    "el-zonte":          "El Zonte La Libertad El Salvador",
-    "el-tunco":          "El Tunco La Libertad El Salvador",
-    "olon":              "Olón Santa Elena Ecuador",
-    "mancora":           "Máncora Piura Peru",
-    "itacare":           "Itacaré Bahia Brazil",
-    "jericoacoara":      "Jericoacoara Ceará Brazil",
-    "puerto-viejo":      "Puerto Viejo de Talamanca Limón Costa Rica",
-    "boquete":           "Boquete Chiriquí Panama",
-    "antigua-guatemala": "Antigua Guatemala Sacatepéquez",
-    "popoyo":            "Popoyo Rivas Nicaragua",
-    "nosara":            "Nosara Guanacaste Costa Rica",
-    "montanita":         "Montañita Santa Elena Ecuador",
-    "sayulita":          "Sayulita Nayarit Mexico",
-    "santa-teresa":      "Santa Teresa Puntarenas Costa Rica",
-    "bocas-del-toro":    "Bocas del Toro Panama",
-    "tamarindo":         "Tamarindo Guanacaste Costa Rica",
-    "san-juan-del-sur":  "San Juan del Sur Rivas Nicaragua",
-    "puerto-escondido":  "Puerto Escondido Oaxaca Mexico",
-    "florianopolis":     "Florianópolis Santa Catarina Brazil",
+    // ── Existing hints ──────────────────────────────────────────────────────
+    "minca":                   "Minca Magdalena Colombia",
+    "banos":                   "Baños Tungurahua Ecuador",
+    "el-zonte":                "El Zonte La Libertad El Salvador",
+    "el-tunco":                "El Tunco La Libertad El Salvador",
+    "olon":                    "Olón Santa Elena Ecuador",
+    "mancora":                 "Máncora Piura Peru",
+    "itacare":                 "Itacaré Bahia Brazil",
+    "jericoacoara":            "Jericoacoara Ceará Brazil",
+    "puerto-viejo":            "Puerto Viejo de Talamanca Limón Costa Rica",
+    "boquete":                 "Boquete Chiriquí Panama",
+    "antigua-guatemala":       "Antigua Guatemala Sacatepéquez",
+    "popoyo":                  "Popoyo Rivas Nicaragua",
+    "nosara":                  "Nosara Guanacaste Costa Rica",
+    "montanita":               "Montañita Santa Elena Ecuador",
+    "sayulita":                "Sayulita Nayarit Mexico",
+    "santa-teresa":            "Santa Teresa Puntarenas Costa Rica",
+    "bocas-del-toro":          "Bocas del Toro Panama",
+    "tamarindo":               "Tamarindo Guanacaste Costa Rica",
+    "san-juan-del-sur":        "San Juan del Sur Rivas Nicaragua",
+    "puerto-escondido":        "Puerto Escondido Oaxaca Mexico",
+    "florianopolis":           "Florianópolis Santa Catarina Brazil",
+
+    // ── Mexico ──────────────────────────────────────────────────────────────
+    "tulum":                   "Tulum Quintana Roo Mexico",
+    "todos-santos":            "Todos Santos Baja California Sur Mexico",
+    "mazunte":                 "Mazunte Oaxaca Mexico",
+    "troncones":               "Troncones Guerrero Mexico",
+    "zihuatanejo":             "Zihuatanejo Guerrero Mexico",
+    "huatulco":                "Huatulco Oaxaca Mexico",
+    "la-paz":                  "La Paz Baja California Sur Mexico",
+    "san-cristobal-de-las-casas": "San Cristóbal de las Casas Chiapas Mexico",
+    "guanajuato":              "Guanajuato Guanajuato Mexico",
+    "merida":                  "Mérida Yucatan Mexico",
+
+    // ── Belize ──────────────────────────────────────────────────────────────
+    "caye-caulker":            "Caye Caulker Belize District Belize",
+    "san-pedro-belize":        "San Pedro Ambergris Caye Belize",
+    "placencia":               "Placencia Stann Creek Belize",
+
+    // ── Guatemala ───────────────────────────────────────────────────────────
+    "lago-atitlan":            "Lago de Atitlán Sololá Guatemala",
+    "san-marcos-la-laguna":    "San Marcos La Laguna Sololá Guatemala",
+    "san-pedro-la-laguna":     "San Pedro La Laguna Sololá Guatemala",
+    "panajachel":              "Panajachel Sololá Guatemala",
+    "quetzaltenango":          "Quetzaltenango Guatemala",
+
+    // ── Honduras ────────────────────────────────────────────────────────────
+    "roatan":                  "Roatán Bay Islands Honduras",
+    "utila":                   "Utila Bay Islands Honduras",
+    "copan-ruinas":            "Copán Ruinas Copán Honduras",
+
+    // ── Nicaragua ───────────────────────────────────────────────────────────
+    "gigante":                 "Gigante Rivas Nicaragua",
+    "leon":                    "León Nicaragua",
+    "granada":                 "Granada Nicaragua",
+
+    // ── Costa Rica ──────────────────────────────────────────────────────────
+    "dominical":               "Dominical Puntarenas Costa Rica",
+    "montezuma":               "Montezuma Puntarenas Costa Rica",
+    "jaco":                    "Jacó Puntarenas Costa Rica",
+
+    // ── Panama ──────────────────────────────────────────────────────────────
+    "santa-catalina":          "Santa Catalina Veraguas Panama",
+    "pedasi":                  "Pedasí Los Santos Panama",
+
+    // ── Colombia ────────────────────────────────────────────────────────────
+    "palomino":                "Palomino La Guajira Colombia",
+    "santa-marta":             "Santa Marta Magdalena Colombia",
+    "cartagena":               "Cartagena de Indias Bolívar Colombia",
+    "villa-de-leyva":          "Villa de Leyva Boyacá Colombia",
+    "salento":                 "Salento Quindío Colombia",
+
+    // ── Ecuador ─────────────────────────────────────────────────────────────
+    "canoa":                   "Canoa Manabí Ecuador",
+    "cuenca":                  "Cuenca Azuay Ecuador",
+
+    // ── Peru ────────────────────────────────────────────────────────────────
+    "huanchaco":               "Huanchaco La Libertad Peru",
+    "huaraz":                  "Huaraz Ancash Peru",
+    "cusco":                   "Cusco Cusco Peru",
+
+    // ── Bolivia ─────────────────────────────────────────────────────────────
+    "sucre":                   "Sucre Bolivia",
+    "coroico":                 "Coroico La Paz Bolivia",
+
+    // ── Chile ───────────────────────────────────────────────────────────────
+    "pucon":                   "Pucón La Araucanía Chile",
+    "san-pedro-de-atacama":    "San Pedro de Atacama Antofagasta Chile",
+
+    // ── Argentina ───────────────────────────────────────────────────────────
+    "bariloche":               "Bariloche Río Negro Argentina",
+    "mendoza":                 "Mendoza Argentina",
+    "salta":                   "Salta Argentina",
+    "el-chalten":              "El Chaltén Santa Cruz Argentina",
+
+    // ── Brazil ──────────────────────────────────────────────────────────────
+    "pipa":                    "Pipa Rio Grande do Norte Brazil",
+    "paraty":                  "Paraty Rio de Janeiro Brazil",
+    "arraial-do-cabo":         "Arraial do Cabo Rio de Janeiro Brazil",
+
+    // ── Dominican Republic ──────────────────────────────────────────────────
+    "cabarete":                "Cabarete Puerto Plata Dominican Republic",
+    "las-terrenas":            "Las Terrenas Samaná Dominican Republic",
   };
 
   const query = GEOCODE_HINTS[slug] ?? slug.replace(/-/g, " ");
