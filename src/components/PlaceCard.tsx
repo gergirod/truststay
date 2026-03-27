@@ -22,6 +22,8 @@ interface Props {
   place: Place;
   isUnlocked?: boolean;
   citySlug?: string;
+  confirmCount?: number;
+  reportCount?: number;
 }
 
 type BadgeTier = "verified" | "neutral" | "uncertain";
@@ -67,7 +69,13 @@ function getRoutineSupportTier(v: NonNullable<PlaceConfidence["routineSupport"]>
   return "neutral";
 }
 
-export function PlaceCard({ place, isUnlocked = false, citySlug = "" }: Props) {
+export function PlaceCard({
+  place,
+  isUnlocked = false,
+  citySlug = "",
+  confirmCount = 0,
+  reportCount = 0,
+}: Props) {
   const [modalOpen, setModalOpen] = useState(false);
   const { confidence } = place;
 
@@ -106,6 +114,17 @@ export function PlaceCard({ place, isUnlocked = false, citySlug = "" }: Props) {
                 </span>
               )}
             </div>
+            {/* Confirmation / report badges — only for unlocked pages */}
+            {isUnlocked && reportCount >= 2 && (
+              <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
+                ⚠ Check before visiting
+              </span>
+            )}
+            {isUnlocked && confirmCount >= 1 && reportCount < 2 && (
+              <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-teal-50 px-2 py-0.5 text-xs text-teal-700">
+                ✓ {confirmCount === 1 ? "Confirmed" : `Confirmed by ${confirmCount}`}
+              </span>
+            )}
             <p className="mt-1 text-xs text-umber">
               {formatCategory(place.category)}
               {place.google?.priceLevel && (

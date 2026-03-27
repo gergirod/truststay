@@ -18,6 +18,7 @@ import CityNeighborhoodGrid from "@/components/CityNeighborhoodGrid";
 import { CURATED_NEIGHBORHOODS } from "@/data/neighborhoods";
 import type { CityNeighborhoodConfig } from "@/data/neighborhoods";
 import { PLACE_OVERRIDES } from "@/data/placeOverrides";
+import { getPlaceConfirmations } from "@/lib/confirmations";
 import { CITY_INTROS } from "@/data/cityIntros";
 import { CityIntro } from "@/components/CityIntro";
 import { discoverNeighborhoods } from "@/lib/neighborhoodDiscovery";
@@ -948,6 +949,13 @@ async function CityContent({
 
   const summary = computeCitySummary(city, places, areaName ?? undefined);
 
+  // ── Confirmation signals (Task 18) ───────────────────────────────────────
+  // Fetch place_feedback confirm counts from PostHog, only for unlocked pages.
+  // Fails silently — if PostHog is down the badges just don't appear.
+  const confirmations = isUnlocked
+    ? await getPlaceConfirmations(city.slug).catch(() => new Map())
+    : new Map<string, import("@/lib/confirmations").PlaceConfirmData>();
+
   // ── Data coverage level ──────────────────────────────────────────────────
   const dataCoverage: "good" | "partial" | "limited" | "none" =
     places.length >= 15
@@ -1127,6 +1135,7 @@ async function CityContent({
         citySlug={city.slug}
         neighborhoodSlug={city.slug}
         sectionKind="work"
+        confirmations={confirmations}
         emptyMessage="No strong work spots found near this base yet."
       />
 
@@ -1139,6 +1148,7 @@ async function CityContent({
         citySlug={city.slug}
         neighborhoodSlug={city.slug}
         sectionKind="food"
+        confirmations={confirmations}
         emptyMessage="No clear coffee or meal spots found near this base yet."
       />
 
@@ -1151,6 +1161,7 @@ async function CityContent({
         citySlug={city.slug}
         neighborhoodSlug={city.slug}
         sectionKind="wellbeing"
+        confirmations={confirmations}
         emptyMessage="No wellbeing spots found near this base yet."
       />
 

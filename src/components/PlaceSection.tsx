@@ -1,4 +1,5 @@
 import type { Place } from "@/types";
+import type { PlaceConfirmData } from "@/lib/confirmations";
 import { PlaceCard } from "./PlaceCard";
 import { SuggestPlace } from "./SuggestPlace";
 
@@ -14,6 +15,8 @@ interface Props {
   citySlug?: string;
   neighborhoodSlug?: string;
   sectionKind?: SectionKind;
+  /** Map of placeId → confirmation data — from getPlaceConfirmations() */
+  confirmations?: Map<string, PlaceConfirmData>;
 }
 
 /** Readable work-fit tier — shown instead of place name to prevent free lookup */
@@ -59,6 +62,7 @@ export function PlaceSection({
   citySlug = "",
   neighborhoodSlug = "",
   sectionKind,
+  confirmations,
 }: Props) {
   const applyLock = !isUnlocked && freeCount !== undefined;
   const freePlaces = applyLock ? places.slice(0, freeCount) : places;
@@ -79,11 +83,20 @@ export function PlaceSection({
         </div>
       ) : (
         <div className="space-y-3">
-          {freePlaces.map((place) => (
-            <div key={place.id} id={`place-${place.id}`}>
-              <PlaceCard place={place} isUnlocked={isUnlocked} citySlug={citySlug} />
-            </div>
-          ))}
+          {freePlaces.map((place) => {
+            const cd = confirmations?.get(place.id);
+            return (
+              <div key={place.id} id={`place-${place.id}`}>
+                <PlaceCard
+                  place={place}
+                  isUnlocked={isUnlocked}
+                  citySlug={citySlug}
+                  confirmCount={cd?.confirmCount ?? 0}
+                  reportCount={cd?.reportCount ?? 0}
+                />
+              </div>
+            );
+          })}
           {lockedPlaces.map((place) => (
             <LockedTeaser key={place.id} place={place} />
           ))}
