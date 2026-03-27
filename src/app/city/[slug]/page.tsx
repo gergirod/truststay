@@ -147,6 +147,10 @@ const KNOWN_CITY_SLUGS = [
 
   // ── Mexico (additions) ───────────────────────────────────────────────────
   "cozumel", "isla-mujeres", "bacalar",
+
+  // ── South America hubs ───────────────────────────────────────────────────
+  "lima", "quito", "panama-city", "montevideo",
+  "santiago", "valparaiso", "sao-paulo", "rio-de-janeiro", "fortaleza",
 ];
 
 export async function generateStaticParams() {
@@ -414,6 +418,17 @@ async function resolveCity(
     "cozumel":                 "Cozumel Quintana Roo Mexico",
     "isla-mujeres":            "Isla Mujeres Quintana Roo Mexico",
     "bacalar":                 "Bacalar Quintana Roo Mexico",
+
+    // ── South America hubs ───────────────────────────────────────────────────
+    "lima":                    "Lima Lima Peru",
+    "quito":                   "Quito Pichincha Ecuador",
+    "panama-city":             "Panama City Panama",
+    "montevideo":              "Montevideo Uruguay",
+    "santiago":                "Santiago Chile",
+    "valparaiso":              "Valparaíso Valparaíso Chile",
+    "sao-paulo":               "São Paulo São Paulo Brazil",
+    "rio-de-janeiro":          "Rio de Janeiro Rio de Janeiro Brazil",
+    "fortaleza":               "Fortaleza Ceará Brazil",
   };
 
   const query = GEOCODE_HINTS[slug] ?? slug.replace(/-/g, " ");
