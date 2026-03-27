@@ -95,47 +95,58 @@ const KNOWN_CITY_SLUGS = [
   // ── El Salvador ──────────────────────────────────────────────────────────
   "el-tunco", "el-zonte",
 
+  // ── Guatemala (additions) ─────────────────────────────────────────────────
+  "el-paredon", "acatenango",
+
   // ── Nicaragua ────────────────────────────────────────────────────────────
   "san-juan-del-sur", "popoyo", "gigante", "leon", "granada",
+  "ometepe",
 
   // ── Costa Rica ───────────────────────────────────────────────────────────
-  // Pacific surf + wellness towns
+  // Pacific surf + wellness + volcano towns
   "santa-teresa", "nosara", "tamarindo", "dominical", "montezuma",
-  "jaco", "puerto-viejo",
+  "jaco", "puerto-viejo", "pavones", "monteverde", "arenal",
 
   // ── Panama ───────────────────────────────────────────────────────────────
   "bocas-del-toro", "boquete", "santa-catalina", "pedasi",
+  "el-valle-de-anton", "coiba",
 
   // ── Colombia ─────────────────────────────────────────────────────────────
   // Cities + activity destinations
   "minca", "palomino", "santa-marta", "cartagena",
-  "villa-de-leyva", "salento",
+  "villa-de-leyva", "salento", "taganga", "san-andres", "cabo-de-la-vela",
 
   // ── Ecuador ──────────────────────────────────────────────────────────────
-  // Coast surf + Andes + Amazon
+  // Coast surf + Andes + Amazon + wellness
   "montanita", "olon", "banos", "canoa", "cuenca",
+  "quilotoa", "vilcabamba", "mindo",
 
   // ── Peru ─────────────────────────────────────────────────────────────────
-  // Surf village + trekking bases
+  // Surf village + trekking + Sacred Valley bases
   "mancora", "huanchaco", "huaraz", "cusco",
+  "lobitos", "chicama", "ollantaytambo", "pisac",
 
   // ── Bolivia ──────────────────────────────────────────────────────────────
   "sucre", "coroico",
 
   // ── Chile ────────────────────────────────────────────────────────────────
-  "pucon", "san-pedro-de-atacama",
+  "pucon", "san-pedro-de-atacama", "pichilemu", "puerto-natales", "iquique",
 
   // ── Argentina ────────────────────────────────────────────────────────────
-  "bariloche", "mendoza", "salta", "el-chalten",
+  "bariloche", "mendoza", "salta", "el-chalten", "jujuy",
 
   // ── Brazil ───────────────────────────────────────────────────────────────
-  // Surf + yoga + eco villages
+  // Surf + yoga + eco villages + kite
   "florianopolis", "itacare", "jericoacoara",
   "pipa", "paraty", "arraial-do-cabo",
+  "cumbuco", "sao-miguel-do-gostoso", "lencois", "bonito",
 
   // ── Dominican Republic ───────────────────────────────────────────────────
   // Kite + surf + nomad community
   "cabarete", "las-terrenas",
+
+  // ── Mexico (additions) ───────────────────────────────────────────────────
+  "cozumel", "isla-mujeres", "bacalar",
 ];
 
 export async function generateStaticParams() {
@@ -352,6 +363,57 @@ async function resolveCity(
     // ── Dominican Republic ──────────────────────────────────────────────────
     "cabarete":                "Cabarete Puerto Plata Dominican Republic",
     "las-terrenas":            "Las Terrenas Samaná Dominican Republic",
+
+    // ── Guatemala (additions) ────────────────────────────────────────────────
+    "el-paredon":              "El Paredon Escuintla Guatemala",
+    "acatenango":              "Acatenango Chimaltenango Guatemala",
+
+    // ── Nicaragua (additions) ────────────────────────────────────────────────
+    "ometepe":                 "Isla de Ometepe Rivas Nicaragua",
+
+    // ── Costa Rica (additions) ───────────────────────────────────────────────
+    "pavones":                 "Pavones Puntarenas Costa Rica",
+    "monteverde":              "Monteverde Puntarenas Costa Rica",
+    "arenal":                  "La Fortuna Alajuela Costa Rica",
+
+    // ── Panama (additions) ───────────────────────────────────────────────────
+    "el-valle-de-anton":       "El Valle de Antón Coclé Panama",
+    "coiba":                   "Coiba Veraguas Panama",
+
+    // ── Colombia (additions) ─────────────────────────────────────────────────
+    "taganga":                 "Taganga Magdalena Colombia",
+    "san-andres":              "San Andrés Archipiélago de San Andrés Colombia",
+    "cabo-de-la-vela":         "Cabo de la Vela La Guajira Colombia",
+
+    // ── Ecuador (additions) ──────────────────────────────────────────────────
+    "quilotoa":                "Quilotoa Cotopaxi Ecuador",
+    "vilcabamba":              "Vilcabamba Loja Ecuador",
+    "mindo":                   "Mindo Pichincha Ecuador",
+
+    // ── Peru (additions) ─────────────────────────────────────────────────────
+    "lobitos":                 "Lobitos Piura Peru",
+    "chicama":                 "Chicama La Libertad Peru",
+    "ollantaytambo":           "Ollantaytambo Cusco Peru",
+    "pisac":                   "Pisac Cusco Peru",
+
+    // ── Chile (additions) ────────────────────────────────────────────────────
+    "pichilemu":               "Pichilemu O'Higgins Chile",
+    "puerto-natales":          "Puerto Natales Magallanes Chile",
+    "iquique":                 "Iquique Tarapacá Chile",
+
+    // ── Argentina (additions) ────────────────────────────────────────────────
+    "jujuy":                   "San Salvador de Jujuy Jujuy Argentina",
+
+    // ── Brazil (additions) ───────────────────────────────────────────────────
+    "cumbuco":                 "Cumbuco Ceará Brazil",
+    "sao-miguel-do-gostoso":   "São Miguel do Gostoso Rio Grande do Norte Brazil",
+    "lencois":                 "Lençóis Bahia Brazil",
+    "bonito":                  "Bonito Mato Grosso do Sul Brazil",
+
+    // ── Mexico (additions) ───────────────────────────────────────────────────
+    "cozumel":                 "Cozumel Quintana Roo Mexico",
+    "isla-mujeres":            "Isla Mujeres Quintana Roo Mexico",
+    "bacalar":                 "Bacalar Quintana Roo Mexico",
   };
 
   const query = GEOCODE_HINTS[slug] ?? slug.replace(/-/g, " ");
