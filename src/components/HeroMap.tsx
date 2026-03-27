@@ -85,21 +85,23 @@ export function HeroMap() {
         // Base area marker
         const baseEl = createBaseMarker();
         baseEl.style.cursor = "default";
-        new mapboxgl.Marker({ element: baseEl })
+        new mapboxgl.Marker({ element: baseEl, anchor: "bottom" })
           .setLngLat([DEMO_BASE.lon, DEMO_BASE.lat])
           .addTo(map);
 
         // Place markers
         for (const pin of DEMO_PINS) {
-          const el =
-            pin.category === "locked"
-              ? createLockedMarker()
-              : createPlaceMarker(pin.category);
+          const isLocked = pin.category === "locked";
+          const el = isLocked
+            ? createLockedMarker()
+            : createPlaceMarker(pin.category);
 
-          // non-interactive — remove pointer cursor from locked dots
           el.style.cursor = "default";
 
-          new mapboxgl.Marker({ element: el })
+          new mapboxgl.Marker({
+            element: el,
+            anchor: isLocked ? "center" : "bottom",
+          })
             .setLngLat([pin.lon, pin.lat])
             .addTo(map);
         }

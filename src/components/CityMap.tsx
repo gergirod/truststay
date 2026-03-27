@@ -85,13 +85,14 @@ export function CityMap({
         if (baseLat !== undefined && baseLon !== undefined) {
           const el = createBaseMarker();
           const popup = new mapboxgl.Popup({
-            offset: 24,
+            offset: [0, -44],
             closeButton: false,
             className: "ts-popup",
           }).setHTML(
             `<p style="margin:0;font-size:12px;font-weight:600;color:#2E2A26;white-space:nowrap">Suggested base — ${cityName}</p>`
           );
-          new mapboxgl.Marker({ element: el })
+          // anchor:"bottom" → teardrop tip sits exactly on the coordinate
+          new mapboxgl.Marker({ element: el, anchor: "bottom" })
             .setLngLat([baseLon, baseLat])
             .setPopup(popup)
             .addTo(map!);
@@ -106,7 +107,10 @@ export function CityMap({
             ? createPlaceMarker(place.category)
             : createLockedMarker();
 
-          const marker = new mapboxgl.Marker({ element: el })
+          const marker = new mapboxgl.Marker({
+            element: el,
+            anchor: showDetail ? "bottom" : "center",
+          })
             .setLngLat([place.lon, place.lat])
             .addTo(map!);
 
@@ -116,7 +120,7 @@ export function CityMap({
                 ? ` · ★ ${place.google.rating}`
                 : "";
             const popup = new mapboxgl.Popup({
-              offset: 20,
+              offset: [0, -38],
               closeButton: false,
               className: "ts-popup",
             }).setHTML(
@@ -136,7 +140,7 @@ export function CityMap({
             coreCount++;
           } else {
             const popup = new mapboxgl.Popup({
-              offset: 16,
+              offset: [0, -8],
               closeButton: false,
               className: "ts-popup",
             }).setHTML(
@@ -202,10 +206,13 @@ export function CityMap({
 function LegendDot({ color, label }: { color: string; label: string }) {
   return (
     <div className="flex items-center gap-1.5">
-      <div
-        className="flex-shrink-0 rounded-full border-[1.5px] border-white/60"
-        style={{ width: 10, height: 10, background: color }}
-      />
+      {/* Mini teardrop matching the actual pin shape */}
+      <svg width="9" height="12" viewBox="0 0 9 12" className="flex-shrink-0">
+        <path
+          d="M4.5 0C2 0 0 2 0 4.5c0 3.5 4.5 7.5 4.5 7.5S9 8 9 4.5C9 2 7 0 4.5 0z"
+          fill={color}
+        />
+      </svg>
       <span className="text-[10px] leading-none text-umber">{label}</span>
     </div>
   );
