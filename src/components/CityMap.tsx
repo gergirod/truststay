@@ -75,8 +75,11 @@ export function CityMap({
 
       map.on("load", () => {
         if (!map) return;
-        const bounds = new mapboxgl.LngLatBounds();
-        let pointCount = 0;
+
+        // coreBounds: base + visible places only — used for zoom
+        // fullBounds: all places — locked dots render but don't affect zoom
+        const coreBounds = new mapboxgl.LngLatBounds();
+        let coreCount = 0;
 
         // ── Base area marker ───────────────────────────────────────────
         if (baseLat !== undefined && baseLon !== undefined) {
@@ -92,8 +95,8 @@ export function CityMap({
             .setLngLat([baseLon, baseLat])
             .setPopup(popup)
             .addTo(map!);
-          bounds.extend([baseLon, baseLat]);
-          pointCount++;
+          coreBounds.extend([baseLon, baseLat]);
+          coreCount++;
         }
 
         // ── Place markers ──────────────────────────────────────────────
@@ -127,6 +130,10 @@ export function CityMap({
                 .getElementById(`place-${place.id}`)
                 ?.scrollIntoView({ behavior: "smooth", block: "center" });
             });
+
+            // Only visible places contribute to zoom bounds
+            coreBounds.extend([place.lon, place.lat]);
+            coreCount++;
           } else {
             const popup = new mapboxgl.Popup({
               offset: 16,
@@ -137,14 +144,11 @@ export function CityMap({
             );
             marker.setPopup(popup);
           }
-
-          bounds.extend([place.lon, place.lat]);
-          pointCount++;
         }
 
-        // ── Fit map to all points ──────────────────────────────────────
-        if (pointCount > 1) {
-          map!.fitBounds(bounds, { padding: 50, maxZoom: 15, duration: 0 });
+        // ── Fit to core (base + visible) — locked outliers don't affect zoom
+        if (coreCount > 1) {
+          map!.fitBounds(coreBounds, { padding: 60, maxZoom: 15, duration: 0 });
         }
       });
     }
