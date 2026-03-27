@@ -8,20 +8,39 @@ const geist = Geist({
   subsets: ["latin"],
 });
 
+const APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://truststay.co";
+
 export const metadata: Metadata = {
   title: {
-    default: "Truststay — Choose your remote-work base with confidence",
-    // City pages use: "Work, coffee & routine in Lisboa" → "Work, coffee & routine in Lisboa | Truststay"
+    default: "Truststay — Land in a new spot. Keep your routine from day one.",
     template: "%s | Truststay",
   },
   description:
-    "Find a base area, places to work, coffee spots, and training options in any city — built for remote workers on the move.",
+    "Find the best neighborhood to base yourself in any city — work spots, cafes, and gyms organized around a walkable daily routine. Built for remote workers.",
+  metadataBase: new URL(APP_URL),
   openGraph: {
     type: "website",
     siteName: "Truststay",
+    title: "Truststay — Land in a new spot. Keep your routine from day one.",
+    description:
+      "Find the best neighborhood to base yourself in any city — work spots, cafes, and gyms organized around a walkable daily routine.",
+    url: APP_URL,
+    images: [
+      {
+        url: "/og.png",
+        width: 1200,
+        height: 630,
+        alt: "Truststay — map with work, coffee, and wellbeing pins",
+      },
+    ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
+    title: "Truststay — Land in a new spot. Keep your routine from day one.",
+    description:
+      "Find the best neighborhood to base yourself in any city — work spots, cafes, and gyms organized around a walkable daily routine.",
+    images: ["/og.png"],
   },
 };
 
