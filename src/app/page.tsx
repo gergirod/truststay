@@ -41,6 +41,9 @@ const DESTINATION_CATEGORIES = [
       { label: "Playa Venao", slug: "playa-venao" },
       // Caribbean
       { label: "Rincón", slug: "rincon" },
+      { label: "Martinique", slug: "martinique" },
+      { label: "Barbados", slug: "barbados" },
+      { label: "Guadeloupe", slug: "guadeloupe" },
       // South America
       { label: "Montañita", slug: "montanita" },
       { label: "Canoa", slug: "canoa" },
@@ -83,6 +86,11 @@ const DESTINATION_CATEGORIES = [
       // Dominican Republic
       { label: "Bayahíbe", slug: "bayahibe" },
       { label: "Las Terrenas", slug: "las-terrenas" },
+      // Caribbean — ABC islands
+      { label: "Bonaire", slug: "bonaire" },
+      { label: "Curaçao", slug: "curacao" },
+      { label: "Aruba", slug: "aruba" },
+      { label: "Dominica", slug: "dominica" },
       // South America
       { label: "Bonito", slug: "bonito" },
     ],
@@ -119,6 +127,10 @@ const DESTINATION_CATEGORIES = [
       // Bolivia
       { label: "Sorata", slug: "sorata" },
       { label: "Rurrenabaque", slug: "rurrenabaque" },
+      // Caribbean volcanoes
+      { label: "Martinique", slug: "martinique" },
+      { label: "Guadeloupe", slug: "guadeloupe" },
+      { label: "Dominica", slug: "dominica" },
       // Brazil
       { label: "Lençóis", slug: "lencois" },
       { label: "Alto Paraíso", slug: "alto-paraiso" },
@@ -183,6 +195,10 @@ const DESTINATION_CATEGORIES = [
       { label: "Atins", slug: "atins" },
       { label: "Canoa Quebrada", slug: "canoa-quebrada" },
       { label: "São Miguel do Gostoso", slug: "sao-miguel-do-gostoso" },
+      // Caribbean ABC islands — world-class flat water & trade winds
+      { label: "Aruba", slug: "aruba" },
+      { label: "Bonaire", slug: "bonaire" },
+      { label: "Curaçao", slug: "curacao" },
       // Colombia
       { label: "Cabo de la Vela", slug: "cabo-de-la-vela" },
       // Mexico — Baja

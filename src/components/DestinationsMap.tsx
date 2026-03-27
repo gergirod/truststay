@@ -20,9 +20,13 @@ const ALL_CATEGORIES: DestinationCategory[] = [
 ];
 
 // ── Pin SVGs ───────────────────────────────────────────────────────────────
+// pointer-events:none is critical — without it, mousing over a child SVG
+// element fires mouseleave on the wrapper div, causing the hover to flicker
+// and the scale to reset immediately ("pin goes away" effect).
+
 // Activity destinations → teardrop pin (pointing down)
 function activityPinSVG(color: string): string {
-  return `<svg width="22" height="30" viewBox="0 0 22 30" xmlns="http://www.w3.org/2000/svg">
+  return `<svg width="22" height="30" viewBox="0 0 22 30" xmlns="http://www.w3.org/2000/svg" style="pointer-events:none;display:block">
     <path d="M11 0C4.9 0 0 4.9 0 11c0 8.3 11 19 11 19S22 19.3 22 11C22 4.9 17.1 0 11 0z" fill="${color}"/>
     <circle cx="11" cy="10.5" r="4.5" fill="white" opacity="0.92"/>
   </svg>`;
@@ -30,7 +34,7 @@ function activityPinSVG(color: string): string {
 
 // Work hubs → circle with outer ring (different visual language)
 function hubPinSVG(color: string): string {
-  return `<svg width="26" height="26" viewBox="0 0 26 26" xmlns="http://www.w3.org/2000/svg">
+  return `<svg width="26" height="26" viewBox="0 0 26 26" xmlns="http://www.w3.org/2000/svg" style="pointer-events:none;display:block">
     <circle cx="13" cy="13" r="12" fill="${color}" stroke="white" stroke-width="2.5"/>
     <circle cx="13" cy="13" r="5.5" fill="white" opacity="0.92"/>
   </svg>`;
@@ -142,16 +146,21 @@ export function DestinationsMap() {
           const el = document.createElement("div");
           el.style.cursor = "pointer";
           el.style.transition = "transform 0.15s ease, opacity 0.15s ease";
+          el.style.width = isHub ? "26px" : "22px";
+          el.style.height = isHub ? "26px" : "30px";
+          // transform-origin at bottom for teardrops so the tip stays anchored
+          el.style.transformOrigin = isHub ? "center center" : "center bottom";
           el.innerHTML = isHub ? hubPinSVG(color) : activityPinSVG(color);
 
-          // Hover scale
+          // Hover scale — zIndex must go on the Mapbox wrapper (.mapboxgl-marker),
+          // not on el itself, because the wrapper is the positioned ancestor.
           el.addEventListener("mouseenter", () => {
             el.style.transform = "scale(1.3)";
-            el.style.zIndex = "10";
+            if (el.parentElement) el.parentElement.style.zIndex = "100";
           });
           el.addEventListener("mouseleave", () => {
             el.style.transform = "scale(1)";
-            el.style.zIndex = "";
+            if (el.parentElement) el.parentElement.style.zIndex = "";
           });
 
           const popup = new mapboxgl.Popup({

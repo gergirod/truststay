@@ -163,6 +163,24 @@ export const DESTINATION_PINS: DestinationPin[] = [
   { slug: "iquique",             label: "Iquique",             category: "Kite & wind",      lat: -20.213, lon: -70.150  },
   { slug: "la-paloma",           label: "La Paloma",           category: "Kite & wind",      lat: -34.656, lon: -54.155  },
 
+  // ── CARIBBEAN — Surf ──────────────────────────────────────────────────────
+  { slug: "martinique",          label: "Martinique",          category: "Surf",             lat: 14.642,  lon: -61.024  },
+  { slug: "barbados",            label: "Barbados",            category: "Surf",             lat: 13.193,  lon: -59.543  },
+  { slug: "guadeloupe",          label: "Guadeloupe",          category: "Surf",             lat: 16.265,  lon: -61.551  },
+
+  // ── CARIBBEAN — Dive ──────────────────────────────────────────────────────
+  { slug: "bonaire",             label: "Bonaire",             category: "Dive",             lat: 12.150,  lon: -68.272  },
+  { slug: "curacao",             label: "Curaçao",             category: "Dive",             lat: 12.169,  lon: -68.990  },
+  { slug: "aruba",               label: "Aruba",               category: "Dive",             lat: 12.521,  lon: -69.968  },
+  { slug: "dominica",            label: "Dominica",            category: "Dive",             lat: 15.415,  lon: -61.371  },
+
+  // ── CARIBBEAN — Hike ──────────────────────────────────────────────────────
+  // (Martinique & Guadeloupe already pinned above; Dominica above)
+
+  // ── CARIBBEAN — Kite (ABC islands are world-class kite) ───────────────────
+  // Aruba, Bonaire, Curaçao also appear in Dive above — kite category
+  // represented via the filter pills on the homepage
+
   // ── REMOTE WORK HUBS ───────────────────────────────────────────────────────
   { slug: "mexico-city",         label: "Mexico City",         category: "Remote work hubs", lat: 19.433,  lon: -99.133  },
   { slug: "guadalajara",         label: "Guadalajara",         category: "Remote work hubs", lat: 20.660,  lon: -103.350 },

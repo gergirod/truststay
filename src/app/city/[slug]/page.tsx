@@ -152,6 +152,14 @@ const KNOWN_CITY_SLUGS = [
   "lima", "quito", "panama-city", "montevideo",
   "santiago", "valparaiso", "sao-paulo", "rio-de-janeiro", "fortaleza",
 
+  // ── Caribbean ─────────────────────────────────────────────────────────────
+  // ABC islands
+  "bonaire", "curacao", "aruba",
+  // French Antilles
+  "martinique", "guadeloupe",
+  // Lesser Antilles
+  "dominica", "barbados",
+
   // ── New surf destinations ─────────────────────────────────────────────────
   "playa-venao", "ayampe", "praia-do-rosa", "punta-del-diablo",
   "rincon",
@@ -454,6 +462,15 @@ async function resolveCity(
     "sao-paulo":               "São Paulo São Paulo Brazil",
     "rio-de-janeiro":          "Rio de Janeiro Rio de Janeiro Brazil",
     "fortaleza":               "Fortaleza Ceará Brazil",
+
+    // ── Caribbean ────────────────────────────────────────────────────────────
+    "bonaire":                 "Bonaire Caribbean Netherlands",
+    "curacao":                 "Curaçao Kingdom of the Netherlands Caribbean",
+    "aruba":                   "Aruba Caribbean Netherlands",
+    "martinique":              "Martinique France Caribbean",
+    "guadeloupe":              "Guadeloupe France Caribbean",
+    "dominica":                "Commonwealth of Dominica Caribbean",
+    "barbados":                "Bridgetown Barbados",
 
     // ── New surf ─────────────────────────────────────────────────────────────
     "playa-venao":             "Playa Venao Los Santos Panama",
