@@ -1,8 +1,7 @@
 import { CitySearch } from "@/components/CitySearch";
 import { AnalyticsEvent } from "@/components/AnalyticsEvent";
 import { HeroMap } from "@/components/HeroMap";
-import { DestinationPill } from "@/components/DestinationPill";
-import { DestinationsMap } from "@/components/DestinationsMap";
+import { DestinationBrowse } from "@/components/DestinationBrowse";
 
 const CATEGORY_META: Record<string, { icon: string; description: string }> = {
   "Surf":             { icon: "🏄", description: "Pacific breaks · reef points · beach towns" },
@@ -408,64 +407,21 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── Explore the map ── full width ────────────────────── */}
-        <section className="border-b border-dune bg-white">
-          {/* Heading constrained, map bleeds edge-to-edge */}
-          <div className="mx-auto max-w-4xl px-6 pt-20 pb-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
-              Explore the map
-            </p>
-            <p className="mt-2 text-sm text-umber max-w-md">
-              170+ destinations across Latin America and the Caribbean. Filter by activity or click any pin to explore.
-            </p>
-          </div>
-          <DestinationsMap />
-        </section>
-
-        {/* ── Popular destinations ── sand ─────────────────────── */}
+        {/* ── Browse destinations ── sand ──────────────────────── */}
         <section className="border-b border-dune bg-sand">
           <div className="mx-auto max-w-4xl px-6 py-20">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
-              Popular destinations
+              Browse destinations
             </p>
             <p className="mt-2 text-sm text-umber">
-              Jump straight in — or search any spot above.
+              170+ spots across Latin America and the Caribbean — filter by region or activity.
             </p>
 
-            <div className="mt-10 space-y-10">
-              {DESTINATION_CATEGORIES.map((cat) => {
-                const meta = CATEGORY_META[cat.label];
-                return (
-                  <div key={cat.label}>
-                    {/* Category header */}
-                    <div className="flex items-center gap-2.5 mb-4">
-                      <span className="text-lg leading-none">{meta?.icon}</span>
-                      <div>
-                        <span className="text-sm font-semibold text-bark">{cat.label}</span>
-                        {meta?.description && (
-                          <span className="ml-2 text-xs text-umber/50">{meta.description}</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Mobile: horizontal scroll · Desktop: wrap */}
-                    <div className="relative">
-                      <div className="flex gap-2 overflow-x-auto sm:flex-wrap sm:overflow-visible pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                        {cat.destinations.map(({ label, slug }) => (
-                          <DestinationPill
-                            key={slug}
-                            slug={slug}
-                            label={label}
-                            category={cat.label}
-                          />
-                        ))}
-                      </div>
-                      {/* Fade hint on mobile only */}
-                      <div className="pointer-events-none absolute right-0 top-0 h-full w-12 bg-gradient-to-l from-sand to-transparent sm:hidden" />
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="mt-8">
+              <DestinationBrowse
+                categories={DESTINATION_CATEGORIES}
+                categoryMeta={CATEGORY_META}
+              />
             </div>
           </div>
         </section>
