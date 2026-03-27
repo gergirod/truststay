@@ -1,12 +1,21 @@
 import type { CitySummary } from "@/types";
+import { ShareButton } from "@/components/ShareButton";
 
 interface Props {
   summary: CitySummary;
   centroidLat?: number;
   centroidLon?: number;
+  cityName: string;
+  citySlug: string;
 }
 
-export function RecommendedAreaCard({ summary, centroidLat, centroidLon }: Props) {
+export function RecommendedAreaCard({
+  summary,
+  centroidLat,
+  centroidLon,
+  cityName,
+  citySlug,
+}: Props) {
   const isLowConfidence = summary.confidence === "low";
 
   const mapsUrl =
@@ -16,9 +25,17 @@ export function RecommendedAreaCard({ summary, centroidLat, centroidLon }: Props
 
   return (
     <div className="rounded-2xl border border-dune bg-white p-6 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
-        Suggested base area
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
+          Suggested base area
+        </p>
+        <ShareButton
+          cityName={cityName}
+          citySlug={citySlug}
+          neighborhoodName={summary.recommendedArea}
+          routineScore={summary.routineScore}
+        />
+      </div>
       <div className="mt-3 flex items-start justify-between gap-3">
         <p className="text-xl font-semibold tracking-tight text-bark">
           {summary.recommendedArea}

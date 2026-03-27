@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
       current.push(bundleCitySlug);
     }
     const response = NextResponse.redirect(
-      new URL(`/city/${bundleCitySlug}`, origin)
+      new URL(`/city/${bundleCitySlug}?justUnlocked=1`, origin)
     );
     response.cookies.set(BUNDLE_COOKIE, serializeSlugs(current), cookieOpts);
     return response;
@@ -78,7 +78,9 @@ export async function GET(req: NextRequest) {
   }
 
   // Set-Cookie on a redirect response is valid — browser stores it before following.
-  const response = NextResponse.redirect(new URL(`/city/${citySlug}`, origin));
+  const response = NextResponse.redirect(
+    new URL(`/city/${citySlug}?justUnlocked=1`, origin)
+  );
   response.cookies.set(UNLOCK_COOKIE, serializeSlugs(current), cookieOpts);
   return response;
 }

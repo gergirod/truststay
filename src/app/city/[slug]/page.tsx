@@ -18,6 +18,7 @@ import CityNeighborhoodGrid from "@/components/CityNeighborhoodGrid";
 import { CURATED_NEIGHBORHOODS } from "@/data/neighborhoods";
 import type { CityNeighborhoodConfig } from "@/data/neighborhoods";
 import { discoverNeighborhoods } from "@/lib/neighborhoodDiscovery";
+import { EmailCapture } from "@/components/EmailCapture";
 import type { City } from "@/types";
 
 // Free tier limits — per merged section
@@ -594,6 +595,8 @@ export default async function CityPage({ params, searchParams }: Props) {
   const hasParentCityParam =
     typeof sp.parentCity === "string" && sp.parentCity.trim().length > 0;
 
+  const justUnlocked = sp.justUnlocked === "1";
+
   // ── Curated city grid (instant — no geocoding needed) ───────────────────
   // If the slug is in CURATED_NEIGHBORHOODS and we're not already inside a
   // specific neighbourhood, show the grid immediately.
@@ -625,32 +628,41 @@ export default async function CityPage({ params, searchParams }: Props) {
   ]);
 
   if (!city) {
+    const cityLabel = slug.replace(/-/g, " ");
     return (
       <div className="flex flex-col min-h-screen">
         <Header />
         <main className="flex-1 mx-auto w-full max-w-4xl px-6 py-20">
-          <div className="max-w-xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
-              Not found
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-bark">
-              City not found
-            </h1>
-            <p className="mt-4 text-base leading-7 text-umber">
-              We could not find a city matching{" "}
-              <span className="font-medium text-bark">
-                &ldquo;{slug.replace(/-/g, " ")}&rdquo;
-              </span>
-              . Try searching again with a different spelling.
-            </p>
-            <div className="mt-8">
-              <Link
-                href="/"
-                className="inline-block rounded-xl bg-bark px-5 py-3 text-sm font-medium text-white transition-colors hover:opacity-90"
-              >
-                Search again
-              </Link>
+          <div className="max-w-xl space-y-8">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
+                Not found
+              </p>
+              <h1 className="mt-3 text-3xl font-semibold tracking-tight text-bark">
+                City not found
+              </h1>
+              <p className="mt-4 text-base leading-7 text-umber">
+                We could not find a city matching{" "}
+                <span className="font-medium text-bark">
+                  &ldquo;{cityLabel}&rdquo;
+                </span>
+                . Try searching again with a different spelling.
+              </p>
+              <div className="mt-8">
+                <Link
+                  href="/"
+                  className="inline-block rounded-xl bg-bark px-5 py-3 text-sm font-medium text-white transition-colors hover:opacity-90"
+                >
+                  Search again
+                </Link>
+              </div>
             </div>
+            <EmailCapture
+              context="city_not_found"
+              citySlug={slug}
+              cityName={cityLabel}
+              prompt={`Want us to notify you when we add "${cityLabel}"?`}
+            />
           </div>
         </main>
         <Footer />
@@ -707,13 +719,13 @@ export default async function CityPage({ params, searchParams }: Props) {
               </p>
             </div>
             <Suspense fallback={<PlacesSkeleton />}>
-              <CityContent city={city} isUnlocked={unlocked} />
+              <CityContent city={city} isUnlocked={unlocked} justUnlocked={justUnlocked} />
             </Suspense>
           </div>
         ) : (
           // ── Top-level city: try auto-discovery, fallback to place content ─
           <Suspense fallback={<DiscoverySkeleton cityName={city.name} />}>
-            <AutoNeighborhoodOrContent city={city} isUnlocked={unlocked} />
+            <AutoNeighborhoodOrContent city={city} isUnlocked={unlocked} justUnlocked={justUnlocked} />
           </Suspense>
         )}
       </main>
@@ -734,9 +746,11 @@ export default async function CityPage({ params, searchParams }: Props) {
 async function AutoNeighborhoodOrContent({
   city,
   isUnlocked,
+  justUnlocked,
 }: {
   city: City;
   isUnlocked: boolean;
+  justUnlocked: boolean;
 }) {
   // Run both in parallel — fetchPlaces warms the unstable_cache so CityContent
   // gets an instant hit instead of waiting a second time.
@@ -783,7 +797,7 @@ async function AutoNeighborhoodOrContent({
       </div>
       {/* fetchPlaces already cache-warmed above — CityContent resolves instantly */}
       <Suspense fallback={<PlacesSkeleton />}>
-        <CityContent city={city} isUnlocked={isUnlocked} />
+        <CityContent city={city} isUnlocked={isUnlocked} justUnlocked={justUnlocked} />
       </Suspense>
     </div>
   );
@@ -813,9 +827,11 @@ function DiscoverySkeleton({ cityName }: { cityName: string }) {
 async function CityContent({
   city,
   isUnlocked,
+  justUnlocked = false,
 }: {
   city: City;
   isUnlocked: boolean;
+  justUnlocked?: boolean;
 }) {
   let allPlaces;
   try {
@@ -1029,6 +1045,8 @@ async function CityContent({
           summary={summary}
           centroidLat={baseCentroid?.lat}
           centroidLon={baseCentroid?.lon}
+          cityName={city.name}
+          citySlug={city.slug}
         />
       </div>
 
@@ -1078,6 +1096,16 @@ async function CityContent({
               ? (process.env.NEXT_PUBLIC_CITY_BUNDLE_PRICE ?? "15")
               : undefined
           }
+        />
+      )}
+
+      {/* Post-payment email capture — shown once, right after unlock */}
+      {justUnlocked && isUnlocked && (
+        <EmailCapture
+          context="post_payment"
+          citySlug={city.slug}
+          cityName={city.name}
+          prompt={`Want a heads up if we update ${city.name}?`}
         />
       )}
 
