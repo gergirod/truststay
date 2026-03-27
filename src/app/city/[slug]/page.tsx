@@ -1056,6 +1056,7 @@ async function CityContent({
         places={workPlaces}
         freeCount={FREE_WORK}
         isUnlocked={isUnlocked}
+        citySlug={city.slug}
         emptyMessage="No strong work spots found near this base yet."
       />
 
@@ -1065,6 +1066,7 @@ async function CityContent({
         places={coffeeMealsPlaces}
         freeCount={FREE_COFFEE_MEALS}
         isUnlocked={isUnlocked}
+        citySlug={city.slug}
         emptyMessage="No clear coffee or meal spots found near this base yet."
       />
 
@@ -1074,6 +1076,7 @@ async function CityContent({
         places={wellbeingPlaces}
         freeCount={FREE_WELLBEING}
         isUnlocked={isUnlocked}
+        citySlug={city.slug}
         emptyMessage="No wellbeing spots found near this base yet."
       />
 

@@ -25,32 +25,32 @@ export function RecommendedAreaCard({
 
   return (
     <div className="rounded-2xl border border-dune bg-white p-6 shadow-sm">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
-          Suggested base area
-        </p>
-        <ShareButton
-          cityName={cityName}
-          citySlug={citySlug}
-          neighborhoodName={summary.recommendedArea}
-          routineScore={summary.routineScore}
-        />
-      </div>
-      <div className="mt-3 flex items-start justify-between gap-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
+        Suggested base area
+      </p>
+      <div className="mt-3 flex items-center justify-between gap-3">
         <p className="text-xl font-semibold tracking-tight text-bark">
           {summary.recommendedArea}
         </p>
-        {mapsUrl && (
-          <a
-            href={mapsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 rounded-lg border border-dune bg-cream px-3 py-1.5 text-xs font-medium text-umber hover:bg-dune transition-colors"
-            title="View area on Google Maps"
-          >
-            View on map ↗
-          </a>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          {mapsUrl && (
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg border border-dune bg-cream px-3 py-1.5 text-xs font-medium text-umber hover:bg-dune transition-colors"
+              title="View area on Google Maps"
+            >
+              Map ↗
+            </a>
+          )}
+          <ShareButton
+            cityName={cityName}
+            citySlug={citySlug}
+            neighborhoodName={summary.recommendedArea}
+            routineScore={summary.routineScore}
+          />
+        </div>
       </div>
 
       <p className="mt-3 text-sm leading-6 text-umber">

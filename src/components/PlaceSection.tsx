@@ -8,6 +8,7 @@ interface Props {
   emptyMessage?: string;
   freeCount?: number;
   isUnlocked?: boolean;
+  citySlug?: string;
 }
 
 /** Readable work-fit tier — shown instead of place name to prevent free lookup */
@@ -50,6 +51,7 @@ export function PlaceSection({
   emptyMessage = "No places found in this area.",
   freeCount,
   isUnlocked = false,
+  citySlug = "",
 }: Props) {
   const applyLock = !isUnlocked && freeCount !== undefined;
   const freePlaces = applyLock ? places.slice(0, freeCount) : places;
@@ -72,7 +74,7 @@ export function PlaceSection({
         <div className="space-y-3">
           {freePlaces.map((place) => (
             <div key={place.id} id={`place-${place.id}`}>
-              <PlaceCard place={place} />
+              <PlaceCard place={place} isUnlocked={isUnlocked} citySlug={citySlug} />
             </div>
           ))}
           {lockedPlaces.map((place) => (

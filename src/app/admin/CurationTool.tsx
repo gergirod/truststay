@@ -64,6 +64,114 @@ interface EditableNeighborhood extends NeighborhoodEntry {
   coordsMoved?: boolean; // true after pin was dragged
 }
 
+interface FeedbackReport {
+  placeId: string;
+  placeName: string;
+  citySlug: string;
+  type: string;
+  issue: string | null;
+  count: number;
+  lastAt: string;
+}
+
+function FeedbackReports({ secret }: { secret: string }) {
+  const [reports, setReports] = useState<FeedbackReport[] | null>(null);
+  const [status, setStatus] = useState<"loading" | "ready" | "not_configured" | "error">("loading");
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    fetch(`/api/admin/feedback?secret=${encodeURIComponent(secret)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error === "not_configured") {
+          setStatus("not_configured");
+        } else if (data.reports) {
+          setReports(data.reports);
+          setStatus("ready");
+        } else {
+          setStatus("error");
+        }
+      })
+      .catch(() => setStatus("error"));
+  }, [open, secret]);
+
+  return (
+    <div className="mb-8 rounded-xl border border-[#E4DDD2] bg-white px-5 py-5">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-2"
+      >
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold text-[#2E2A26]">Place reports</p>
+          <span className="text-xs text-[#5F5A54]">— confirms & issues from users</span>
+        </div>
+        <span className="text-xs text-[#5F5A54]">{open ? "▲" : "▼"}</span>
+      </button>
+
+      {open && (
+        <div className="mt-4">
+          {status === "loading" && (
+            <p className="text-xs text-[#5F5A54]">Loading PostHog data…</p>
+          )}
+          {status === "not_configured" && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              PostHog not configured — add POSTHOG_PERSONAL_API_KEY and POSTHOG_PROJECT_ID.
+            </p>
+          )}
+          {status === "error" && (
+            <p className="text-xs text-red-600">Failed to load reports.</p>
+          )}
+          {status === "ready" && reports && (
+            <>
+              {reports.length === 0 ? (
+                <p className="text-xs text-[#5F5A54]">No feedback events yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-[#E4DDD2] text-[#5F5A54]">
+                        <th className="pb-2 pr-4 font-semibold">Place</th>
+                        <th className="pb-2 pr-4 font-semibold">City</th>
+                        <th className="pb-2 pr-4 font-semibold">Type</th>
+                        <th className="pb-2 pr-4 font-semibold">Issue</th>
+                        <th className="pb-2 pr-4 font-semibold">×</th>
+                        <th className="pb-2 font-semibold">Last</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reports.map((r, i) => (
+                        <tr key={i} className="border-b border-[#F0EBE3]">
+                          <td className="py-2 pr-4 font-medium text-[#2E2A26]">{r.placeName || r.placeId}</td>
+                          <td className="py-2 pr-4 text-[#5F5A54]">{r.citySlug}</td>
+                          <td className="py-2 pr-4">
+                            <span className={`rounded-full px-2 py-0.5 font-semibold ${
+                              r.type === "confirm"
+                                ? "bg-[#DCEBE9] text-[#2E6B65]"
+                                : "bg-red-50 text-red-700"
+                            }`}>
+                              {r.type}
+                            </span>
+                          </td>
+                          <td className="py-2 pr-4 text-[#5F5A54]">{r.issue ?? "—"}</td>
+                          <td className="py-2 pr-4 text-[#2E2A26] font-medium">{r.count}</td>
+                          <td className="py-2 text-[#5F5A54]">
+                            {new Date(r.lastAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CuratedCitiesBar({
   onSelect,
 }: {
@@ -516,6 +624,9 @@ ${lines.join(",\n")}
 
         {/* Demand queue — top searched uncurated cities from PostHog */}
         <DemandQueue secret={secret} onSelect={(city) => { setQuery(city); }} />
+
+        {/* Place feedback reports */}
+        <FeedbackReports secret={secret} />
 
         {/* Curated cities quick-access */}
         <CuratedCitiesBar onSelect={(city) => { setQuery(city); }} />

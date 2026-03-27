@@ -16,9 +16,12 @@ import {
   formatDistance,
 } from "@/lib/format";
 import { PlaceModal } from "./PlaceModal";
+import { PlaceFeedback } from "./PlaceFeedback";
 
 interface Props {
   place: Place;
+  isUnlocked?: boolean;
+  citySlug?: string;
 }
 
 type BadgeTier = "verified" | "neutral" | "uncertain";
@@ -64,7 +67,7 @@ function getRoutineSupportTier(v: NonNullable<PlaceConfidence["routineSupport"]>
   return "neutral";
 }
 
-export function PlaceCard({ place }: Props) {
+export function PlaceCard({ place, isUnlocked = false, citySlug = "" }: Props) {
   const [modalOpen, setModalOpen] = useState(false);
   const { confidence } = place;
 
@@ -213,9 +216,18 @@ export function PlaceCard({ place }: Props) {
           </div>
         )}
 
-        {/* Explanation */}
+        {/* Explanation + feedback */}
         <div className="mt-4 border-t border-dune pt-3">
           <p className="text-sm leading-6 text-umber">{place.explanation}</p>
+          {isUnlocked && place.id && (
+            <div className="mt-3 flex items-center justify-end">
+              <PlaceFeedback
+                placeId={place.id}
+                placeName={place.name}
+                citySlug={citySlug}
+              />
+            </div>
+          )}
         </div>
       </div>
 
