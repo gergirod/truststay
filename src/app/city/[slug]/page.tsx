@@ -333,7 +333,7 @@ async function resolveCity(
 
     // ── Belize ──────────────────────────────────────────────────────────────
     "caye-caulker":            "Caye Caulker Belize District Belize",
-    "san-pedro-belize":        "San Pedro Ambergris Caye Belize",
+    "san-pedro-belize":        "San Pedro Belize",
     "placencia":               "Placencia Stann Creek Belize",
 
     // ── Guatemala ───────────────────────────────────────────────────────────
