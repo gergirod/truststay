@@ -1,69 +1,61 @@
 import type { MetadataRoute } from "next";
 import { CURATED_NEIGHBORHOODS } from "@/data/neighborhoods";
+import { KNOWN_CITY_SLUGS, HIGH_PRIORITY_SLUGS } from "@/data/slugs";
+import { CITY_INTROS } from "@/data/cityIntros";
 
-const KNOWN_CITY_SLUGS = [
-  // Major multi-neighborhood cities
-  "lisbon", "medellin", "bali", "mexico-city", "buenos-aires",
-  "chiang-mai", "berlin", "barcelona", "amsterdam", "ho-chi-minh-city",
-  "tbilisi", "budapest", "prague", "bansko", "bogota",
-  "taipei", "kuala-lumpur",
-  // Mexico
-  "playa-del-carmen", "oaxaca", "puerto-escondido", "sayulita",
-  // El Salvador
-  "el-tunco", "el-zonte",
-  // Nicaragua
-  "san-juan-del-sur", "popoyo",
-  // Costa Rica
-  "santa-teresa", "nosara", "tamarindo", "puerto-viejo",
-  // Panama
-  "bocas-del-toro", "boquete",
-  // Guatemala
-  "antigua-guatemala",
-  // Ecuador
-  "montanita", "olon", "banos",
-  // Colombia
-  "minca",
-  // Peru
-  "mancora",
-  // Brazil
-  "florianopolis", "itacare", "jericoacoara",
-];
+const STATIC_INTRO_SLUGS = new Set(Object.keys(CITY_INTROS));
+const CURATED_SLUGS = new Set(Object.keys(CURATED_NEIGHBORHOODS));
+
+// Content last significantly updated — bump when adding new destinations or copy
+const CONTENT_UPDATED = new Date("2026-03-27");
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://truststay.co";
 
-  // City overview pages (grid or single-city)
-  const cityPages: MetadataRoute.Sitemap = KNOWN_CITY_SLUGS.map((slug) => ({
-    url: `${appUrl}/city/${slug}`,
-    lastModified: new Date(),
-    changeFrequency: "weekly",
-    priority: 0.8,
-  }));
+  // ── Homepage ──────────────────────────────────────────────────────────────
+  const home: MetadataRoute.Sitemap = [
+    {
+      url: appUrl,
+      lastModified: CONTENT_UPDATED,
+      changeFrequency: "weekly",
+      priority: 1.0,
+    },
+  ];
 
-  // Curated neighborhood pages — these get their own indexed landing pages
+  // ── City overview pages ───────────────────────────────────────────────────
+  // Priority tiers:
+  //   0.9 — major remote-work hubs (high search volume)
+  //   0.8 — cities with curated neighborhood grids
+  //   0.75 — cities with hand-written static intros
+  //   0.65 — all other known destinations
+  const uniqueSlugs = [...new Set(KNOWN_CITY_SLUGS)]; // deduplicate
+  const cityPages: MetadataRoute.Sitemap = uniqueSlugs.map((slug) => {
+    let priority = 0.65;
+    if (HIGH_PRIORITY_SLUGS.has(slug)) priority = 0.9;
+    else if (CURATED_SLUGS.has(slug)) priority = 0.8;
+    else if (STATIC_INTRO_SLUGS.has(slug)) priority = 0.75;
+
+    return {
+      url: `${appUrl}/city/${slug}`,
+      lastModified: CONTENT_UPDATED,
+      changeFrequency: "weekly" as const,
+      priority,
+    };
+  });
+
+  // ── Curated neighborhood pages ────────────────────────────────────────────
+  // Each neighborhood in a curated city gets its own indexed URL.
   const neighborhoodPages: MetadataRoute.Sitemap = Object.values(
     CURATED_NEIGHBORHOODS
   ).flatMap((config) =>
     config.neighborhoods.map((n) => ({
-      // Note: neighborhood pages need parentCity + bbox to load correctly.
-      // The canonical URL here is the slug — Google will index the meta title/description
-      // even if the page needs params to render fully.
       url: `${appUrl}/city/${n.slug}`,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
+      lastModified: CONTENT_UPDATED,
+      changeFrequency: "weekly" as const,
       priority: 0.7,
     }))
   );
 
-  return [
-    {
-      url: appUrl,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
-      priority: 1.0,
-    },
-    ...cityPages,
-    ...neighborhoodPages,
-  ];
+  return [...home, ...cityPages, ...neighborhoodPages];
 }

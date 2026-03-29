@@ -70,150 +70,7 @@ function isCafeWorkSection(place: Place): boolean {
   return false;
 }
 
-/** Popular remote-work cities pre-rendered at build time for fast first load. */
-const KNOWN_CITY_SLUGS = [
-  // Major multi-neighborhood cities
-  "lisbon", "medellin", "bali", "mexico-city", "buenos-aires",
-  "chiang-mai", "berlin", "barcelona", "amsterdam", "ho-chi-minh-city",
-  "tbilisi", "budapest", "prague", "bansko", "bogota",
-  "taipei", "kuala-lumpur",
-
-  // ── Mexico ───────────────────────────────────────────────────────────────
-  // Pacific coast surf + yoga towns
-  "playa-del-carmen", "oaxaca", "puerto-escondido", "sayulita",
-  "tulum", "todos-santos", "mazunte", "troncones", "zihuatanejo",
-  "huatulco", "la-paz",
-  // Inland / cultural
-  "san-cristobal-de-las-casas", "guanajuato", "merida",
-
-  // ── Belize ───────────────────────────────────────────────────────────────
-  // Diving + island remote work
-  "caye-caulker", "san-pedro-belize", "placencia",
-
-  // ── Guatemala ────────────────────────────────────────────────────────────
-  // Volcano hiking, yoga, Lake Atitlán villages
-  "antigua-guatemala", "lago-atitlan",
-  "san-marcos-la-laguna", "san-pedro-la-laguna", "panajachel",
-  "quetzaltenango",
-
-  // ── Honduras ─────────────────────────────────────────────────────────────
-  // Bay Islands diving, ruins
-  "roatan", "utila", "copan-ruinas",
-
-  // ── El Salvador ──────────────────────────────────────────────────────────
-  "el-tunco", "el-zonte",
-
-  // ── Guatemala (additions) ─────────────────────────────────────────────────
-  "el-paredon", "acatenango",
-
-  // ── Nicaragua ────────────────────────────────────────────────────────────
-  "san-juan-del-sur", "popoyo", "gigante", "leon", "granada",
-  "ometepe",
-
-  // ── Costa Rica ───────────────────────────────────────────────────────────
-  // Pacific surf + wellness + volcano towns
-  "santa-teresa", "nosara", "tamarindo", "dominical", "montezuma",
-  "jaco", "puerto-viejo", "pavones", "monteverde", "arenal",
-
-  // ── Panama ───────────────────────────────────────────────────────────────
-  "bocas-del-toro", "boquete", "santa-catalina", "pedasi",
-  "el-valle-de-anton", "coiba",
-
-  // ── Colombia ─────────────────────────────────────────────────────────────
-  // Cities + activity destinations
-  "minca", "palomino", "santa-marta", "cartagena",
-  "villa-de-leyva", "salento", "taganga", "san-andres", "cabo-de-la-vela",
-  // Pacific coast dive
-  "nuqui",
-
-  // ── Ecuador ──────────────────────────────────────────────────────────────
-  // Coast surf + Andes + Amazon + wellness
-  "montanita", "olon", "banos", "canoa", "cuenca",
-  "quilotoa", "vilcabamba", "mindo",
-  // Galápagos dive
-  "galapagos",
-
-  // ── Peru ─────────────────────────────────────────────────────────────────
-  // Surf village + trekking + Sacred Valley bases
-  "mancora", "huanchaco", "huaraz", "cusco",
-  "lobitos", "chicama", "ollantaytambo", "pisac",
-
-  // ── Bolivia ──────────────────────────────────────────────────────────────
-  "sucre", "coroico",
-
-  // ── Chile ────────────────────────────────────────────────────────────────
-  "pucon", "san-pedro-de-atacama", "pichilemu", "puerto-natales", "iquique",
-  // Chile — hike additions
-  "cajon-del-maipo", "cochamo", "futaleufu", "conguillo",
-  // Easter Island dive
-  "hanga-roa",
-
-  // ── Argentina ────────────────────────────────────────────────────────────
-  "bariloche", "mendoza", "salta", "el-chalten", "jujuy",
-  // Patagonia coast dive
-  "puerto-madryn", "ushuaia",
-  // NW Argentina — Quebrada & pre-Puna
-  "tilcara", "purmamarca", "humahuaca", "iruya", "cafayate",
-  // Mendoza Andes
-  "uspallata", "potrerillos",
-  // Patagonia Argentina additions
-  "el-bolson", "san-martin-de-los-andes", "villa-la-angostura", "esquel",
-
-  // ── Brazil ───────────────────────────────────────────────────────────────
-  // Surf + yoga + eco villages + kite
-  "florianopolis", "itacare", "jericoacoara",
-  "pipa", "paraty", "arraial-do-cabo",
-  // Brazil dive additions
-  "fernando-de-noronha", "abrolhos",
-  "cumbuco", "sao-miguel-do-gostoso", "lencois", "bonito",
-
-  // ── Dominican Republic ───────────────────────────────────────────────────
-  // Kite + surf + nomad community
-  "cabarete", "las-terrenas",
-
-  // ── Mexico (additions) ───────────────────────────────────────────────────
-  "cozumel", "isla-mujeres", "bacalar",
-
-  // ── South America hubs ───────────────────────────────────────────────────
-  "lima", "quito", "panama-city", "montevideo",
-  "santiago", "valparaiso", "sao-paulo", "rio-de-janeiro", "fortaleza",
-
-  // ── Venezuela ────────────────────────────────────────────────────────────
-  "los-roques",
-
-  // ── Caribbean ─────────────────────────────────────────────────────────────
-  // ABC islands
-  "bonaire", "curacao", "aruba",
-  // French Antilles
-  "martinique", "guadeloupe",
-  // Lesser Antilles
-  "dominica", "barbados",
-
-  // ── New surf destinations ─────────────────────────────────────────────────
-  "playa-venao", "ayampe", "praia-do-rosa", "punta-del-diablo",
-  "rincon",
-
-  // ── New dive destinations ─────────────────────────────────────────────────
-  "mahahual", "cahuita", "providencia", "bayahibe",
-
-  // ── New hike destinations ─────────────────────────────────────────────────
-  "tayrona", "chachapoyas", "sorata", "rurrenabaque", "alto-paraiso",
-
-  // ── New yoga / wellness destinations ─────────────────────────────────────
-  "tepoztlan", "uvita", "trancoso",
-
-  // ── New kite & wind destinations ─────────────────────────────────────────
-  "prea", "atins", "canoa-quebrada", "la-ventana", "los-barriles",
-  "paracas", "la-paloma",
-
-  // ── New remote work hubs ──────────────────────────────────────────────────
-  "guadalajara", "puerto-vallarta",
-  "san-jose-costa-rica", "san-juan-puerto-rico",
-  "arequipa", "la-paz-bolivia",
-  "curitiba", "porto-alegre", "recife", "salvador",
-  "cordoba", "rosario", "asuncion",
-  "cali", "punta-del-este",
-];
+import { KNOWN_CITY_SLUGS } from "@/data/slugs";
 
 export async function generateStaticParams() {
   // City-level slugs
@@ -251,6 +108,7 @@ export async function generateMetadata({
 
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://truststay.co";
+  const ogImage = `${appUrl}/og.png`;
   const canonicalUrl = `${appUrl}/city/${slug}`;
 
   const hasParentCity =
@@ -259,13 +117,14 @@ export async function generateMetadata({
   // ── Neighborhood grid pages (curated cities like Buenos Aires, Mexico City)
   const curated = CURATED_NEIGHBORHOODS[slug];
   if (curated && !hasParentCity) {
-    const title = `Best neighborhoods in ${curated.cityName} for remote workers`;
-    const description = `Choose where to base yourself in ${curated.cityName}. Compare neighborhoods by work spots, cafés, and routine options — built for remote workers on the move.`;
+    const title = `Best neighborhoods in ${curated.cityName} for remote workers & digital nomads`;
+    const description = `Compare neighborhoods in ${curated.cityName} by work spots, wifi cafés, gyms, and walkability. Find where to base yourself — built for remote workers and digital nomads.`;
     return {
       title,
       description,
       alternates: { canonical: canonicalUrl },
-      openGraph: { title, description, url: canonicalUrl, type: "website" },
+      openGraph: { title, description, url: canonicalUrl, type: "website", images: [ogImage] },
+      twitter: { card: "summary_large_image", title, description, images: [ogImage] },
     };
   }
 
@@ -278,22 +137,41 @@ export async function generateMetadata({
       ? sp.parentCity.trim()
       : null;
 
-  // Neighbourhood: "Work, coffee & routine in Palermo, Buenos Aires"
-  // City: "Work, coffee & routine in Lisbon"
-  const displayName = parentCity ? `${cityName}, ${parentCity}` : cityName;
-  const title = `Work, coffee & routine in ${displayName}`;
-  const introSummary = CITY_INTROS[slug]?.summary ?? null;
-  const description = introSummary
-    ? introSummary
-    : parentCity
-    ? `Find the best work spots, cafés, and training options in ${cityName} — a neighborhood in ${parentCity} — organized for remote workers.`
-    : `Find where to base yourself in ${cityName}, with places to work, grab coffee or meals, and keep your training routine — organized for remote workers on the move.`;
+  const intro = CITY_INTROS[slug];
+
+  // Title strategy:
+  // Neighborhood: "Working from Palermo, Buenos Aires — wifi spots, cafés & gyms"
+  // City with intro activity (surf/dive/hike): "Popoyo for remote workers — surf, wifi & routine"
+  // City generic: "Puerto Escondido for remote workers — best areas, wifi & cafés"
+  let title: string;
+  let description: string;
+
+  if (parentCity) {
+    title = `Working from ${cityName}, ${parentCity} — wifi spots, cafés & gyms`;
+    description = `Find the best work spots, cafés, and training options in ${cityName} — a neighborhood in ${parentCity}. Organized for remote workers who want a walkable daily routine.`;
+  } else if (intro?.activity && intro.activity !== "work") {
+    const activityLabel: Record<string, string> = {
+      surf: "surf, wifi & routine",
+      dive: "diving, wifi & routine",
+      hike: "hiking, wifi & routine",
+      yoga: "yoga, wifi & routine",
+      kite: "kite, wifi & routine",
+    };
+    const act = activityLabel[intro.activity] ?? "wifi & routine";
+    title = `${cityName} for remote workers — ${act}`;
+    description = intro.summary ?? `Work remotely from ${cityName}. Find wifi cafés, coworkings, and places to keep your routine — curated for digital nomads.`;
+  } else {
+    title = `${cityName} for remote workers — best areas, wifi spots & cafés`;
+    description = intro?.summary
+      ?? `Find where to base yourself in ${cityName} as a remote worker or digital nomad. Work spots, cafés, gyms, and routine options — all in one place.`;
+  }
 
   return {
     title,
     description,
     alternates: { canonical: canonicalUrl },
-    openGraph: { title, description, url: canonicalUrl, type: "website" },
+    openGraph: { title, description, url: canonicalUrl, type: "website", images: [ogImage] },
+    twitter: { card: "summary_large_image", title, description, images: [ogImage] },
   };
 }
 
@@ -687,9 +565,43 @@ export default async function CityPage({ params, searchParams }: Props) {
     );
   }
 
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://truststay.co";
+  const intro = CITY_INTROS[slug];
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: intro
+      ? `${city.name} for remote workers — ${intro.activity ?? "work"}, wifi & routine`
+      : `${city.name} for remote workers`,
+    description:
+      intro?.summary ??
+      `Work spots, wifi cafés, gyms, and routine options in ${city.name} — curated for digital nomads and remote workers.`,
+    url: `${appUrl}/city/${slug}`,
+    isPartOf: { "@type": "WebSite", name: "Truststay", url: appUrl },
+    about: {
+      "@type": "Place",
+      name: city.name,
+      address: { "@type": "PostalAddress", addressCountry: city.country },
+    },
+    keywords: [
+      `${city.name} remote work`,
+      `${city.name} digital nomad`,
+      `${city.name} coworking`,
+      `${city.name} wifi cafes`,
+      `where to stay ${city.name}`,
+      `best area ${city.name} remote worker`,
+    ].join(", "),
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
 
       {/* Fires as soon as the city page shell renders (before Suspense resolves) */}
       <AnalyticsEvent
