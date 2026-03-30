@@ -6,13 +6,23 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "refresh:activity": "node -r ./scripts/preload.cjs scripts/manual-refresh-by-activity.ts",
+    "refresh:destination": "node -r ./scripts/preload.cjs scripts/refresh-destination.ts",
+    "backfill:activity": "node -r ./scripts/preload.cjs scripts/backfill-activity-destinations.ts",
+    "test:enrichment": "node -r ./scripts/preload.cjs scripts/test-enrichment.ts",
+    "test": "vitest run src/tests/"
   },
   "dependencies": {
     "@upstash/redis": "^1.37.0",
+    "drizzle-orm": "^0.45.2",
     "mapbox-gl": "^3.20.0",
     "next": "16.2.1",
     "openai": "^6.33.0",
+    "pg": "^8.20.0",
     "posthog-js": "^1.363.5",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -21,12 +31,17 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "babel-plugin-react-compiler": "1.0.0",
+    "dotenv": "^17.3.1",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.21.0",
+    "typescript": "^5",
+    "vitest": "^4.1.2"
   }
 }

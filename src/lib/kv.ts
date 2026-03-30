@@ -1,5 +1,6 @@
 import { Redis } from "@upstash/redis";
-import type { Place } from "@/types";
+import type { Place, DailyLifePlace } from "@/types";
+import type { PlaceReview } from "@/lib/googlePlaces";
 
 /**
  * Upstash Redis client — returns null if not configured.
@@ -178,5 +179,259 @@ export async function listPlacesCaches(): Promise<Omit<CachedPlaces, "places">[]
       .sort((a, b) => b.cachedAt.localeCompare(a.cachedAt));
   } catch {
     return [];
+  }
+}
+
+// ── Daily-life place cache ────────────────────────────────────────────────────
+
+export interface CachedDailyLife {
+  citySlug: string;
+  cityName: string;
+  places: DailyLifePlace[];
+  cachedAt: string;
+  counts: { grocery: number; convenience: number; pharmacy: number; laundry: number; total: number };
+}
+
+const DAILY_LIFE_KEY = (slug: string) => `city-daily-life:${slug}`;
+/** 14 days — daily-life infrastructure changes slowly */
+const DAILY_LIFE_TTL_SECONDS = 14 * 24 * 60 * 60;
+
+export async function getDailyLifeCache(slug: string): Promise<CachedDailyLife | null> {
+  if (!redis) return null;
+  try {
+    const data = await redis.get(DAILY_LIFE_KEY(slug));
+    if (!data) return null;
+    return typeof data === "string" ? JSON.parse(data) : (data as CachedDailyLife);
+  } catch {
+    return null;
+  }
+}
+
+export async function saveDailyLifeCache(
+  citySlug: string,
+  cityName: string,
+  places: DailyLifePlace[]
+): Promise<boolean> {
+  if (!redis) return false;
+  try {
+    const counts = {
+      grocery: places.filter((p) => p.type === "grocery").length,
+      convenience: places.filter((p) => p.type === "convenience").length,
+      pharmacy: places.filter((p) => p.type === "pharmacy").length,
+      laundry: places.filter((p) => p.type === "laundry").length,
+      total: places.length,
+    };
+    const payload: CachedDailyLife = {
+      citySlug,
+      cityName,
+      places,
+      cachedAt: new Date().toISOString(),
+      counts,
+    };
+    await redis.set(DAILY_LIFE_KEY(citySlug), JSON.stringify(payload), {
+      ex: DAILY_LIFE_TTL_SECONDS,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteDailyLifeCache(slug: string): Promise<boolean> {
+  if (!redis) return false;
+  try {
+    await redis.del(DAILY_LIFE_KEY(slug));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ── Enriched place details cache ─────────────────────────────────────────────
+// Stores Google Place Details (including reviews) for all enriched places in a city.
+// Keyed by citySlug only — shared across all intent combinations.
+// Phase 1 of the enrichment agent pipeline.
+
+export interface EnrichedPlaceDetail {
+  placeId: string;
+  name: string;
+  /** Place category for context in LLM prompts */
+  category: string;
+  reviews: PlaceReview[];
+  openingHours: string[];
+  editorialSummary?: string;
+  priceLevel?: string;
+  rating?: number;
+  reviewCount?: number;
+  website?: string;
+  distanceFromBasekm?: number;
+}
+
+export interface CachedEnrichedPlaces {
+  citySlug: string;
+  cityName: string;
+  places: EnrichedPlaceDetail[];
+  fetchedAt: string;
+  totalFetched: number;
+}
+
+const ENRICHED_PLACES_KEY = (slug: string) => `enriched-places:${slug}`;
+/** 30 days — reviews change slowly; aligned with stay-fit narrative TTL */
+const ENRICHED_PLACES_TTL = 30 * 24 * 60 * 60;
+
+export async function getEnrichedPlaces(
+  slug: string
+): Promise<CachedEnrichedPlaces | null> {
+  if (!redis) return null;
+  try {
+    const data = await redis.get(ENRICHED_PLACES_KEY(slug));
+    if (!data) return null;
+    return typeof data === "string"
+      ? JSON.parse(data)
+      : (data as CachedEnrichedPlaces);
+  } catch {
+    return null;
+  }
+}
+
+export async function saveEnrichedPlaces(
+  citySlug: string,
+  cityName: string,
+  places: EnrichedPlaceDetail[]
+): Promise<boolean> {
+  if (!redis) return false;
+  try {
+    const payload: CachedEnrichedPlaces = {
+      citySlug,
+      cityName,
+      places,
+      fetchedAt: new Date().toISOString(),
+      totalFetched: places.length,
+    };
+    await redis.set(ENRICHED_PLACES_KEY(citySlug), JSON.stringify(payload), {
+      ex: ENRICHED_PLACES_TTL,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteEnrichedPlaces(slug: string): Promise<boolean> {
+  if (!redis) return false;
+  try {
+    await redis.del(ENRICHED_PLACES_KEY(slug));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ── Stay-fit narrative cache ──────────────────────────────────────────────────
+// Keyed by city slug + intent (purpose + workStyle).
+// Generated once by the LLM on first request; cached for 30 days.
+// The LLM is given only structured `narrativeInputs` — no free-form context.
+
+export interface CachedStayFitNarrative {
+  citySlug: string;
+  purpose: string;
+  workStyle: string;
+  /** dailyBalance is part of the cache key — different balance = different narrative tone */
+  dailyBalance?: string;
+  /** 2–3 sentences: why this base fits this specific stay */
+  whyItFits: string;
+  /** 2 sentences: what a realistic work day from this base looks like */
+  dailyRhythm?: string;
+  /** 1–2 sentences: what's actually walkable for food/coffee */
+  walkingOptions?: string;
+  /** 1–2 sentences: what to prepare for / plan around */
+  planAround: string;
+  /** 1 sentence: grocery/pharmacy/transport reality */
+  logistics?: string;
+  generatedAt: string;
+  /**
+   * true = generated by the enrichment agent (review-grounded, web-search-backed).
+   * false/absent = generated by the basic narrative generator (scoring inputs only).
+   */
+  enriched?: boolean;
+}
+
+const STAY_FIT_KEY = (
+  slug: string,
+  purpose: string,
+  workStyle: string,
+  dailyBalance?: string
+) => `stay-fit-narrative:${slug}:${purpose}:${workStyle}:${dailyBalance ?? "balanced"}`;
+/** 30 days — place data + LLM output is stable; refresh when forced by admin */
+const STAY_FIT_TTL_SECONDS = 30 * 24 * 60 * 60;
+
+export async function getStayFitNarrative(
+  citySlug: string,
+  purpose: string,
+  workStyle: string,
+  dailyBalance?: string
+): Promise<CachedStayFitNarrative | null> {
+  if (!redis) return null;
+  try {
+    const data = await redis.get(STAY_FIT_KEY(citySlug, purpose, workStyle, dailyBalance));
+    if (!data) return null;
+    return typeof data === "string"
+      ? JSON.parse(data)
+      : (data as CachedStayFitNarrative);
+  } catch {
+    return null;
+  }
+}
+
+export async function saveStayFitNarrative(
+  narrative: CachedStayFitNarrative
+): Promise<boolean> {
+  if (!redis) return false;
+  try {
+    const key = STAY_FIT_KEY(
+      narrative.citySlug,
+      narrative.purpose,
+      narrative.workStyle,
+      narrative.dailyBalance
+    );
+    await redis.set(key, JSON.stringify(narrative), {
+      ex: STAY_FIT_TTL_SECONDS,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteStayFitNarrative(
+  citySlug: string,
+  purpose: string,
+  workStyle: string,
+  dailyBalance?: string
+): Promise<boolean> {
+  if (!redis) return false;
+  try {
+    await redis.del(STAY_FIT_KEY(citySlug, purpose, workStyle, dailyBalance));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Delete all cached stay-fit narratives for a city across intents/balances.
+ * Useful after bulk refresh jobs.
+ */
+export async function deleteStayFitNarrativesForCity(
+  citySlug: string
+): Promise<number> {
+  if (!redis) return 0;
+  try {
+    const keys = await redis.keys(`stay-fit-narrative:${citySlug}:*`);
+    if (!keys.length) return 0;
+    await redis.del(...keys);
+    return keys.length;
+  } catch {
+    return 0;
   }
 }

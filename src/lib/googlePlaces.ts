@@ -129,3 +129,69 @@ export const searchNearbyPlaces = unstable_cache(
   ["google-places-nearby"],
   { revalidate: 3600 }
 );
+
+// ── Place Details (with reviews) ─────────────────────────────────────────────
+
+export interface PlaceReview {
+  text: string;
+  rating: number;
+  authorName: string;
+  relativePublishTimeDescription: string; // e.g. "3 months ago"
+}
+
+export interface RawGooglePlaceDetails extends RawGooglePlace {
+  reviews?: PlaceReview[];
+}
+
+const DETAILS_FIELD_MASK = [
+  "id",
+  "displayName",
+  "formattedAddress",
+  "location",
+  "rating",
+  "userRatingCount",
+  "currentOpeningHours",
+  "websiteUri",
+  "googleMapsUri",
+  "editorialSummary",
+  "priceLevel",
+  "reviews",
+].join(",");
+
+async function _fetchPlaceDetails(
+  placeId: string,
+  apiKey: string
+): Promise<RawGooglePlaceDetails | null> {
+  try {
+    const res = await fetch(
+      `https://places.googleapis.com/v1/places/${placeId}`,
+      {
+        headers: {
+          "X-Goog-Api-Key": apiKey,
+          "X-Goog-FieldMask": DETAILS_FIELD_MASK,
+        },
+        // 24h cache — place details don't change often
+        next: { revalidate: 86400 },
+      }
+    );
+    if (!res.ok) {
+      console.warn(`[googlePlaces] fetchPlaceDetails HTTP ${res.status} for ${placeId}`);
+      return null;
+    }
+    return (await res.json()) as RawGooglePlaceDetails;
+  } catch (err) {
+    console.warn("[googlePlaces] fetchPlaceDetails error:", err);
+    return null;
+  }
+}
+
+/**
+ * Fetch full Place Details including up to 5 reviews for a single place.
+ * Uses unstable_cache (24h) to avoid redundant API calls.
+ * reviews field = "Preferred" tier (~$0.017/request).
+ */
+export const fetchPlaceDetails = unstable_cache(
+  _fetchPlaceDetails,
+  ["google-place-details"],
+  { revalidate: 86400 }
+);

@@ -1,58 +1,26 @@
-/**
- * Shown instantly while the city page Server Component is rendering.
- * Next.js wraps page.tsx in a Suspense boundary using this file, so the
- * skeleton streams to the browser before any API calls complete.
- */
+import { CityLoadingAnimation } from "@/components/CityLoadingAnimation";
+
 export default function CityLoading() {
   return (
-    <div className="flex flex-col min-h-screen bg-[#FAFAF8] animate-pulse">
-      {/* Header */}
-      <header className="border-b border-dune bg-white">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-          <div className="h-5 w-24 rounded bg-dune" />
-          <div className="h-4 w-16 rounded bg-dune" />
+    <div className="min-h-screen bg-[#FAFAF8]">
+      <header className="border-b border-dune bg-cream">
+        <div className="mx-auto max-w-4xl px-6 py-4 flex items-center gap-3">
+          <div className="h-4 w-12 rounded bg-dune/90 animate-pulse" />
+          <div className="h-4 w-px bg-dune" />
+          <div className="h-5 w-20 rounded bg-dune/90 animate-pulse" />
         </div>
       </header>
 
-      <main className="flex-1 mx-auto w-full max-w-4xl px-6 py-12 space-y-10">
-        {/* Back link */}
-        <div className="h-4 w-16 rounded bg-dune" />
-
-        {/* City name + meta */}
-        <div className="space-y-3">
-          <div className="h-3 w-20 rounded bg-dune" />
-          <div className="h-8 w-56 rounded bg-dune" />
-          <div className="h-4 w-32 rounded bg-dune" />
+      <main className="mx-auto w-full max-w-4xl px-6 py-10 sm:py-14">
+        <div className="mb-8 space-y-3">
+          <div className="h-3 w-20 rounded bg-dune/90 animate-pulse" />
+          <div className="h-10 w-60 rounded bg-dune/90 animate-pulse" />
+          <div className="h-4 w-40 rounded bg-dune/80 animate-pulse" />
         </div>
 
-        {/* Summary card */}
-        <div className="rounded-2xl border border-dune bg-white p-6 space-y-4">
-          <div className="h-4 w-40 rounded bg-dune" />
-          <div className="grid grid-cols-3 gap-4">
-            <div className="h-14 rounded-xl bg-dune" />
-            <div className="h-14 rounded-xl bg-dune" />
-            <div className="h-14 rounded-xl bg-dune" />
-          </div>
-        </div>
-
-        {/* Recommended area card */}
-        <div className="rounded-2xl border border-dune bg-white p-6 space-y-3">
-          <div className="h-3 w-28 rounded bg-dune" />
-          <div className="h-6 w-48 rounded bg-dune" />
-          <div className="h-4 w-full rounded bg-dune" />
-          <div className="h-4 w-3/4 rounded bg-dune" />
-        </div>
-
-        {/* Place section */}
-        <div className="space-y-4">
-          <div className="h-5 w-36 rounded bg-dune" />
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-xl border border-dune bg-white p-5 space-y-2">
-              <div className="h-4 w-44 rounded bg-dune" />
-              <div className="h-3 w-full rounded bg-dune" />
-              <div className="h-3 w-2/3 rounded bg-dune" />
-            </div>
-          ))}
+        <div className="relative overflow-hidden rounded-2xl border border-dune bg-white shadow-sm">
+          <div className="absolute inset-x-0 top-0 h-[3px] bg-bark/85" />
+          <CityLoadingAnimation />
         </div>
       </main>
     </div>

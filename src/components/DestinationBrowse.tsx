@@ -120,6 +120,30 @@ const SLUG_REGION: Record<string, Region> = {
   "curitiba": "South America",
 };
 
+/**
+ * Destinations with thin OSM data — fewer than ~6 usable places, no reliable
+ * work spot, or geocode resolution that consistently returns wrong area names.
+ * These are shown in the browse grid with muted styling to set honest expectations.
+ * Update this set as coverage improves via editorial enrichment.
+ */
+const EARLY_COVERAGE_SLUGS = new Set([
+  // Remote surf towns — minimal OSM infra
+  "gigante", "pavones", "el-paredon", "ayampe", "cabo-de-la-vela",
+  "atins", "prea", "sao-miguel-do-gostoso", "canoa-quebrada",
+  "mahahual", "trancoso", "lencois",
+  // Remote hike / highlands
+  "acatenango", "quilotoa", "sorata", "rurrenabaque", "chachapoyas",
+  "iruya", "humahuaca", "purmamarca", "tilcara", "cafayate",
+  "uspallata", "potrerillos", "cochamo", "futaleufu", "conguillo",
+  "cajon-del-maipo", "alto-paraiso",
+  // Remote islands / dive
+  "coiba", "abrolhos", "hanga-roa", "galapagos", "los-roques",
+  "nuqui", "providencia", "dominica", "bonaire",
+  // Small/niche
+  "ometepe", "el-bolson", "villa-la-angostura", "esquel",
+  "puerto-madryn", "ushuaia", "paracas",
+]);
+
 interface Destination {
   label: string;
   slug: string;
@@ -199,6 +223,7 @@ export function DestinationBrowse({ categories, categoryMeta }: Props) {
                       slug={slug}
                       label={label}
                       category={cat.label}
+                      coverage={EARLY_COVERAGE_SLUGS.has(slug) ? "early" : undefined}
                     />
                   ))}
                 </div>

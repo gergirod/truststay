@@ -18,6 +18,8 @@ import {
 interface Props {
   place: Place;
   onClose: () => void;
+  /** Stay-fit context chip — e.g. "For surf + light work: closest work option near La Punta" */
+  stayFitContext?: string;
 }
 
 // ── Confidence badge tier ──────────────────────────────────────────────────
@@ -85,7 +87,7 @@ function ModalBadge({
 
 // ── Modal ──────────────────────────────────────────────────────────────────
 
-export function PlaceModal({ place, onClose }: Props) {
+export function PlaceModal({ place, onClose, stayFitContext }: Props) {
   const { confidence, google } = place;
 
   // Close on Escape
@@ -130,6 +132,14 @@ export function PlaceModal({ place, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6">
+
+          {/* ── Stay-fit context chip ──────────────────────────────── */}
+          {stayFitContext && (
+            <div className="mb-4 flex items-center gap-2 rounded-xl border border-sage bg-mist px-3 py-2">
+              <span className="text-xs text-teal">✦</span>
+              <p className="text-xs font-medium text-teal">{stayFitContext}</p>
+            </div>
+          )}
 
           {/* ── Header ─────────────────────────────────────────────── */}
           <div className="flex items-start justify-between gap-4">

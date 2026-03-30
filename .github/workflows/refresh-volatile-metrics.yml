@@ -1,0 +1,74 @@
+name: Refresh Volatile Metrics
+
+on:
+  schedule:
+    - cron: "0 */12 * * *"
+  workflow_dispatch:
+    inputs:
+      activity:
+        description: "Optional single activity override"
+        required: false
+        type: choice
+        options:
+          - surf
+          - dive
+          - hike
+          - yoga
+          - kite
+          - work_first
+          - exploring
+      limit:
+        description: "Optional cap of destinations per activity"
+        required: false
+        default: "0"
+        type: string
+      dry_run:
+        description: "Dry run only"
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        activity: [surf, dive, hike, yoga, kite, work_first, exploring]
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+
+      - name: Refresh activity batch
+        env:
+          INPUT_ACTIVITY: ${{ github.event.inputs.activity }}
+          INPUT_LIMIT: ${{ github.event.inputs.limit }}
+          INPUT_DRY: ${{ github.event.inputs.dry_run }}
+          MATRIX_ACTIVITY: ${{ matrix.activity }}
+        run: |
+          ACTIVITY="$MATRIX_ACTIVITY"
+          if [ -n "$INPUT_ACTIVITY" ] && [ "$INPUT_ACTIVITY" != "$MATRIX_ACTIVITY" ]; then
+            echo "Skipping matrix row $MATRIX_ACTIVITY due to override $INPUT_ACTIVITY"
+            exit 0
+          fi
+
+          CMD="npm run refresh:activity -- --activity $ACTIVITY"
+          if [ -n "$INPUT_LIMIT" ] && [ "$INPUT_LIMIT" != "0" ]; then
+            CMD="$CMD --limit $INPUT_LIMIT"
+          fi
+          if [ "$INPUT_DRY" = "true" ]; then
+            CMD="$CMD --dry-run"
+          fi
+          echo "Running: $CMD"
+          eval "$CMD"
+

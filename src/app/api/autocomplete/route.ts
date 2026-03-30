@@ -2,20 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { toSlug } from "@/lib/geocode";
 import type { City } from "@/types";
 
-const NOMINATIM_BASE = "https://nominatim.openstreetmap.org";
-const USER_AGENT = "Truststay/1.0 (truststay.co; contact@truststay.co)";
-
-const AREA_TYPES = new Set([
-  "neighbourhood",
-  "suburb",
-  "quarter",
-  "city_district",
-  "residential",
-]);
-
-const NATURAL_TYPES = new Set([
-  "lake", "water", "bay", "island", "river", "sea", "reservoir",
-]);
+const GOOGLE_API_KEY = process.env.GOOGLE_MAPS_API_KEY ?? "";
+const PLACES_BASE = "https://maps.googleapis.com/maps/api/place";
 
 export interface AutocompleteSuggestion {
   label: string;
@@ -24,188 +12,153 @@ export interface AutocompleteSuggestion {
   city: City;
 }
 
-interface NominatimSearchResult {
-  lat: string;
-  lon: string;
-  display_name: string;
-  class?: string;
-  type?: string;
-  boundingbox?: string[];
-  address?: {
-    city?: string;
-    town?: string;
-    village?: string;
-    municipality?: string;
-    hamlet?: string;
-    county?: string;
-    country?: string;
-    neighbourhood?: string;
-    suburb?: string;
-    quarter?: string;
-    city_district?: string;
-    lake?: string;
-    island?: string;
+interface GPrediction {
+  description: string;
+  place_id: string;
+  structured_formatting: {
+    main_text: string;
+    secondary_text?: string;
   };
+  types: string[];
 }
 
-function normalizeAutocompleteQuery(q: string): string {
-  return q
-    .replace(/\bde\s+la\s+/gi, "la ")
-    .replace(/\bde\s+los\s+/gi, "los ")
-    .replace(/\bde\s+las\s+/gi, "las ")
-    .replace(/\bdel\s+/gi, "")
-    .trim();
+interface GAddressComponent {
+  long_name: string;
+  short_name: string;
+  types: string[];
 }
 
-async function searchNominatim(q: string): Promise<NominatimSearchResult[]> {
-  const url = new URL(`${NOMINATIM_BASE}/search`);
-  url.searchParams.set("q", q);
-  url.searchParams.set("format", "json");
-  url.searchParams.set("limit", "6");
-  url.searchParams.set("addressdetails", "1");
+interface GDetailsResult {
+  result?: {
+    geometry?: {
+      location: { lat: number; lng: number };
+      viewport?: {
+        northeast: { lat: number; lng: number };
+        southwest: { lat: number; lng: number };
+      };
+    };
+    address_components?: GAddressComponent[];
+  };
+  status: string;
+}
+
+// Skip types that are too specific (streets) or too broad (countries/continents)
+const SKIP_TYPES = new Set([
+  "route", "street_address", "premise", "subpremise", "plus_code",
+  "postal_code", "country", "continent",
+]);
+
+function getTypeLabel(types: string[]): AutocompleteSuggestion["typeLabel"] {
+  if (types.some((t) => t === "neighborhood" || t.startsWith("sublocality"))) {
+    return "Neighborhood";
+  }
+  if (types.includes("administrative_area_level_2")) {
+    return "District";
+  }
+  if (types.some((t) => t === "natural_feature" || t === "body_of_water")) {
+    return "Area";
+  }
+  return "City";
+}
+
+function extractCountry(components: GAddressComponent[]): string {
+  return components.find((c) => c.types.includes("country"))?.long_name ?? "";
+}
+
+function extractParentCity(components: GAddressComponent[]): string | undefined {
+  return (
+    components.find((c) => c.types.includes("locality"))?.long_name ??
+    components.find((c) => c.types.includes("postal_town"))?.long_name ??
+    components.find((c) => c.types.includes("administrative_area_level_2"))?.long_name
+  );
+}
+
+async function fetchPredictions(q: string): Promise<GPrediction[]> {
+  const url = new URL(`${PLACES_BASE}/autocomplete/json`);
+  url.searchParams.set("input", q);
+  // (regions) includes localities, neighborhoods, admin areas — excludes streets
+  url.searchParams.set("types", "(regions)");
+  url.searchParams.set("key", GOOGLE_API_KEY);
   try {
-    const res = await fetch(url.toString(), {
-      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
-      next: { revalidate: 300 },
-    });
+    const res = await fetch(url.toString(), { next: { revalidate: 60 } });
     if (!res.ok) return [];
-    return await res.json();
+    const data = await res.json();
+    return data.predictions ?? [];
   } catch {
     return [];
   }
 }
 
+async function fetchPlaceDetails(placeId: string): Promise<GDetailsResult | null> {
+  const url = new URL(`${PLACES_BASE}/details/json`);
+  url.searchParams.set("place_id", placeId);
+  url.searchParams.set("fields", "geometry,address_components");
+  url.searchParams.set("key", GOOGLE_API_KEY);
+  try {
+    const res = await fetch(url.toString(), { next: { revalidate: 86400 } });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q")?.trim();
-  if (!q || q.length < 2) {
+  if (!q || q.length < 2 || !GOOGLE_API_KEY) {
     return NextResponse.json({ suggestions: [] });
   }
 
-  // Try original query; if no useful results, retry with normalized query
-  // (strips Spanish prepositions like "de la", "del" that confuse Nominatim)
-  let results = await searchNominatim(q);
-  const topImportance = (results[0] as { importance?: number })?.importance ?? 0;
-  const normalized = normalizeAutocompleteQuery(q);
-  if ((results.length === 0 || topImportance < 0.2) && normalized !== q) {
-    const retry = await searchNominatim(normalized);
-    if (retry.length > 0) results = retry;
+  const predictions = await fetchPredictions(q);
+  if (!predictions.length) {
+    return NextResponse.json({ suggestions: [] });
   }
 
+  // Filter and slice before fetching details to save quota
+  const usable = predictions
+    .filter((p) => !p.types.some((t) => SKIP_TYPES.has(t)))
+    .slice(0, 5);
+
+  // Parallel fetch place details (coords + address components)
+  const detailsList = await Promise.all(usable.map((p) => fetchPlaceDetails(p.place_id)));
+
   const suggestions: AutocompleteSuggestion[] = [];
+  const seenSlugs = new Set<string>();
 
-  for (const r of results) {
-    // Skip roads, streets, postal features, and administrative boundaries —
-    // boundaries are technical constructs (metro areas, municipalities) that
-    // users don't search for by name. Place/water/natural results are enough.
-    if (
-      r.class === "highway" ||
-      r.class === "postal_code" ||
-      r.class === "railway" ||
-      r.class === "boundary" ||
-      r.class === "landuse"
-    ) continue;
+  for (let i = 0; i < usable.length; i++) {
+    const prediction = usable[i];
+    const details = detailsList[i];
+    if (!details?.result?.geometry?.location) continue;
 
-    const address = r.address ?? {};
-    const country = address.country ?? "";
-    const lat = parseFloat(r.lat);
-    const lon = parseFloat(r.lon);
+    const { lat, lng } = details.result.geometry.location;
+    const components = details.result.address_components ?? [];
+    const typeLabel = getTypeLabel(prediction.types);
+    const country = extractCountry(components);
+    const parentCity = typeLabel !== "City" ? extractParentCity(components) : undefined;
+    const mainText = prediction.structured_formatting.main_text;
+    const secondaryText = prediction.structured_formatting.secondary_text ?? "";
 
-    const isArea = r.type ? AREA_TYPES.has(r.type) : false;
-    const isNatural =
-      (r.class === "water" || r.class === "natural") &&
-      NATURAL_TYPES.has(r.type ?? "");
-
-    let label: string;
-    let sublabel: string;
-    let typeLabel: AutocompleteSuggestion["typeLabel"];
+    // Build bbox for neighborhoods/areas from viewport
     let bbox: [number, number, number, number] | undefined;
-    let parentCity: string | undefined;
-
-    if (isNatural) {
-      label =
-        address.lake ??
-        address.island ??
-        r.display_name.split(",")[0].trim();
-
-      parentCity = address.county ?? address.city ?? address.town ?? undefined;
-      sublabel = [parentCity, country].filter(Boolean).join(", ");
-      typeLabel = "Area";
-
-      if (r.boundingbox && r.boundingbox.length === 4) {
-        const [minlat, maxlat, minlon, maxlon] = r.boundingbox.map(Number);
-        // Lakes/islands can be larger — allow up to 0.8°
-        if (maxlat - minlat <= 0.8 && maxlon - minlon <= 0.8) {
-          bbox = [minlat, minlon, maxlat, maxlon];
-        }
-      }
-    } else if (isArea) {
-      label =
-        address.neighbourhood ??
-        address.suburb ??
-        address.quarter ??
-        address.city_district ??
-        r.display_name.split(",")[0].trim();
-
-      parentCity =
-        address.city ??
-        address.town ??
-        address.village ??
-        address.municipality ??
-        undefined;
-
-      sublabel = [parentCity, country].filter(Boolean).join(", ");
-
-      typeLabel =
-        r.type === "neighbourhood"
-          ? "Neighborhood"
-          : r.type === "city_district" || r.type === "quarter"
-          ? "District"
-          : "Area";
-
-      if (r.boundingbox && r.boundingbox.length === 4) {
-        const [minlat, maxlat, minlon, maxlon] = r.boundingbox.map(Number);
-        if (maxlat - minlat <= 0.3 && maxlon - minlon <= 0.3) {
-          bbox = [minlat, minlon, maxlat, maxlon];
-        }
-      }
-    } else {
-      label =
-        address.city ??
-        address.town ??
-        address.village ??
-        address.municipality ??
-        address.hamlet ??
-        address.county ??
-        r.display_name.split(",")[0].trim();
-
-      sublabel = country;
-      typeLabel = "City";
+    const vp = details.result.geometry.viewport;
+    if (vp && typeLabel !== "City") {
+      bbox = [vp.southwest.lat, vp.southwest.lng, vp.northeast.lat, vp.northeast.lng];
     }
 
-    if (!label) continue;
+    const slug = toSlug(mainText);
+    if (seenSlugs.has(slug)) continue;
+    seenSlugs.add(slug);
 
-    const city: City = {
-      name: label,
-      slug: toSlug(label),
-      country,
-      lat,
-      lon,
-      bbox,
-      parentCity,
-    };
-
-    suggestions.push({ label, sublabel, typeLabel, city });
-
-    // Deduplicate by slug
-    if (suggestions.filter((s) => s.city.slug === city.slug).length > 1) {
-      suggestions.pop();
-    }
+    suggestions.push({
+      label: mainText,
+      sublabel: secondaryText,
+      typeLabel,
+      city: { name: mainText, slug, country, lat, lon: lng, bbox, parentCity },
+    });
   }
 
   return NextResponse.json(
     { suggestions: suggestions.slice(0, 5) },
-    {
-      headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" },
-    }
+    { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } }
   );
 }

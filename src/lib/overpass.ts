@@ -1,5 +1,5 @@
 import { unstable_cache } from "next/cache";
-import type { City, Place, PlaceCategory } from "@/types";
+import type { City, Place, PlaceCategory, DailyLifePlace, DailyLifePlaceType } from "@/types";
 import { deriveConfidence } from "./confidence";
 
 const OVERPASS_ENDPOINTS = [
@@ -198,6 +198,105 @@ export const fetchPlaces = unstable_cache(
   _fetchPlaces,
   ["overpass-places"],
   { revalidate: 3600 }
+);
+
+// ── Daily-life places fetch ───────────────────────────────────────────────────
+
+function classifyDailyLifeType(tags: Record<string, string>): DailyLifePlaceType | null {
+  const shop = tags.shop ?? "";
+  const amenity = tags.amenity ?? "";
+  if (shop === "supermarket" || shop === "grocery") return "grocery";
+  if (shop === "convenience") return "convenience";
+  if (amenity === "pharmacy" || shop === "pharmacy") return "pharmacy";
+  if (shop === "laundry" || amenity === "laundry") return "laundry";
+  return null;
+}
+
+async function _fetchDailyLifePlaces(city: City): Promise<DailyLifePlace[]> {
+  const bbox = city.bbox
+    ? `${city.bbox[0]},${city.bbox[1]},${city.bbox[2]},${city.bbox[3]}`
+    : buildBbox(city.lat, city.lon);
+
+  const query = `
+[out:json][timeout:15][maxsize:500000];
+(
+  node["shop"="supermarket"](${bbox});
+  node["shop"="grocery"](${bbox});
+  node["shop"="convenience"](${bbox});
+  node["amenity"="pharmacy"](${bbox});
+  node["shop"="pharmacy"](${bbox});
+  node["shop"="laundry"](${bbox});
+  node["amenity"="laundry"](${bbox});
+);
+out center;
+`.trim();
+
+  let res: Response | undefined;
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    try {
+      const attempt = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `data=${encodeURIComponent(query)}`,
+        next: { revalidate: 86400 },
+        signal: AbortSignal.timeout(20000),
+      });
+      if (attempt.ok) { res = attempt; break; }
+      console.warn(`[overpass-daily-life] ${endpoint} returned ${attempt.status} — trying next`);
+    } catch (err) {
+      console.warn(`[overpass-daily-life] ${endpoint} failed:`, err);
+    }
+  }
+
+  if (!res) {
+    console.error("[overpass-daily-life] all endpoints failed");
+    return [];
+  }
+
+  let json: { elements: OverpassElement[] };
+  try {
+    json = await res.json();
+    console.log(`[overpass-daily-life] elements returned: ${json.elements?.length ?? 0} for ${city.slug}`);
+  } catch (err) {
+    console.error("[overpass-daily-life] JSON parse failed:", err);
+    return [];
+  }
+
+  const places: DailyLifePlace[] = [];
+  const seen = new Set<string>();
+
+  for (const el of json.elements) {
+    const coords = getCoords(el);
+    if (!coords) continue;
+
+    const type = classifyDailyLifeType(el.tags);
+    if (!type) continue;
+
+    const name = el.tags.name ?? el.tags["name:en"] ?? type;
+    const key = `${type}:${name.trim().toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const distanceKm =
+      Math.round(haversineKm(city.lat, city.lon, coords.lat, coords.lon) * 10) / 10;
+
+    places.push({
+      id: `osm-${el.type}-${el.id}`,
+      type,
+      name: name.trim(),
+      lat: coords.lat,
+      lon: coords.lon,
+      distanceKm,
+    });
+  }
+
+  return places;
+}
+
+export const fetchDailyLifePlaces = unstable_cache(
+  _fetchDailyLifePlaces,
+  ["overpass-daily-life"],
+  { revalidate: 86400 }
 );
 
 export function sortByDistance(places: Place[]): Place[] {

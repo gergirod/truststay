@@ -1,6 +1,6 @@
-import { getPlacesCache, savePlacesCache } from "@/lib/kv";
-import { fetchPlaces } from "@/lib/overpass";
-import type { City, Place } from "@/types";
+import { getPlacesCache, savePlacesCache, getDailyLifeCache, saveDailyLifeCache } from "@/lib/kv";
+import { fetchPlaces, fetchDailyLifePlaces } from "@/lib/overpass";
+import type { City, Place, DailyLifePlace } from "@/types";
 
 /** Max age before we re-run Google enrichment even if enrichedAt is set (7 days) */
 const ENRICHMENT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -39,6 +39,22 @@ export async function getPlacesWithCache(
   savePlacesCache(city.slug, city.name, places).catch(() => {});
 
   return { places, needsEnrichment: true };
+}
+
+/**
+ * Returns the daily-life place list for a city, using KV cache when available.
+ * Follows the same cache-first pattern as getPlacesWithCache.
+ *
+ * Cache hit  → instant, no Overpass call
+ * Cache miss → fetches from Overpass, saves to KV (14-day TTL)
+ */
+export async function getDailyLifeWithCache(city: City): Promise<DailyLifePlace[]> {
+  const cached = await getDailyLifeCache(city.slug);
+  if (cached) return cached.places;
+
+  const places = await fetchDailyLifePlaces(city);
+  saveDailyLifeCache(city.slug, city.name, places).catch(() => {});
+  return places;
 }
 
 /**

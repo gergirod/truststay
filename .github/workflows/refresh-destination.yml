@@ -1,0 +1,62 @@
+name: Refresh Destination
+
+on:
+  workflow_dispatch:
+    inputs:
+      destination:
+        description: "Destination slug (required)"
+        required: true
+        type: string
+      activity:
+        description: "Activity profile to run"
+        required: true
+        default: surf
+        type: choice
+        options:
+          - surf
+          - dive
+          - hike
+          - yoga
+          - kite
+          - work_first
+          - exploring
+      structural:
+        description: "Run structural re-evaluation mode"
+        required: true
+        default: false
+        type: boolean
+      dry_run:
+        description: "Dry run only"
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+
+      - name: Refresh one destination
+        run: |
+          CMD="npm run refresh:destination -- --destination ${{ github.event.inputs.destination }} --activity ${{ github.event.inputs.activity }}"
+          if [ "${{ github.event.inputs.structural }}" = "true" ]; then
+            CMD="$CMD --structural"
+          fi
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            CMD="$CMD --dry-run"
+          fi
+          echo "Running: $CMD"
+          eval "$CMD"
+

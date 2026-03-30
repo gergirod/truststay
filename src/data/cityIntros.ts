@@ -288,4 +288,94 @@ export const CITY_INTROS: Record<string, CityIntro> = {
     bestMonths: "Jun – Nov (hammerheads), Dec – May (mantas, whale sharks)",
   },
 
+  // ── Brazil — Surf ─────────────────────────────────────────────────────────
+
+  "jericoacoara": {
+    summary:
+      "Jericoacoara is the northeast Brazil kitesurfing and windsurf hub — strong consistent trade winds June through January, plus a sunset dune walk that's become a ritual. The access road is sand and requires a 4x4; this filters the crowd and keeps the village feel intact. Work options are limited to a few cafés in the village with unreliable power during wind season; budget at least 2 weeks to make the logistics worth it.",
+    activity: "kite",
+    bestMonths: "Jul – Jan (trade winds strongest)",
+  },
+
+  "itacare": {
+    summary:
+      "Itacaré sits on the Bahia coast between cocoa-farm trails and consistent beach breaks from Tiririca to Havaizinho — the full surf range from beach to point is within 15 minutes. Base in the town center on the main strip: most cafés and the better lunch spots are walkable, though wifi quality in the cafés is variable. It's compact enough to not need a moto-taxi for daily life, but transfers to breaks and the Ilhéus airport require transport.",
+    activity: "surf",
+    bestMonths: "Mar – Sep (best swell and offshore winds)",
+  },
+
+  "pipa": {
+    summary:
+      "Pipa is a cliff-top village above a series of coves on Rio Grande do Norte's coast — Praia do Amor, Baia dos Golfinhos, and Madeiro are all walkable. Surf quality depends on swell window but base conditions are more consistent than Natal. The village itself has real café infrastructure for a small town; expect reasonable work options on the main street. Access from Natal is 90 minutes on a paved road — reachable without a 4x4.",
+    activity: "surf",
+    bestMonths: "Jun – Jan (south swell, offshore winds)",
+  },
+
+  // ── Nicaragua ─────────────────────────────────────────────────────────────
+
+  "san-juan-del-sur": {
+    summary:
+      "San Juan del Sur is a horseshoe bay town and the most practical surf base in southern Nicaragua — the center has cafés and restaurants, and you're 10–15 minutes from breaks like Playa Maderas and Playa Remanso. Wifi in town cafés is functional enough for remote work; the main street has multiple options. It's small and not overwhelmingly developed, which is the appeal — but services like a reliable pharmacy and a proper grocery require a specific errand.",
+    activity: "surf",
+    bestMonths: "Apr – Nov (south swell season)",
+  },
+
+  "popoyo": {
+    summary:
+      "Popoyo is Nicaragua's most consistent beach break and the clearest reason to base on the Tola coast — the main break is walkable from the cluster of hostels and small hotels near the point. Infrastructure is minimal by design: a few restaurants, one small shop, and limited coworking options. It works best as a 2–3 week dedicated surf base for someone who doesn't need daily work infrastructure — nearby Rivas or Managua are the fallback for anything else.",
+    activity: "surf",
+    bestMonths: "Apr – Nov (south swell)",
+  },
+
+  // ── El Salvador ───────────────────────────────────────────────────────────
+
+  "el-zonte": {
+    summary:
+      "El Zonte is 15 minutes from El Tunco along the Litoral, and the contrast is sharp — quieter black-sand beach, smaller community feel, and a Bitcoin-economy experiment that's drawn a particular type of remote worker. The surf break is a step up in quality from El Tunco with less crowd. Work infrastructure is thin outside of a few beach cafés; base in El Zonte but day-trip to El Tunco for more options.",
+    activity: "surf",
+    bestMonths: "Apr – Oct (dry season, best swell)",
+  },
+
+  // ── Ecuador ───────────────────────────────────────────────────────────────
+
+  "montanita": {
+    summary:
+      "Montañita splits into the beach surf zone and the 'pueblo' a block back — base in the pueblo if you're working; it's walkable to everything and away from the main beach noise. Surf-wise it's the primary wave on Ecuador's coast: consistent hollow beach break and a long left on the point during bigger swells. Coworking options are limited, but multiple cafés work well for sessions; the whole strip is walkable without transport.",
+    activity: "surf",
+    bestMonths: "Dec – Apr (largest swells, but more rain in Mar-Apr)",
+  },
+
+  "lobitos": {
+    summary:
+      "Lobitos is a Peruvian desert surf point — a long left that peels for 200+ meters on solid south swell, with almost nothing else nearby. The base is a cluster of hostels and houses around the point in what used to be an oil company town; infrastructure is sparse by any standard. It works for a focused surf stay of 1–2 weeks where you're prepared to self-cater; the nearest real town for groceries and pharmacies is Talara, 30 minutes north.",
+    activity: "surf",
+    bestMonths: "Apr – Oct (consistent south swell)",
+  },
+
+  // ── Panama ────────────────────────────────────────────────────────────────
+
+  "playa-venao": {
+    summary:
+      "Playa Venao is Panama's best surf beach — a protected bay on the Azuero Peninsula with consistent beach break and a small cluster of accommodation around the point. Infrastructure has grown enough that a café with wifi and a basic grocery run are possible in the immediate area, but it's still compact. Base on or near the beach and factor in a vehicle for anything beyond daily basics; the nearest real services are in Pedasi, 15 minutes east.",
+    activity: "surf",
+    bestMonths: "Apr – Nov (south swell, dry conditions Apr-May)",
+  },
+
+  // ── Mexico — inland/culture ───────────────────────────────────────────────
+
+  "bacalar": {
+    summary:
+      "Bacalar is built around the Lagoon of Seven Colors — a shallow freshwater lagoon that makes every afternoon light look like concept art. It's become a legitimate remote work base in southern Mexico: the main street (Calle 1) has multiple cafés with reliable wifi, and boat access to the lagoon is cheap and immediate. Grocery and pharmacy options exist in town; Chetumal is 90 minutes south for anything specific. It's not a surf base — it's a calm, functional base for someone who works mornings and wants the water in the afternoon.",
+    bestMonths: "Nov – Apr (dry season, clearest water)",
+  },
+
+  // ── Guatemala ─────────────────────────────────────────────────────────────
+
+  "lago-atitlan": {
+    summary:
+      "Lake Atitlán sits between three volcanoes at 1,560m — the geography is the draw, and the three main villages (San Pedro, San Marcos, Panajachel) each have a different character. San Pedro has the most developed remote work infrastructure: multiple cafés on the main street, a few coworking-adjacent spots, and the densest collection of restaurants. Boat taxis between villages take 20–40 minutes; factor this into your daily routine. Altitude can affect energy for the first 2–3 days.",
+    activity: "hike",
+    bestMonths: "Nov – Apr (dry season)",
+  },
+
 };

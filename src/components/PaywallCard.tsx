@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { track } from "@/lib/analytics";
 import { CHECKOUT_PENDING_KEY } from "@/components/CheckoutSuccessTracker";
 
@@ -22,6 +22,12 @@ interface Props {
   parentCitySlug?: string;
   /** Display price for the city bundle, e.g. "15" */
   bundlePrice?: string;
+  /**
+   * Whether the user has already shaped their stay (intent present in URL).
+   * When false, locked copy should not reference "your base" — no base has
+   * been computed yet and the personalized recommendation doesn't exist.
+   */
+  hasIntent?: boolean;
 }
 
 export function PaywallCard({
@@ -33,6 +39,7 @@ export function PaywallCard({
   parentCity,
   parentCitySlug,
   bundlePrice,
+  hasIntent = false,
 }: Props) {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [bundleStatus, setBundleStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -135,14 +142,15 @@ export function PaywallCard({
     <div className="rounded-2xl border border-dune bg-white">
       <div className="p-6">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
-          City Pass — {cityName}
+          Your stay setup — {cityName}
         </p>
         <h2 className="mt-3 text-lg font-semibold text-bark">
-          See exactly what and where
+          Everything you need before you arrive
         </h2>
         <p className="mt-2 text-sm leading-6 text-umber">
-          You can see how many places are near your base and how well they fit.
-          Unlock to get the names, ratings, hours, and Maps links for every one.
+          You can see how the base area looks and which places exist nearby.
+          Unlock to get the full picture — what fits, what to plan around, and
+          every option sorted by distance from your base.
         </p>
 
         {hookLine && (
@@ -152,11 +160,17 @@ export function PaywallCard({
         {totalLocked > 0 && (
           <div className="mt-4">
             <ul className="space-y-1.5">
-              <LockedItem label="Place names and exact locations" />
-              <LockedItem label="Ratings and review counts from Google" />
-              <LockedItem label="Opening hours and open/closed status" />
-              <LockedItem label="Wi‑Fi confidence and noise signals" />
-              <LockedItem label="Direct Google Maps links" />
+              <LockedItem
+                label={
+                  hasIntent
+                    ? "Why your base fits and what to plan around"
+                    : "Your best base recommendation — why it fits and what to plan around"
+                }
+              />
+              <LockedItem label="Every work spot and café sorted by distance" />
+              <LockedItem label="Daily essentials — grocery and pharmacy — near your base" />
+              <LockedItem label="Hours, ratings, and Maps links for each place" />
+              <LockedItem label="Honest signals: wifi quality, noise level, work fit" />
             </ul>
           </div>
         )}
@@ -170,8 +184,8 @@ export function PaywallCard({
             {status === "loading"
               ? "Opening checkout…"
               : displayPrice
-              ? `Unlock ${cityName} setup — $${displayPrice}`
-              : `Unlock ${cityName} setup`}
+              ? `Get your full setup — $${displayPrice}`
+              : `Get your full setup`}
           </button>
           <p className="text-sm text-umber">
             One-time &middot; No account needed &middot; Instant access
@@ -182,11 +196,11 @@ export function PaywallCard({
           <p className="mt-3 text-sm text-red-600">{errorMsg}</p>
         )}
 
-        {/* Bundle option: unlock all neighborhoods in the parent city */}
+        {/* Full city option: get setup for every area in the parent city */}
         {parentCity && parentCitySlug && bundlePrice && (
           <div className="mt-5 pt-5 border-t border-dune">
             <p className="text-sm text-umber mb-3">
-              Exploring multiple neighborhoods in {parentCity}?
+              Considering multiple areas in {parentCity}?
             </p>
             <button
               onClick={handleBundleUnlock}
@@ -195,10 +209,10 @@ export function PaywallCard({
             >
               {bundleStatus === "loading"
                 ? "Opening checkout…"
-                : `Unlock all ${parentCity} neighborhoods — $${bundlePrice}`}
+                : `Get the full ${parentCity} setup — $${bundlePrice}`}
             </button>
             <p className="mt-2 text-xs text-umber">
-              One payment · All neighborhoods unlocked
+              One payment · Every area in {parentCity} fully prepared
             </p>
             {bundleStatus === "error" && (
               <p className="mt-2 text-sm text-red-600">{errorMsg}</p>
@@ -210,7 +224,7 @@ export function PaywallCard({
   );
 }
 
-function LockedItem({ label }: { label: string }) {
+function LockedItem({ label }: { label: React.ReactNode }) {
   return (
     <li className="flex items-center gap-2.5 text-sm text-umber">
       <span className="h-1 w-1 flex-shrink-0 rounded-full bg-dune" />

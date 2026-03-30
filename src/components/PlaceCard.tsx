@@ -24,6 +24,8 @@ interface Props {
   citySlug?: string;
   confirmCount?: number;
   reportCount?: number;
+  /** Stay-fit context chip shown at the top of the modal when intent is active */
+  stayFitContext?: string;
 }
 
 type BadgeTier = "verified" | "neutral" | "uncertain";
@@ -75,6 +77,7 @@ export function PlaceCard({
   citySlug = "",
   confirmCount = 0,
   reportCount = 0,
+  stayFitContext,
 }: Props) {
   const [modalOpen, setModalOpen] = useState(false);
   const { confidence } = place;
@@ -259,7 +262,7 @@ export function PlaceCard({
 
       {/* Modal — works in both enriched and OSM-only fallback modes */}
       {modalOpen && (
-        <PlaceModal place={place} onClose={() => setModalOpen(false)} />
+        <PlaceModal place={place} onClose={() => setModalOpen(false)} stayFitContext={stayFitContext} />
       )}
     </>
   );

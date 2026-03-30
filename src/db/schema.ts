@@ -1,0 +1,344 @@
+import { relations } from "drizzle-orm";
+import {
+  boolean,
+  doublePrecision,
+  index,
+  integer,
+  jsonb,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
+
+export const activityEnum = pgEnum("activity", [
+  "surf",
+  "dive",
+  "hike",
+  "yoga",
+  "kite",
+  "work_first",
+  "exploring",
+]);
+
+export const workModeEnum = pgEnum("work_mode", ["light", "balanced", "heavy"]);
+export const dailyBalanceEnum = pgEnum("daily_balance", [
+  "purpose_first",
+  "balanced",
+  "work_first",
+]);
+
+export const microAreaStatusEnum = pgEnum("micro_area_status", [
+  "candidate",
+  "active",
+  "deprecated",
+]);
+
+export const placeCategoryEnum = pgEnum("place_category", [
+  "coworking",
+  "cafe",
+  "food",
+  "gym",
+  "other",
+]);
+
+export const refreshJobTypeEnum = pgEnum("refresh_job_type", [
+  "volatile_metrics",
+  "structural_zones",
+  "destination_backfill",
+  "manual_refresh",
+]);
+
+export const refreshScopeTypeEnum = pgEnum("refresh_scope_type", [
+  "global",
+  "destination",
+  "micro_area",
+]);
+
+export const refreshJobStatusEnum = pgEnum("refresh_job_status", [
+  "queued",
+  "running",
+  "success",
+  "failed",
+]);
+
+export const destinations = pgTable(
+  "destinations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    slug: text("slug").notNull(),
+    name: text("name").notNull(),
+    country: text("country").notNull(),
+    anchorLat: doublePrecision("anchor_lat"),
+    anchorLon: doublePrecision("anchor_lon"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    slugUnique: uniqueIndex("destinations_slug_unique").on(table.slug),
+  }),
+);
+
+export const microAreas = pgTable(
+  "micro_areas",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    destinationId: uuid("destination_id")
+      .notNull()
+      .references(() => destinations.id, { onDelete: "cascade" }),
+    canonicalName: text("canonical_name").notNull(),
+    slug: text("slug").notNull(),
+    centerLat: doublePrecision("center_lat").notNull(),
+    centerLon: doublePrecision("center_lon").notNull(),
+    radiusKm: doublePrecision("radius_km").notNull(),
+    status: microAreaStatusEnum("status").default("candidate").notNull(),
+    confidence: integer("confidence"),
+    source: text("source"),
+    lastVerifiedAt: timestamp("last_verified_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    destinationNameUnique: uniqueIndex("micro_areas_destination_name_unique").on(
+      table.destinationId,
+      table.canonicalName,
+    ),
+    destinationSlugUnique: uniqueIndex("micro_areas_destination_slug_unique").on(
+      table.destinationId,
+      table.slug,
+    ),
+    destinationIdx: index("micro_areas_destination_idx").on(table.destinationId),
+  }),
+);
+
+export const microAreaAliases = pgTable(
+  "micro_area_aliases",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    destinationId: uuid("destination_id")
+      .notNull()
+      .references(() => destinations.id, { onDelete: "cascade" }),
+    microAreaId: uuid("micro_area_id")
+      .notNull()
+      .references(() => microAreas.id, { onDelete: "cascade" }),
+    aliasName: text("alias_name").notNull(),
+    normalizedAlias: text("normalized_alias").notNull(),
+    source: text("source"),
+    confidence: integer("confidence"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    aliasUnique: uniqueIndex("micro_area_aliases_destination_alias_unique").on(
+      table.destinationId,
+      table.normalizedAlias,
+    ),
+    microAreaIdx: index("micro_area_aliases_micro_area_idx").on(table.microAreaId),
+  }),
+);
+
+export const places = pgTable(
+  "places",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    destinationId: uuid("destination_id")
+      .notNull()
+      .references(() => destinations.id, { onDelete: "cascade" }),
+    externalPlaceId: text("external_place_id"),
+    name: text("name").notNull(),
+    normalizedName: text("normalized_name").notNull(),
+    category: placeCategoryEnum("category").default("other").notNull(),
+    lat: doublePrecision("lat"),
+    lon: doublePrecision("lon"),
+    address: text("address"),
+    googleMapsUri: text("google_maps_uri"),
+    websiteUri: text("website_uri"),
+    isActive: boolean("is_active").default(true).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    destinationExternalUnique: uniqueIndex(
+      "places_destination_external_id_unique",
+    ).on(table.destinationId, table.externalPlaceId),
+    destinationNameIdx: index("places_destination_name_idx").on(
+      table.destinationId,
+      table.normalizedName,
+    ),
+  }),
+);
+
+export const placeMetrics = pgTable(
+  "place_metrics",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    placeId: uuid("place_id")
+      .notNull()
+      .references(() => places.id, { onDelete: "cascade" }),
+    rating: doublePrecision("rating"),
+    reviewCount: integer("review_count"),
+    openingHoursJson: jsonb("opening_hours_json"),
+    priceLevel: text("price_level"),
+    editorialSummary: text("editorial_summary"),
+    source: text("source"),
+    refreshedAt: timestamp("refreshed_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    placeUnique: uniqueIndex("place_metrics_place_unique").on(table.placeId),
+    refreshedIdx: index("place_metrics_refreshed_idx").on(table.refreshedAt),
+  }),
+);
+
+export const microAreaSnapshots = pgTable(
+  "micro_area_snapshots",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    microAreaId: uuid("micro_area_id")
+      .notNull()
+      .references(() => microAreas.id, { onDelete: "cascade" }),
+    activity: activityEnum("activity").notNull(),
+    workMode: workModeEnum("work_mode").notNull(),
+    dailyBalance: dailyBalanceEnum("daily_balance").notNull(),
+    scores: jsonb("scores").notNull(),
+    finalScore: doublePrecision("final_score"),
+    rank: integer("rank"),
+    evidenceSummary: jsonb("evidence_summary"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    microAreaIdx: index("micro_area_snapshots_micro_area_idx").on(table.microAreaId),
+    createdIdx: index("micro_area_snapshots_created_idx").on(table.createdAt),
+  }),
+);
+
+export const refreshJobs = pgTable(
+  "refresh_jobs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    jobType: refreshJobTypeEnum("job_type").notNull(),
+    scopeType: refreshScopeTypeEnum("scope_type").notNull(),
+    destinationId: uuid("destination_id").references(() => destinations.id, {
+      onDelete: "set null",
+    }),
+    microAreaId: uuid("micro_area_id").references(() => microAreas.id, {
+      onDelete: "set null",
+    }),
+    status: refreshJobStatusEnum("status").default("queued").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    error: text("error"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    statusCreatedIdx: index("refresh_jobs_status_created_idx").on(
+      table.status,
+      table.createdAt,
+    ),
+    destinationIdx: index("refresh_jobs_destination_idx").on(table.destinationId),
+  }),
+);
+
+export const destinationsRelations = relations(destinations, ({ many }) => ({
+  microAreas: many(microAreas),
+  places: many(places),
+}));
+
+export const microAreasRelations = relations(microAreas, ({ one, many }) => ({
+  destination: one(destinations, {
+    fields: [microAreas.destinationId],
+    references: [destinations.id],
+  }),
+  aliases: many(microAreaAliases),
+  snapshots: many(microAreaSnapshots),
+}));
+
+export const microAreaAliasesRelations = relations(
+  microAreaAliases,
+  ({ one }) => ({
+    destination: one(destinations, {
+      fields: [microAreaAliases.destinationId],
+      references: [destinations.id],
+    }),
+    microArea: one(microAreas, {
+      fields: [microAreaAliases.microAreaId],
+      references: [microAreas.id],
+    }),
+  }),
+);
+
+export const placesRelations = relations(places, ({ one, many }) => ({
+  destination: one(destinations, {
+    fields: [places.destinationId],
+    references: [destinations.id],
+  }),
+  metrics: many(placeMetrics),
+}));
+
+export const placeMetricsRelations = relations(placeMetrics, ({ one }) => ({
+  place: one(places, {
+    fields: [placeMetrics.placeId],
+    references: [places.id],
+  }),
+}));
+
+export const microAreaSnapshotsRelations = relations(
+  microAreaSnapshots,
+  ({ one }) => ({
+    microArea: one(microAreas, {
+      fields: [microAreaSnapshots.microAreaId],
+      references: [microAreas.id],
+    }),
+  }),
+);
+
+export const refreshJobsRelations = relations(refreshJobs, ({ one }) => ({
+  destination: one(destinations, {
+    fields: [refreshJobs.destinationId],
+    references: [destinations.id],
+  }),
+  microArea: one(microAreas, {
+    fields: [refreshJobs.microAreaId],
+    references: [microAreas.id],
+  }),
+}));
+
+export type Destination = typeof destinations.$inferSelect;
+export type NewDestination = typeof destinations.$inferInsert;
+export type MicroArea = typeof microAreas.$inferSelect;
+export type NewMicroArea = typeof microAreas.$inferInsert;
+export type MicroAreaAlias = typeof microAreaAliases.$inferSelect;
+export type NewMicroAreaAlias = typeof microAreaAliases.$inferInsert;
+export type Place = typeof places.$inferSelect;
+export type NewPlace = typeof places.$inferInsert;
+export type PlaceMetric = typeof placeMetrics.$inferSelect;
+export type NewPlaceMetric = typeof placeMetrics.$inferInsert;
+export type MicroAreaSnapshot = typeof microAreaSnapshots.$inferSelect;
+export type NewMicroAreaSnapshot = typeof microAreaSnapshots.$inferInsert;
+export type RefreshJob = typeof refreshJobs.$inferSelect;
+export type NewRefreshJob = typeof refreshJobs.$inferInsert;
+

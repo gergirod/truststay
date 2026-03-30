@@ -1,0 +1,70 @@
+name: Backfill Activity Destinations
+
+on:
+  workflow_dispatch:
+    inputs:
+      activity:
+        description: "Activity cluster to backfill"
+        required: true
+        default: surf
+        type: choice
+        options:
+          - surf
+          - dive
+          - hike
+          - yoga
+          - kite
+          - work_first
+          - exploring
+          - all
+      limit:
+        description: "Optional cap on destination count"
+        required: false
+        default: "25"
+        type: string
+      write:
+        description: "Persist accepted zones to canonical DB"
+        required: true
+        default: false
+        type: boolean
+      dry_run:
+        description: "Evaluate only, no writes"
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+
+      - name: Run backfill
+        run: |
+          CMD="npm run backfill:activity -- --activity ${{ github.event.inputs.activity }} --limit ${{ github.event.inputs.limit }}"
+          if [ "${{ github.event.inputs.write }}" = "true" ]; then
+            CMD="$CMD --write"
+          fi
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            CMD="$CMD --dry-run"
+          fi
+          echo "Running: $CMD"
+          eval "$CMD"
+
+      - name: Upload report artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: backfill-report
+          path: reports/*.json
+

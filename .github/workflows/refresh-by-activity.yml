@@ -1,0 +1,109 @@
+name: Refresh by Activity
+
+on:
+  workflow_dispatch:
+    inputs:
+      activity:
+        description: "Activity to refresh"
+        required: true
+        type: choice
+        options:
+          - surf
+          - dive
+          - hike
+          - yoga
+          - kite
+          - work_first
+          - exploring
+          - all
+      destination:
+        description: "Optional single destination slug override (e.g. popoyo)"
+        required: false
+        type: string
+      limit:
+        description: "Optional cap on number of destinations"
+        required: false
+        default: "0"
+        type: string
+      dry_run:
+        description: "Run without calling refresh pipeline"
+        required: true
+        default: false
+        type: boolean
+
+  schedule:
+    # Daily surf refresh at 02:00 UTC
+    - cron: "0 2 * * *"
+    # Every other day dive + hike refresh at 03:30 UTC
+    - cron: "30 3 */2 * *"
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      NODE_ENV: production
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve scheduled activity
+        id: scheduled
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            if [ "${{ github.event.schedule }}" = "0 2 * * *" ]; then
+              echo "activity=surf" >> "$GITHUB_OUTPUT"
+            else
+              echo "activity=dive" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Run manual/scheduled refresh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_ACTIVITY: ${{ github.event.inputs.activity }}
+          INPUT_DESTINATION: ${{ github.event.inputs.destination }}
+          INPUT_LIMIT: ${{ github.event.inputs.limit }}
+          INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
+          SCHEDULED_ACTIVITY: ${{ steps.scheduled.outputs.activity }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            ACTIVITY="$INPUT_ACTIVITY"
+          else
+            ACTIVITY="$SCHEDULED_ACTIVITY"
+          fi
+
+          DEST="$INPUT_DESTINATION"
+          LIMIT="$INPUT_LIMIT"
+          DRY="$INPUT_DRY_RUN"
+
+          CMD="npm run refresh:activity -- --activity ${ACTIVITY}"
+
+          if [ -n "$DEST" ]; then
+            CMD="$CMD --destination $DEST"
+          fi
+
+          if [ -n "$LIMIT" ] && [ "$LIMIT" != "0" ]; then
+            CMD="$CMD --limit $LIMIT"
+          fi
+
+          if [ "$DRY" = "true" ]; then
+            CMD="$CMD --dry-run"
+          fi
+
+          echo "Running: $CMD"
+          eval "$CMD"
+

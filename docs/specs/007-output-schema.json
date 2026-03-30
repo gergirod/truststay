@@ -1,0 +1,178 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TrustStay Final Output",
+  "description": "Canonical output of the remote worker location intelligence engine",
+  "type": "object",
+  "required": ["user_profile", "weights", "candidate_micro_areas", "ranking", "recommendation", "assumptions", "unknowns"],
+  "properties": {
+    "user_profile": {
+      "type": "object",
+      "required": ["destination", "main_activity", "work_mode", "daily_balance", "routine_needs", "transport_assumption", "hard_constraints"],
+      "properties": {
+        "destination": { "type": "string" },
+        "duration_days": { "type": ["number", "null"] },
+        "main_activity": {
+          "type": "string",
+          "enum": ["surf", "dive", "hike", "yoga", "kite", "work_first", "exploring"]
+        },
+        "work_mode": {
+          "type": "string",
+          "enum": ["light", "balanced", "heavy"]
+        },
+        "daily_balance": {
+          "type": "string",
+          "enum": ["purpose_first", "balanced", "work_first"]
+        },
+        "routine_needs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["gym", "grocery_walkable", "pharmacy_nearby", "laptop_cafe", "laundry"]
+          }
+        },
+        "budget_level": {
+          "type": ["string", "null"],
+          "enum": ["budget", "mid_range", "premium", null]
+        },
+        "preferred_vibe": {
+          "type": ["string", "null"],
+          "enum": ["social", "local", "quiet", null]
+        },
+        "transport_assumption": {
+          "type": "string",
+          "enum": ["walking", "scooter", "car", "unknown"]
+        },
+        "hard_constraints": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "weights": {
+      "type": "object",
+      "required": ["activity_access", "internet_reliability", "work_environment", "routine_support", "walkability_and_friction", "food_and_coffee", "sleep_noise_comfort", "budget_value", "vibe_match"],
+      "properties": {
+        "activity_access": { "type": "number", "minimum": 0, "maximum": 1 },
+        "internet_reliability": { "type": "number", "minimum": 0, "maximum": 1 },
+        "work_environment": { "type": "number", "minimum": 0, "maximum": 1 },
+        "routine_support": { "type": "number", "minimum": 0, "maximum": 1 },
+        "walkability_and_friction": { "type": "number", "minimum": 0, "maximum": 1 },
+        "food_and_coffee": { "type": "number", "minimum": 0, "maximum": 1 },
+        "sleep_noise_comfort": { "type": "number", "minimum": 0, "maximum": 1 },
+        "budget_value": { "type": "number", "minimum": 0, "maximum": 1 },
+        "vibe_match": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "candidate_micro_areas": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "summary", "scores", "penalties", "strengths", "weaknesses", "constraint_breakers", "best_for", "confidence"],
+        "properties": {
+          "name": { "type": "string" },
+          "summary": { "type": "string" },
+          "scores": {
+            "type": "object",
+            "required": ["activity_access", "internet_reliability", "work_environment", "routine_support", "walkability_and_friction", "food_and_coffee", "sleep_noise_comfort", "budget_value", "vibe_match", "weighted_total"],
+            "properties": {
+              "activity_access": { "type": "number", "minimum": 0, "maximum": 10 },
+              "internet_reliability": { "type": "number", "minimum": 0, "maximum": 10 },
+              "work_environment": { "type": "number", "minimum": 0, "maximum": 10 },
+              "routine_support": { "type": "number", "minimum": 0, "maximum": 10 },
+              "walkability_and_friction": { "type": "number", "minimum": 0, "maximum": 10 },
+              "food_and_coffee": { "type": "number", "minimum": 0, "maximum": 10 },
+              "sleep_noise_comfort": { "type": "number", "minimum": 0, "maximum": 10 },
+              "budget_value": { "type": "number", "minimum": 0, "maximum": 10 },
+              "vibe_match": { "type": "number", "minimum": 0, "maximum": 10 },
+              "weighted_total": { "type": "number", "minimum": 0, "maximum": 10 }
+            }
+          },
+          "penalties": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["reason", "value"],
+              "properties": {
+                "reason": { "type": "string" },
+                "value": { "type": "number", "minimum": 0 }
+              }
+            }
+          },
+          "strengths": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "weaknesses": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "constraint_breakers": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "best_for": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "ranking": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rank", "micro_area", "final_score"],
+        "properties": {
+          "rank": { "type": "integer", "minimum": 1 },
+          "micro_area": { "type": "string" },
+          "final_score": { "type": "number", "minimum": 0, "maximum": 10 }
+        }
+      }
+    },
+    "recommendation": {
+      "type": "object",
+      "required": ["top_pick", "why_it_wins", "main_tradeoffs", "alternatives", "warnings", "what_would_change_the_ranking"],
+      "properties": {
+        "top_pick": { "type": "string" },
+        "why_it_wins": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "main_tradeoffs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "alternatives": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "best_for", "tradeoff"],
+            "properties": {
+              "name": { "type": "string" },
+              "best_for": { "type": "string" },
+              "tradeoff": { "type": "string" }
+            }
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "what_would_change_the_ranking": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "unknowns": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

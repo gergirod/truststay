@@ -5,9 +5,9 @@ interface Props {
 }
 
 const confidenceNote: Record<CitySummary["confidence"], string> = {
-  low: "Based on limited data — score may not reflect reality.",
-  medium: "Based on moderate data coverage.",
-  high: "Based on strong data coverage.",
+  low: "Limited data for this area — treat this as an early signal, not a final answer.",
+  medium: "Moderate data coverage — most key places are likely accounted for.",
+  high: "",
 };
 
 const confidenceColor: Record<CitySummary["confidence"], string> = {
@@ -23,7 +23,7 @@ export function RoutineSummaryCard({ summary }: Props) {
       <div className="h-[3px] bg-sage" />
       <div className="p-6">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
-          Routine score
+          How functional is this base?
         </p>
         <div className="mt-4 flex items-baseline gap-2">
           <span className="text-4xl font-bold tracking-tight text-bark">
@@ -34,9 +34,11 @@ export function RoutineSummaryCard({ summary }: Props) {
         <p className="mt-3 text-sm leading-6 text-stone-600">
           {summary.summaryText}
         </p>
-        <p className={`mt-3 text-xs leading-5 ${confidenceColor[summary.confidence]}`}>
-          {confidenceNote[summary.confidence]}
-        </p>
+        {confidenceNote[summary.confidence] && (
+          <p className={`mt-3 text-xs leading-5 ${confidenceColor[summary.confidence]}`}>
+            {confidenceNote[summary.confidence]}
+          </p>
+        )}
       </div>
     </div>
   );

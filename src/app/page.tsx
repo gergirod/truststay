@@ -300,18 +300,18 @@ const DESTINATION_CATEGORIES = [
 const HOW_IT_WORKS = [
   {
     n: "01",
-    title: "Search any spot",
-    body: "Enter any city, surf town, or activity destination where you plan to spend time.",
+    title: "Tell us where you're going and how you work",
+    body: "Enter your destination and shape your stay — surf + light work, focused remote, whatever your rhythm is. No account required.",
   },
   {
     n: "02",
-    title: "Get a recommended area",
-    body: "We analyze work spots, gyms, and food options to suggest a practical base area.",
+    title: "Get your base recommendation",
+    body: "TrustStay finds the best area for your kind of stay — with honest signals on work infrastructure, daily life, and what to plan around before you arrive.",
   },
   {
     n: "03",
-    title: "Read honest confidence signals",
-    body: "Every place shows what we know and what we don't — no fake certainty.",
+    title: "Arrive knowing your setup",
+    body: "Every work spot, café, and grocery ranked by distance from your base. No guessing, no day-one scrambling, no wasted first week.",
   },
 ];
 
@@ -319,7 +319,7 @@ const WHY_TRUSTAY = [
   {
     accent: "teal" as const,
     title: "Decision support, not discovery clutter",
-    body: "We answer one question: where should you base yourself to get functional fast.",
+    body: "We answer one question: where should you base yourself — and why that area fits your kind of stay.",
   },
   {
     accent: "teal" as const,
@@ -328,27 +328,28 @@ const WHY_TRUSTAY = [
   },
   {
     accent: "coral" as const,
-    title: "Built for routine, not tourism",
-    body: "Work spots, gyms, and food options that support a repeatable daily rhythm.",
+    title: "Built for preparation, not tourism",
+    body: "Work spots, groceries, and daily essentials — everything you need to know before you arrive.",
   },
 ];
 
 const FREE_FEATURES = [
-  "Neighborhood grid for major cities",
-  "Routine score and suggested base area",
-  "Top picks per category (work, coffee, training)",
+  "Recommended base area for your destination",
+  "Stay infrastructure score and coverage summary",
+  "One work spot, café, and training option near your base",
 ];
 
 const PASS_FEATURES = [
-  "Full place lists for one neighborhood",
-  "Ratings, hours, and Maps links",
-  "Confidence breakdown per place",
+  "Your full base recommendation — why it fits, what to plan around",
+  "Every work spot, café, and wellbeing option sorted by distance",
+  "Hours, ratings, and Maps links for each place",
+  "Honest wifi, noise, and work-fit signals per place",
 ];
 
 const BUNDLE_FEATURES = [
-  "All neighborhoods in one spot unlocked",
-  "Everything in the Neighborhood Pass",
-  "One payment — explore freely",
+  "Full setup for every area in the city",
+  "Best base recommendation across all neighborhoods",
+  "One payment — arrive prepared for any part of the city",
 ];
 
 export default function HomePage() {
@@ -368,17 +369,17 @@ export default function HomePage() {
 
       <main className="flex-1">
         {/* ── Hero ── map fills everything, glass card floats on top ─ */}
-        <section className="relative border-b border-dune bg-sand overflow-hidden" style={{ minHeight: "600px" }}>
+        <section className="relative border-b border-dune bg-sand min-h-[600px]">
 
-          {/* Full-bleed map background — single instance, all screen sizes */}
+          {/* Full-bleed map background */}
           <div className="absolute inset-0 z-0">
             <HeroMap />
           </div>
 
-          {/* Glass content card — floats above map */}
-          <div className="relative z-10 mx-auto max-w-4xl px-6 py-10 sm:py-16 flex items-center justify-center min-h-[600px]">
-            <div className="w-full max-w-[640px] rounded-3xl border border-white/20 bg-white/85 shadow-2xl overflow-hidden backdrop-blur-none">
-              <div className="px-8 py-10 sm:px-12 sm:py-14">
+          {/* Glass content card */}
+          <div className="relative z-10 mx-auto max-w-4xl px-6 py-16 sm:py-24 flex items-center justify-center">
+            <div className="w-full max-w-[600px] rounded-3xl border border-white/20 bg-white/85 shadow-2xl backdrop-blur-none">
+              <div className="px-8 py-8 sm:px-12 sm:py-12">
 
                 {/* Eyebrow */}
                 <div className="inline-flex items-center gap-2 rounded-full border border-dune bg-white/70 px-3 py-1">
@@ -389,16 +390,14 @@ export default function HomePage() {
                 </div>
 
                 <h1 className="mt-6 text-4xl font-bold leading-[1.1] tracking-tight text-bark sm:text-5xl lg:text-[52px]">
-                  Land in a new spot.
-                  <br />
-                  Keep your routine{" "}
-                  <span className="text-coral">from day one.</span>
+                  Know where to base yourself{" "}
+                  <span className="text-coral">before you land.</span>
                 </h1>
 
                 <p className="mt-5 max-w-md text-base leading-7 text-umber">
-                  Whether you're surfing at 6am, hiking at dawn, or just
-                  need everything walkable — find your base area, work
-                  spots, food, and wellbeing options before you arrive.
+                  You already chose the place. TrustStay helps you find
+                  your best base, understand daily life, and know what to
+                  plan around — before you arrive.
                 </p>
 
                 <div className="mt-8">
@@ -441,10 +440,10 @@ export default function HomePage() {
         <section className="border-b border-dune bg-sand">
           <div className="mx-auto max-w-4xl px-6 py-20">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
-              Browse destinations
+              Pick your spot
             </p>
             <p className="mt-2 text-sm text-umber">
-              170+ spots across Latin America and the Caribbean — filter by region or activity.
+              Already know where you&rsquo;re going? Pick your destination — we&rsquo;ll show you where to base yourself and what to prepare before you arrive.
             </p>
 
             <div className="mt-8">
@@ -485,9 +484,12 @@ export default function HomePage() {
         <section className="bg-white">
           <div className="mx-auto max-w-4xl px-6 py-20">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
-              Pricing
+              What&rsquo;s included
             </p>
-            <div className="mt-12 grid gap-4 sm:grid-cols-3">
+            <p className="mt-2 text-sm text-umber">
+              Start free. Unlock your full setup when you&rsquo;re ready.
+            </p>
+            <div className="mt-10 grid gap-4 sm:grid-cols-3">
               {/* Free tier */}
               <div className="flex flex-col rounded-2xl border border-dune bg-white p-6">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
@@ -510,11 +512,11 @@ export default function HomePage() {
                 </ul>
               </div>
 
-              {/* Neighborhood Pass */}
+              {/* Stay Setup */}
               <div className="flex flex-col rounded-2xl bg-bark p-6 shadow-md">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/60">
-                    Neighborhood Pass
+                    Stay Setup
                   </p>
                   <span className="rounded-full bg-teal px-2.5 py-0.5 text-xs font-semibold text-white">
                     Popular
@@ -523,7 +525,7 @@ export default function HomePage() {
                 <p className="mt-3 text-3xl font-bold tracking-tight text-white">
                   ${process.env.NEXT_PUBLIC_CITY_PASS_PRICE ?? "5"}
                 </p>
-                <p className="mt-1 text-xs text-white/60">One-time per neighborhood</p>
+                <p className="mt-1 text-xs text-white/60">One-time per area</p>
                 <ul className="mt-5 flex-1 space-y-2.5">
                   {PASS_FEATURES.map((f) => (
                     <li
@@ -537,15 +539,15 @@ export default function HomePage() {
                 </ul>
               </div>
 
-              {/* City Bundle */}
+              {/* Full City Setup */}
               <div className="flex flex-col rounded-2xl border border-[#8FB7B3] bg-[#DCEBE9] p-6">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5F5A54]">
-                  City Bundle
+                  Full City Setup
                 </p>
                 <p className="mt-3 text-3xl font-bold tracking-tight text-bark">
                   ${process.env.NEXT_PUBLIC_CITY_BUNDLE_PRICE ?? "15"}
                 </p>
-                <p className="mt-1 text-xs text-[#5F5A54]">All neighborhoods, one spot</p>
+                <p className="mt-1 text-xs text-[#5F5A54]">Every area, fully prepared</p>
                 <ul className="mt-5 flex-1 space-y-2.5">
                   {BUNDLE_FEATURES.map((f) => (
                     <li
@@ -573,7 +575,7 @@ export default function HomePage() {
       <footer className="border-t border-dune bg-white">
         <div className="mx-auto max-w-4xl px-6 py-8">
           <p className="text-sm text-umber">
-            Truststay — built for remote workers who need to get functional fast.
+            TrustStay — know your base before you arrive.
           </p>
         </div>
       </footer>

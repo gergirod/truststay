@@ -1,10 +1,9 @@
-import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { geocodeCity, reverseGeocodeArea, toSlug } from "@/lib/geocode";
 import { sortByDistance, haversineKm } from "@/lib/overpass";
-import { getPlacesWithCache, saveEnrichedPlaces } from "@/lib/placesCache";
-import { computeCitySummary, computeBaseCentroid } from "@/lib/scoring";
+import { getPlacesWithCache, saveEnrichedPlaces, getDailyLifeWithCache } from "@/lib/placesCache";
+import { computeCitySummary, computeBaseCentroid, computeStayFitScore, appendDailyLifeSignals } from "@/lib/scoring";
 import { enrichPlaces } from "@/lib/enrichment";
 import type { Place } from "@/types";
 import { isUnlocked } from "@/lib/unlock";
@@ -26,7 +25,53 @@ import { getNarrative } from "@/lib/kv";
 import { discoverNeighborhoods } from "@/lib/neighborhoodDiscovery";
 import { EmailCapture } from "@/components/EmailCapture";
 import { ShareButton } from "@/components/ShareButton";
-import type { City } from "@/types";
+import { BestBaseCard } from "@/components/BestBaseCard";
+import { IntentPrompt } from "@/components/IntentPrompt";
+import { getOrGenerateStayFitNarrative } from "@/lib/narrativeAI";
+import type { StayFitNarrative } from "@/lib/narrativeAI";
+import { getOrGenerateEnrichedNarrative } from "@/lib/placeEnrichmentAgent";
+import type { MicroAreaNarrative } from "@/lib/placeEnrichmentAgent";
+import { MicroAreaStack } from "@/components/MicroAreaStack";
+import type { City, StayIntent, StayPurpose, WorkStyle, VibePreference, DailyBalance } from "@/types";
+
+// ── Stay intent parsing ───────────────────────────────────────────────────────
+// Intent is resolved from URL params and threaded through as a typed prop.
+// The UI "Shape this stay" module (milestone 2) will write these params.
+
+const VALID_PURPOSES: StayPurpose[] = [
+  "surf", "dive", "hike", "yoga", "kite", "work_first", "exploring",
+];
+const VALID_WORK_STYLES: WorkStyle[] = ["light", "balanced", "heavy"];
+const VALID_VIBES: VibePreference[] = ["social", "local", "quiet"];
+const VALID_DAILY_BALANCES: DailyBalance[] = ["purpose_first", "balanced", "work_first"];
+
+function parseIntent(sp: SearchParams): StayIntent | null {
+  const purpose = typeof sp.purpose === "string" ? sp.purpose : undefined;
+  const workStyle = typeof sp.workStyle === "string" ? sp.workStyle : undefined;
+  if (!purpose || !VALID_PURPOSES.includes(purpose as StayPurpose)) return null;
+  if (!workStyle || !VALID_WORK_STYLES.includes(workStyle as WorkStyle)) return null;
+  const vibeRaw = typeof sp.vibe === "string" ? sp.vibe : undefined;
+  const vibe =
+    vibeRaw && VALID_VIBES.includes(vibeRaw as VibePreference)
+      ? (vibeRaw as VibePreference)
+      : undefined;
+  const dailyBalanceRaw = typeof sp.dailyBalance === "string" ? sp.dailyBalance : undefined;
+  const dailyBalance =
+    dailyBalanceRaw && VALID_DAILY_BALANCES.includes(dailyBalanceRaw as DailyBalance)
+      ? (dailyBalanceRaw as DailyBalance)
+      : undefined;
+  return { purpose: purpose as StayPurpose, workStyle: workStyle as WorkStyle, dailyBalance, vibe };
+}
+
+/**
+ * Extract just the purpose from the URL (even if full intent is absent).
+ * Used to pre-fill Q1 in IntentPrompt when the user arrived from Browse.
+ */
+function parsePrefillPurpose(sp: SearchParams): StayPurpose | null {
+  const raw = typeof sp.purpose === "string" ? sp.purpose : undefined;
+  if (!raw || !VALID_PURPOSES.includes(raw as StayPurpose)) return null;
+  return raw as StayPurpose;
+}
 
 // Free tier limits — per merged section
 const FREE_WORK = 1;          // 1 full card — rest shown as locked name teasers
@@ -117,8 +162,8 @@ export async function generateMetadata({
   // ── Neighborhood grid pages (curated cities like Buenos Aires, Mexico City)
   const curated = CURATED_NEIGHBORHOODS[slug];
   if (curated && !hasParentCity) {
-    const title = `Best neighborhoods in ${curated.cityName} for remote workers & digital nomads`;
-    const description = `Compare neighborhoods in ${curated.cityName} by work spots, wifi cafés, gyms, and walkability. Find where to base yourself — built for remote workers and digital nomads.`;
+    const title = `Where to base yourself in ${curated.cityName} — work setup & daily life`;
+    const description = `Find the right base in ${curated.cityName} for your kind of stay. Work spots, daily-life essentials, and what to plan around — prepared for remote workers.`;
     return {
       title,
       description,
@@ -140,30 +185,31 @@ export async function generateMetadata({
   const intro = CITY_INTROS[slug];
 
   // Title strategy:
-  // Neighborhood: "Working from Palermo, Buenos Aires — wifi spots, cafés & gyms"
-  // City with intro activity (surf/dive/hike): "Popoyo for remote workers — surf, wifi & routine"
-  // City generic: "Puerto Escondido for remote workers — best areas, wifi & cafés"
+  // Neighborhood: "Basing in Palermo, Buenos Aires — work setup & daily life"
+  // City with activity (surf/dive/hike): "Puerto Escondido — surf + remote work base, setup & preparation"
+  // City generic: "Where to base yourself in Lisbon — work, daily life & stay preparation"
   let title: string;
   let description: string;
 
   if (parentCity) {
-    title = `Working from ${cityName}, ${parentCity} — wifi spots, cafés & gyms`;
-    description = `Find the best work spots, cafés, and training options in ${cityName} — a neighborhood in ${parentCity}. Organized for remote workers who want a walkable daily routine.`;
+    title = `Basing in ${cityName}, ${parentCity} — work setup & daily life`;
+    description = `Work spots, cafés, daily essentials, and what to plan around in ${cityName} — a neighborhood in ${parentCity}. Prepared for remote workers staying a week or more.`;
   } else if (intro?.activity && intro.activity !== "work") {
     const activityLabel: Record<string, string> = {
-      surf: "surf, wifi & routine",
-      dive: "diving, wifi & routine",
-      hike: "hiking, wifi & routine",
-      yoga: "yoga, wifi & routine",
-      kite: "kite, wifi & routine",
+      surf: "surf + remote work",
+      dive: "diving + remote work",
+      hike: "hiking + remote work",
+      yoga: "yoga + remote work",
+      kite: "kite + remote work",
     };
-    const act = activityLabel[intro.activity] ?? "wifi & routine";
-    title = `${cityName} for remote workers — ${act}`;
-    description = intro.summary ?? `Work remotely from ${cityName}. Find wifi cafés, coworkings, and places to keep your routine — curated for digital nomads.`;
+    const act = activityLabel[intro.activity] ?? "remote work";
+    title = `${cityName} — ${act} base, setup & preparation`;
+    description = intro.summary
+      ?? `Know your base in ${cityName} before you arrive. Work infrastructure, daily life, and what to plan around — for remote workers who already know where they're going.`;
   } else {
-    title = `${cityName} for remote workers — best areas, wifi spots & cafés`;
+    title = `Where to base yourself in ${cityName} — work, daily life & stay preparation`;
     description = intro?.summary
-      ?? `Find where to base yourself in ${cityName} as a remote worker or digital nomad. Work spots, cafés, gyms, and routine options — all in one place.`;
+      ?? `Find your base in ${cityName} as a remote worker. Work spots, daily essentials, and honest signals on what to prepare — so you're functional from day one.`;
   }
 
   return {
@@ -200,6 +246,32 @@ async function resolveCity(
       }
     }
     return { name, slug, country, lat, lon, bbox, parentCity };
+  }
+
+  // Curated-city bypass — derive city center from known neighborhood coordinates.
+  // This completely avoids Nominatim for cities we have curated data for, preventing
+  // disambiguation errors (e.g. "medellin" → Medellín Philippines instead of Colombia).
+  const curated = CURATED_NEIGHBORHOODS[slug];
+  if (curated && curated.neighborhoods.length > 0) {
+    const lats = curated.neighborhoods.map((n) => n.lat);
+    const lons = curated.neighborhoods.map((n) => n.lon);
+    const centerLat = lats.reduce((a, b) => a + b, 0) / lats.length;
+    const centerLon = lons.reduce((a, b) => a + b, 0) / lons.length;
+    const curatedCountry: Record<string, string> = {
+      "buenos-aires": "Argentina", "mexico-city": "Mexico",
+      "bangkok": "Thailand",      "london": "United Kingdom",
+      "lisbon": "Portugal",       "medellin": "Colombia",
+      "chiang-mai": "Thailand",   "bali": "Indonesia",
+      "barcelona": "Spain",       "berlin": "Germany",
+      "lago-atitlan": "Guatemala","roatan": "Honduras",
+    };
+    return {
+      name:    curated.cityName,
+      slug,
+      country: curatedCountry[slug] ?? "",
+      lat:     centerLat,
+      lon:     centerLon,
+    };
   }
 
   // Geocode hints for slugs that are ambiguous or need country context to
@@ -394,6 +466,8 @@ async function resolveCity(
     "bacalar":                 "Bacalar Quintana Roo Mexico",
 
     // ── South America hubs ───────────────────────────────────────────────────
+    // (curated cities like medellin, buenos-aires are handled by the bypass above)
+    "bogota":                  "Bogotá Cundinamarca Colombia",
     "lima":                    "Lima Lima Peru",
     "quito":                   "Quito Pichincha Ecuador",
     "panama-city":             "Panama City Panama",
@@ -403,6 +477,9 @@ async function resolveCity(
     "sao-paulo":               "São Paulo São Paulo Brazil",
     "rio-de-janeiro":          "Rio de Janeiro Rio de Janeiro Brazil",
     "fortaleza":               "Fortaleza Ceará Brazil",
+
+    // ── Mexico hubs ──────────────────────────────────────────────────────────
+    "oaxaca":                  "Oaxaca de Juárez Oaxaca Mexico",
 
     // ── Caribbean ────────────────────────────────────────────────────────────
     // Use simple island/capital names — Nominatim doesn't handle long compound
@@ -470,11 +547,34 @@ async function resolveCity(
     "los-roques":              "Los Roques Dependencias Federales Venezuela",
   };
 
+  // Display name overrides — when Nominatim returns an administrative parent
+  // (e.g. "Cóbano" for santa-teresa, "Tulum Municipality" for tulum), force
+  // the user-facing name to the well-known destination name.
+  const DISPLAY_NAME_OVERRIDES: Record<string, { name: string; country: string }> = {
+    "santa-teresa":   { name: "Santa Teresa",   country: "Costa Rica"  },
+    "mal-pais":       { name: "Mal País",        country: "Costa Rica"  },
+    "popoyo":         { name: "Popoyo",          country: "Nicaragua"   },
+    "el-zonte":       { name: "El Zonte",        country: "El Salvador" },
+    "el-tunco":       { name: "El Tunco",        country: "El Salvador" },
+    "olon":           { name: "Olón",            country: "Ecuador"     },
+    "mancora":        { name: "Máncora",         country: "Peru"        },
+    "jericoacoara":   { name: "Jericoacoara",    country: "Brazil"      },
+    "puerto-viejo":   { name: "Puerto Viejo",    country: "Costa Rica"  },
+  };
+
   const query = GEOCODE_HINTS[slug] ?? slug.replace(/-/g, " ");
   const city = await geocodeCity(query);
-  // Preserve the canonical URL slug regardless of what Nominatim derives
-  return city ? { ...city, slug } : null;
+  if (!city) return null;
+
+  const override = DISPLAY_NAME_OVERRIDES[slug];
+  return {
+    ...city,
+    slug,
+    name: override?.name ?? city.name,
+    country: override?.country ?? city.country,
+  };
 }
+
 
 export default async function CityPage({ params, searchParams }: Props) {
   const { slug } = await params;
@@ -484,12 +584,18 @@ export default async function CityPage({ params, searchParams }: Props) {
     typeof sp.parentCity === "string" && sp.parentCity.trim().length > 0;
 
   const justUnlocked = sp.justUnlocked === "1";
+  const intent = parseIntent(sp);
+  // Extracted even when intent is null — lets IntentPrompt pre-select purpose
+  // when the user arrived from Browse (purpose in URL but workStyle missing).
+  const prefillPurpose = intent ? null : parsePrefillPurpose(sp);
 
   // ── Curated city grid (instant — no geocoding needed) ───────────────────
   // If the slug is in CURATED_NEIGHBORHOODS and we're not already inside a
-  // specific neighbourhood, show the grid immediately.
+  // specific neighbourhood, show the grid immediately — BUT only when no intent
+  // is present. When intent is present, fall through to full city resolution so
+  // BestBaseCard can answer the "where to base myself" question first.
   const curated = CURATED_NEIGHBORHOODS[slug];
-  if (curated && !hasParentCityParam) {
+  if (curated && !hasParentCityParam && !intent) {
     const bundlePrice = process.env.NEXT_PUBLIC_CITY_BUNDLE_PRICE ?? "15";
     return (
       <div className="flex flex-col min-h-screen">
@@ -670,19 +776,106 @@ export default async function CityPage({ params, searchParams }: Props) {
                 );
               })()}
             </div>
-            <Suspense fallback={<PlacesSkeleton />}>
-              <CityContent city={city} isUnlocked={unlocked} justUnlocked={justUnlocked} kvNarrative={kvNarrativePage} />
-            </Suspense>
+            <CityContent
+              city={city}
+              isUnlocked={unlocked}
+              justUnlocked={justUnlocked}
+              kvNarrative={kvNarrativePage}
+              intent={intent}
+              prefillPurpose={prefillPurpose}
+            />
+          </div>
+        ) : curated ? (
+          // ── Curated city WITH intent ───────────────────────────────────
+          // (no-intent case returned early above as a fast grid-only response)
+          // BestBaseCard answers "where to base myself" first.
+          // The curated neighborhood grid renders below as exploration/confirmation.
+          <div className="mx-auto w-full max-w-4xl px-6 py-16">
+            <CityPageHeader city={city} kvNarrative={kvNarrativePage} />
+            <CityContent
+              city={city}
+              isUnlocked={unlocked}
+              justUnlocked={justUnlocked}
+              kvNarrative={kvNarrativePage}
+              intent={intent}
+              prefillPurpose={prefillPurpose}
+            />
+            <div className="mt-16 border-t border-dune pt-12">
+              <CityNeighborhoodGrid
+                config={curated}
+                explorationMode
+                recommendedAreaName={kvNarrativePage?.baseAreaName ?? null}
+              />
+            </div>
           </div>
         ) : (
           // ── Top-level city: try auto-discovery, fallback to place content ─
-          <Suspense fallback={<DiscoverySkeleton cityName={city.name} />}>
-            <AutoNeighborhoodOrContent city={city} isUnlocked={unlocked} justUnlocked={justUnlocked} kvNarrative={kvNarrativePage} />
-          </Suspense>
+          <AutoNeighborhoodOrContent
+            city={city}
+            isUnlocked={unlocked}
+            justUnlocked={justUnlocked}
+            kvNarrative={kvNarrativePage}
+            intent={intent}
+            prefillPurpose={prefillPurpose}
+          />
         )}
       </main>
 
       <Footer />
+    </div>
+  );
+}
+
+// ── Shared city-level page header ────────────────────────────────────────────
+// Used by the curated+intent path and the auto-discovery intent path.
+// Renders city name, country, and intro text (KV or static or default).
+function CityPageHeader({
+  city,
+  kvNarrative,
+}: {
+  city: City;
+  kvNarrative: import("@/lib/kv").StoredNarrative | null;
+}) {
+  const kvIntro = kvNarrative?.intro ?? null;
+  const staticIntro = CITY_INTROS[city.slug] ?? null;
+
+  return (
+    <div className="max-w-2xl">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
+        City setup
+      </p>
+      <div className="mt-3 flex items-start justify-between gap-4">
+        <h1 className="text-4xl font-semibold tracking-tight text-bark sm:text-5xl">
+          {city.name}
+        </h1>
+        <ShareButton
+          cityName={city.name}
+          citySlug={city.slug}
+          neighborhoodName={city.name}
+        />
+      </div>
+      <p className="mt-1.5 text-base text-umber">{city.country}</p>
+      {kvIntro ? (
+        <div className="mt-5 max-w-xl">
+          <CityIntro
+            intro={{
+              summary: kvIntro,
+              activity: kvNarrative?.activity ?? undefined,
+              bestMonths: kvNarrative?.bestMonths ?? undefined,
+            }}
+          />
+        </div>
+      ) : staticIntro ? (
+        <div className="mt-5 max-w-xl">
+          <CityIntro intro={staticIntro} />
+        </div>
+      ) : (
+        <p className="mt-3 max-w-xl text-sm leading-6 text-umber">
+          Find a base area, places to work, nearby coffee and meals, and
+          training spots — so you can settle into {city.name} without losing
+          your routine.
+        </p>
+      )}
     </div>
   );
 }
@@ -692,6 +885,9 @@ export default async function CityPage({ params, searchParams }: Props) {
 // If >= 3 are found → show the neighborhood grid.
 // If not enough data → fall through to the normal single-city place content.
 //
+// When intent is present and >= 3 neighborhoods found, BestBaseCard renders first
+// and the grid moves below as an exploration/confirmation layer.
+//
 // Performance: discoverNeighborhoods + fetchPlaces run in PARALLEL.
 // For cities without neighborhoods this cuts the critical path from ~4-5s to ~2s
 // because CityContent gets a cache-warm hit on fetchPlaces (instant).
@@ -700,17 +896,21 @@ async function AutoNeighborhoodOrContent({
   isUnlocked,
   justUnlocked,
   kvNarrative,
+  intent,
+  prefillPurpose = null,
 }: {
   city: City;
   isUnlocked: boolean;
   justUnlocked: boolean;
   kvNarrative: import("@/lib/kv").StoredNarrative | null;
+  intent: StayIntent | null;
+  prefillPurpose?: StayPurpose | null;
 }) {
-  // Run both in parallel — getPlacesWithCache warms the KV/fetch cache so
-  // CityContent gets an instant hit instead of waiting a second time.
+  // Run all three in parallel — place caches warm so CityContent resolves instantly.
   const [neighborhoods] = await Promise.all([
     discoverNeighborhoods(city),
     getPlacesWithCache(city).catch(() => ({ places: [], needsEnrichment: false })),
+    getDailyLifeWithCache(city).catch(() => []),
   ]);
 
   if (neighborhoods.length >= 3) {
@@ -719,6 +919,35 @@ async function AutoNeighborhoodOrContent({
       citySlug: city.slug,
       neighborhoods,
     };
+
+    if (intent) {
+      // ── Intent-aware path: BestBaseCard leads, grid confirms ──────────
+      // The user asked a specific question ("where for surf + light work?").
+      // BestBaseCard answers it. The neighborhood grid moves below as exploration.
+      return (
+        <div className="mx-auto w-full max-w-4xl px-6 py-16">
+          <CityPageHeader city={city} kvNarrative={kvNarrative} />
+          {/* Caches warmed above — resolves from KV */}
+          <CityContent
+            city={city}
+            isUnlocked={isUnlocked}
+            justUnlocked={justUnlocked}
+            kvNarrative={kvNarrative}
+            intent={intent}
+            prefillPurpose={prefillPurpose}
+          />
+          <div className="mt-16 border-t border-dune pt-12">
+            <CityNeighborhoodGrid
+              config={config}
+              explorationMode
+              recommendedAreaName={kvNarrative?.baseAreaName ?? null}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // No intent: current grid-only behavior
     // No bundlePrice for auto-discovered cities — bundle is only for curated ones
     return <CityNeighborhoodGrid config={config} bundlePrice={undefined} />;
   }
@@ -735,81 +964,37 @@ async function AutoNeighborhoodOrContent({
           neighborhoods_found: neighborhoods.length,
         }}
       />
-      <div className="max-w-2xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
-          City setup
-        </p>
-        <div className="mt-3 flex items-start justify-between gap-4">
-          <h1 className="text-4xl font-semibold tracking-tight text-bark sm:text-5xl">
-            {city.name}
-          </h1>
-          <ShareButton
-            cityName={city.name}
-            citySlug={city.slug}
-            neighborhoodName={city.name}
-          />
-        </div>
-        <p className="mt-1.5 text-base text-umber">{city.country}</p>
-        {(() => {
-          const kvIntro = kvNarrative?.intro ?? null;
-          const staticIntro = CITY_INTROS[city.slug] ?? null;
-          if (kvIntro) return (
-            <div className="mt-5 max-w-xl">
-              <CityIntro intro={{ summary: kvIntro, activity: kvNarrative?.activity ?? undefined, bestMonths: kvNarrative?.bestMonths ?? undefined }} />
-            </div>
-          );
-          if (staticIntro) return (
-            <div className="mt-5 max-w-xl">
-              <CityIntro intro={staticIntro} />
-            </div>
-          );
-          return (
-            <p className="mt-3 max-w-xl text-sm leading-6 text-umber">
-              Find a base area, places to work, nearby coffee and meals, and
-              training spots — so you can settle into {city.name} without losing
-              your routine.
-            </p>
-          );
-        })()}
-      </div>
-      {/* getPlacesWithCache already called above — KV/fetch cache warm, CityContent resolves instantly */}
-      <Suspense fallback={<PlacesSkeleton />}>
-        <CityContent city={city} isUnlocked={isUnlocked} justUnlocked={justUnlocked} kvNarrative={kvNarrative} />
-      </Suspense>
+      <CityPageHeader city={city} kvNarrative={kvNarrative} />
+      {/* Caches warmed above — CityContent resolves instantly from KV */}
+      <CityContent
+        city={city}
+        isUnlocked={isUnlocked}
+        justUnlocked={justUnlocked}
+        kvNarrative={kvNarrative}
+        intent={intent}
+        prefillPurpose={prefillPurpose}
+      />
     </div>
   );
 }
 
-function DiscoverySkeleton({ cityName }: { cityName: string }) {
-  return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 animate-pulse">
-      <div className="mb-8">
-        <div className="h-3 w-28 rounded bg-stone-200 mb-3" />
-        <div className="h-8 w-64 rounded bg-stone-200 mb-2" />
-        <div className="h-4 w-80 rounded bg-stone-200" />
-        <p className="sr-only">Loading neighborhoods for {cityName}…</p>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-28 rounded-xl bg-stone-200" />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Async server component — runs place fetch + scoring, streams into the page.
+// Async server component — runs place fetch + scoring before page render.
 // getPlacesWithCache checks KV first (instant), falls back to Overpass.
 async function CityContent({
   city,
   isUnlocked,
   justUnlocked = false,
   kvNarrative = null,
+  intent = null,
+  prefillPurpose = null,
 }: {
   city: City;
   isUnlocked: boolean;
   justUnlocked?: boolean;
   kvNarrative?: import("@/lib/kv").StoredNarrative | null;
+  intent?: StayIntent | null;
+  /** Purpose from URL when intent is partial (only purpose, no workStyle). Used to pre-fill IntentPrompt. */
+  prefillPurpose?: StayPurpose | null;
 }) {
   let allPlaces: Place[];
   let placesCachedAt: string | undefined;
@@ -879,19 +1064,32 @@ async function CityContent({
       }))
     : enrichedPlaces;
 
-  // Reverse geocode the work-cluster centroid to get a real neighbourhood name.
-  // Only attempt if we have a centroid (≥3 work places) AND user is unlocked
-  // (non-unlocked users don't see the RecommendedAreaCard detail that uses this).
-  const areaName =
-    isUnlocked && baseCentroid
-      ? await reverseGeocodeArea(baseCentroid.lat, baseCentroid.lon)
-      : null;
+  // Run remaining async work in parallel: reverse geocode + daily-life fetch + confirmations.
+  // getDailyLifeWithCache was already called in AutoNeighborhoodOrContent to warm the KV
+  // cache — this call resolves instantly from KV on cache hit.
+  // Note: reverseGeocodeArea runs for ALL users (not just unlocked) because the BestBaseCard
+  // shows the area name in the free/locked state too. Nominatim is free and fast.
+  const [areaName, dailyLifePlaces, confirmations] = await Promise.all([
+    baseCentroid
+      ? reverseGeocodeArea(baseCentroid.lat, baseCentroid.lon)
+      : Promise.resolve(null),
+    getDailyLifeWithCache(city).catch(() => [] as import("@/types").DailyLifePlace[]),
+    isUnlocked
+      ? getPlaceConfirmations(city.slug).catch(() => new Map())
+      : Promise.resolve(new Map<string, import("@/lib/confirmations").PlaceConfirmData>()),
+  ]);
 
   const algorithmicSummary = computeCitySummary(city, places, areaName ?? undefined);
 
+  // Append honest daily-life gap signals to the generic summary.
+  // Only when no KV narrative overrides the text — KV narrative wins.
+  const summaryEnhanced = kvNarrative
+    ? algorithmicSummary
+    : appendDailyLifeSignals(algorithmicSummary, dailyLifePlaces);
+
   // Merge KV narrative on top of algorithmic summary (KV wins for text fields)
   const summary = {
-    ...algorithmicSummary,
+    ...summaryEnhanced,
     ...(kvNarrative && {
       summaryText: kvNarrative.summaryText,
       recommendedArea: kvNarrative.baseAreaName,
@@ -899,12 +1097,45 @@ async function CityContent({
     }),
   };
 
-  // ── Confirmation signals (Task 18) ───────────────────────────────────────
-  const confirmations = isUnlocked
-    ? await getPlaceConfirmations(city.slug).catch(() => new Map())
-    : new Map<string, import("@/lib/confirmations").PlaceConfirmData>();
+  // ── Personalized stay fit score ──────────────────────────────────────────
+  // Computed when URL params ?purpose= and ?workStyle= are present.
+  // Returns null for users with no intent — generic output unchanged.
+  // Use summary.recommendedArea — it already incorporates the KV narrative's curated
+  // baseAreaName (e.g. "La Punta") and falls back to the reverse-geocoded area name.
+  // This ensures BestBaseCard shows real curated names, not "Central Puerto Escondido".
+  const stayFit = intent
+    ? computeStayFitScore(places, dailyLifePlaces, city, intent, summary.recommendedArea)
+    : null;
 
-  // kvNarrative is passed in from the page level (already fetched in parallel)
+  if (stayFit) {
+    console.log(
+      `[stay-fit] ${city.slug} profile=${stayFit.profile} score=${stayFit.fitScore} (${stayFit.fitLabel}) ` +
+      `work=${stayFit.scoreBreakdown.workFit} life=${stayFit.scoreBreakdown.dailyLifeFit} ` +
+      `flags=${stayFit.redFlags.length}`
+    );
+  }
+
+  // ── LLM stay-fit narrative + micro-area narratives ────────────────────────
+  // Runs in the main server component so loading.tsx covers the full page.
+  let stayFitNarrative: StayFitNarrative | null = null;
+  let microAreaNarratives: MicroAreaNarrative[] | null = null;
+  if (stayFit) {
+    const enrichedResult = await getOrGenerateEnrichedNarrative(
+      city.slug, city.name, city.country, stayFit, places
+    ).catch(() => null);
+
+    if (enrichedResult) {
+      stayFitNarrative = enrichedResult.narrative;
+      microAreaNarratives = enrichedResult.microAreaNarratives;
+    }
+
+    // Fall back to basic narrative if enrichment failed
+    if (!stayFitNarrative) {
+      stayFitNarrative = await getOrGenerateStayFitNarrative(
+        stayFit, city.slug, city.name, city.country
+      ).catch(() => null);
+    }
+  }
 
   // ── Data coverage level ──────────────────────────────────────────────────
   const dataCoverage: "good" | "partial" | "limited" | "none" =
@@ -1041,6 +1272,13 @@ async function CityContent({
           total_places: places.length,
           routine_score: summary.routineScore,
           is_unlocked: isUnlocked,
+          daily_life_places: dailyLifePlaces.length,
+          stay_fit_profile: stayFit?.profile ?? null,
+          stay_fit_score: stayFit?.fitScore ?? null,
+          stay_fit_label: stayFit?.fitLabel ?? null,
+          stay_fit_work: stayFit?.scoreBreakdown.workFit ?? null,
+          stay_fit_life: stayFit?.scoreBreakdown.dailyLifeFit ?? null,
+          stay_fit_red_flags: stayFit?.redFlags.length ?? 0,
         }}
       />
 
@@ -1063,18 +1301,107 @@ async function CityContent({
           ].filter((id): id is string => Boolean(id))}
           cityName={city.name}
           totalPlaces={workPlaces.length + coffeeMealsPlaces.length + wellbeingPlaces.length}
+          dailyLifePlaces={dailyLifePlaces}
+          intent={intent}
+          baseAreaName={stayFit?.baseArea ?? summary.recommendedArea ?? null}
+          microAreas={
+            microAreaNarratives
+              ?.filter((m) => m.center !== undefined)
+              .map((m) => ({
+                id: m.microAreaId,
+                name: m.name,
+                center: m.center!,
+                radius_km: m.radius_km ?? 1.0,
+                rank: m.rank,
+                score: m.score,
+                hasConstraintBreakers: m.hasConstraintBreakers,
+              })) ?? undefined
+          }
         />
       )}
 
-      {/* Summary cards — score + base area */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* Summary cards:
+          - With intent (stayFit computed): RoutineSummaryCard full-width — BestBaseCard is the main card
+          - Without intent: RoutineSummaryCard + RecommendedAreaCard — IntentPrompt sits below to activate BestBaseCard */}
+      {stayFit ? (
         <RoutineSummaryCard summary={summary} />
-        <RecommendedAreaCard
-          summary={summary}
-          centroidLat={baseCentroid?.lat}
-          centroidLon={baseCentroid?.lon}
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <RoutineSummaryCard summary={summary} />
+          <RecommendedAreaCard
+            summary={summary}
+            centroidLat={baseCentroid?.lat}
+            centroidLon={baseCentroid?.lon}
+          />
+        </div>
+      )}
+
+      {/* Intent-aware main card — the primary product moment.
+          · intent present + stayFit computed → BestBaseCard answers "where to base myself"
+          · intent absent → IntentPrompt lets the user shape the stay and activate BestBaseCard
+          · intent present but stayFit null → should not happen (stayFit is computed whenever intent exists) */}
+      {intent && stayFit ? (
+        microAreaNarratives && microAreaNarratives.length > 0 ? (
+          isUnlocked ? (
+            <MicroAreaStack
+              microAreaNarratives={microAreaNarratives}
+              intent={`${intent.purpose} + ${intent.workStyle} work`}
+              cityName={city.name}
+            />
+          ) : (
+            <BestBaseCard
+              isUnlocked={false}
+              cityName={city.name}
+              citySlug={city.slug}
+              country={city.country}
+              stayFit={{ ...stayFit, baseArea: microAreaNarratives[0]?.name ?? stayFit.baseArea }}
+              intent={intent}
+              narrativeText={null}
+              lowConfidence={dataCoverage === "limited"}
+            />
+          )
+        ) : (
+          <BestBaseCard
+            isUnlocked={isUnlocked}
+            cityName={city.name}
+            citySlug={city.slug}
+            country={city.country}
+            stayFit={stayFit}
+            intent={intent}
+            narrativeText={stayFitNarrative}
+            baseNeighborhoodHref={(() => {
+              const curatedConfig = CURATED_NEIGHBORHOODS[city.slug];
+              if (!curatedConfig) return null;
+              const base = stayFit.baseArea.toLowerCase().trim();
+              const match = curatedConfig.neighborhoods.find((n) => {
+                const name = n.name.toLowerCase().trim();
+                return name === base || name.includes(base) || base.includes(name);
+              });
+              if (!match) return null;
+              const params = new URLSearchParams({
+                lat: String(match.lat),
+                lon: String(match.lon),
+                name: match.name,
+                country: "",
+                parentCity: city.name,
+                bbox: match.bbox.join(","),
+                purpose: intent.purpose,
+                workStyle: intent.workStyle,
+                ...(intent.dailyBalance ? { dailyBalance: intent.dailyBalance } : {}),
+              });
+              return `/city/${match.slug}?${params.toString()}`;
+            })()}
+            lowConfidence={dataCoverage === "limited"}
+          />
+        )
+      ) : !intent ? (
+        <IntentPrompt
+          citySlug={city.slug}
+          cityName={city.name}
+          prefillPurpose={prefillPurpose}
         />
-      </div>
+      ) : null}
+
 
       <PlaceSection
         title="Work"
@@ -1087,6 +1414,18 @@ async function CityContent({
         sectionKind="work"
         confirmations={confirmations}
         emptyMessage="No strong work spots found near this base yet."
+        firstPlaceContext={
+          intent && stayFit && workPlaces.length > 0
+            ? `For ${(() => {
+                const p = intent.purpose;
+                const w = intent.workStyle;
+                if (p === "work_first") return "focused remote work";
+                const pLabel: Record<string, string> = { surf: "surf", dive: "diving", hike: "hiking", yoga: "yoga", kite: "kite", exploring: "exploring" };
+                const wLabel: Record<string, string> = { light: "light work", balanced: "balanced work", heavy: "intensive work" };
+                return `${pLabel[p] ?? p} + ${wLabel[w]}`;
+              })()}: closest work option near ${stayFit.baseArea}`
+            : undefined
+        }
       />
 
       <PlaceSection
@@ -1115,14 +1454,17 @@ async function CityContent({
         emptyMessage="No wellbeing spots found near this base yet."
       />
 
-      {/* Paywall — shown only when locked and there is locked content */}
-      {!isUnlocked && hasLockedContent && (
+      {/* Paywall — shown only when locked, there is locked content, and BestBaseCard
+          is NOT already handling the unlock CTA. When intent is present, BestBaseCard
+          is the single conversion point — two unlock CTAs is confusing. */}
+      {!isUnlocked && hasLockedContent && !stayFit && (
         <PaywallCard
           citySlug={city.slug}
           cityName={city.name}
           country={city.country}
           lockedCounts={lockedCounts}
           hookLine={hookLine}
+          hasIntent={!!intent}
           parentCity={city.parentCity}
           parentCitySlug={city.parentCity ? toSlug(city.parentCity) : undefined}
           bundlePrice={
@@ -1148,27 +1490,6 @@ async function CityContent({
       )}
 
       <MethodologyNote />
-    </div>
-  );
-}
-
-function PlacesSkeleton() {
-  return (
-    <div className="mt-10 space-y-8 animate-pulse">
-      {/* Summary cards */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="h-28 rounded-2xl bg-stone-200" />
-        <div className="h-28 rounded-2xl bg-stone-200" />
-      </div>
-
-      {/* Place sections */}
-      {[...Array(4)].map((_, i) => (
-        <div key={i} className="space-y-3">
-          <div className="h-4 w-28 rounded bg-stone-200" />
-          <div className="h-20 rounded-2xl bg-stone-200" />
-          <div className="h-20 rounded-2xl bg-stone-200" />
-        </div>
-      ))}
     </div>
   );
 }
@@ -1239,7 +1560,7 @@ function Footer() {
     <footer className="border-t border-dune bg-white">
       <div className="mx-auto max-w-4xl px-6 py-8">
         <p className="text-sm text-umber">
-          Truststay — built for remote workers who need to get functional fast.
+          TrustStay — know your base before you arrive.
         </p>
       </div>
     </footer>

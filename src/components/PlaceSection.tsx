@@ -17,6 +17,8 @@ interface Props {
   sectionKind?: SectionKind;
   /** Map of placeId → confirmation data — from getPlaceConfirmations() */
   confirmations?: Map<string, PlaceConfirmData>;
+  /** Stay-fit context chip shown in the modal of the first (best-fit) place */
+  firstPlaceContext?: string;
 }
 
 /** Readable work-fit tier — shown instead of place name to prevent free lookup */
@@ -63,6 +65,7 @@ export function PlaceSection({
   neighborhoodSlug = "",
   sectionKind,
   confirmations,
+  firstPlaceContext,
 }: Props) {
   const applyLock = !isUnlocked && freeCount !== undefined;
   const freePlaces = applyLock ? places.slice(0, freeCount) : places;
@@ -83,7 +86,7 @@ export function PlaceSection({
         </div>
       ) : (
         <div className="space-y-3">
-          {freePlaces.map((place) => {
+          {freePlaces.map((place, idx) => {
             const cd = confirmations?.get(place.id);
             return (
               <div key={place.id} id={`place-${place.id}`}>
@@ -93,6 +96,7 @@ export function PlaceSection({
                   citySlug={citySlug}
                   confirmCount={cd?.confirmCount ?? 0}
                   reportCount={cd?.reportCount ?? 0}
+                  stayFitContext={idx === 0 ? firstPlaceContext : undefined}
                 />
               </div>
             );

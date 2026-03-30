@@ -1,0 +1,105 @@
+---
+description: TrustStay product direction, mental model, and design principles for v2 evolution
+alwaysApply: true
+---
+
+# TrustStay — Product Direction & Mental Model
+
+## What TrustStay is
+
+A **purpose-aware stay planning tool for remote workers**.
+Not a tourist guide. Not a city map. Not a generic AI travel assistant.
+
+The one answer TrustStay gives that no one else gives clearly:
+> **Where you should base yourself in this place, given how you want to live and work there** —
+> including the tradeoffs, the red flags, and the fit with your actual rhythm.
+
+---
+
+## The user we optimize for
+
+**Destination-known remote workers** — people who already chose (or nearly chose) where they are going, and now need to figure out how to stay there well.
+
+The primary question is:
+> "I'm going to El Salvador to surf but still need work backups, decent food, and a calmer rhythm — where should I base myself?"
+
+Not: "Should I go to El Salvador or Portugal?"
+
+---
+
+## Core product model
+
+```
+Structured city data (OSM + Google + editorial)
+  + "Why are you here?" personalization input (page-level, lightweight)
+  ↓
+Reordered, reframed, and explained for this specific user
+  ↓
+A recommendation that feels deeply right — not generic, not touristy
+```
+
+The AI layer **reframes and personalizes existing data**. It does NOT hallucinate or replace real place data.
+Every AI output must be grounded in structured, real, verifiable city data.
+
+---
+
+## The unlock model
+
+The paid layer is **"unlock your stay"** — one purchase per destination.
+
+What unlocks:
+- Recommended base area (specific neighborhood, not just a city zone)
+- Personalized fit layer ("why this area fits your trip")
+- Tradeoffs and red flags for this user's priorities
+- Better work backups (full place list)
+- A first-week rhythm / stay guidance
+
+**The unit of value is a personalized stay plan, not a map unlock or raw data access.**
+Do not frame it as "unlock more places." Frame it as "understand how to stay here well."
+
+---
+
+## Interface priorities
+
+| Layer | Role |
+|---|---|
+| Recommendation + fit + confidence | **Primary value** |
+| Map | Spatial support — shows distance, clustering, surroundings |
+| List / place cards | Exploration support |
+| "Shape this stay" input | Lightweight page-level personalization (v1: not a persistent profile) |
+
+Map is a tool. The experience leads with recommendation.
+
+---
+
+## Stay fit score (evolution of routine score)
+
+Evolve the current generic "Routine Score" toward **"Your stay fit"** — a personalized score based on:
+- Why they came (surf / dive / hike / yoga / kite / work-only)
+- Work style (deep focus / calls-heavy / async)
+- Vibe priorities (quiet / social / local / expat)
+
+The score should answer: **"How well does this place fit the trip I'm trying to have?"**
+
+---
+
+## What to avoid building
+
+- ❌ Tourist guides, top-10 lists, attraction recommendations
+- ❌ A generic map with pins as the main product
+- ❌ A city guide behind a paywall (the value is the fit, not the data)
+- ❌ A generic AI chatbot or travel assistant
+- ❌ Day planners, saved itineraries, full trip tracking (not v1)
+- ❌ Anything that feels like Nomad List, TripAdvisor, or an OpenClaw clone
+
+---
+
+## The shareable magic
+
+A remote worker shares TrustStay when it makes them feel **unusually understood** in a specific destination.
+
+Not because it gave them more information.
+Because it gave them a recommendation that felt like:
+> *"This finally gets the kind of trip I'm trying to have."*
+
+Build toward that feeling on every page.
