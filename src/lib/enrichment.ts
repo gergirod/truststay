@@ -16,6 +16,7 @@
 import type { Place, GooglePlaceData } from "@/types";
 import { haversineKm } from "./overpass";
 import { searchNearbyPlaces, type RawGooglePlace } from "./googlePlaces";
+import { isGoogleBudgetMode, isGoogleRealtimeEnabled } from "./googleRuntimeControls";
 
 // ── Matching thresholds ────────────────────────────────────────────────────
 
@@ -367,15 +368,20 @@ export async function enrichPlaces(
   cityLat: number,
   cityLon: number
 ): Promise<Place[]> {
+  if (!isGoogleRealtimeEnabled()) return places;
+  const budgetMode = isGoogleBudgetMode();
   const apiKey = process.env.GOOGLE_MAPS_API_KEY;
   if (!apiKey) return places;
 
   try {
+    const limits = budgetMode
+      ? { cafes: 8, coworks: 6, food: 8, gyms: 6 }
+      : { cafes: 20, coworks: 10, food: 20, gyms: 10 };
     const [googleCafes, googleCoworks, googleFood, googleGyms] = await Promise.all([
-      searchNearbyPlaces(cityLat, cityLon, "cafe", apiKey, 20),
-      searchNearbyPlaces(cityLat, cityLon, "coworking_space", apiKey, 10),
-      searchNearbyPlaces(cityLat, cityLon, "restaurant", apiKey, 20),
-      searchNearbyPlaces(cityLat, cityLon, "gym", apiKey, 10),
+      searchNearbyPlaces(cityLat, cityLon, "cafe", apiKey, limits.cafes),
+      searchNearbyPlaces(cityLat, cityLon, "coworking_space", apiKey, limits.coworks),
+      searchNearbyPlaces(cityLat, cityLon, "restaurant", apiKey, limits.food),
+      searchNearbyPlaces(cityLat, cityLon, "gym", apiKey, limits.gyms),
     ]);
 
     console.log(
@@ -460,9 +466,10 @@ export async function enrichPlaces(
     }
 
     // Add unmatched cafes only if well-rated (avoids noisy low-quality results)
+    const googleOnlyCap = budgetMode ? 2 : MAX_GOOGLE_ONLY_PER_CATEGORY;
     let cafeOnlyCount = 0;
     for (const g of googleCafes) {
-      if (cafeOnlyCount >= MAX_GOOGLE_ONLY_PER_CATEGORY) break;
+      if (cafeOnlyCount >= googleOnlyCap) break;
       if (matchedGoogleIds.has(g.id) || !g.location) continue;
       if ((g.userRatingCount ?? 0) < MIN_GOOGLE_ONLY_REVIEWS) continue;
       if ((g.rating ?? 0) < 3.8) continue;
@@ -478,7 +485,7 @@ export async function enrichPlaces(
     const sortedFood = [...googleFood].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
     let foodOnlyCount = 0;
     for (const g of sortedFood) {
-      if (foodOnlyCount >= MAX_GOOGLE_ONLY_PER_CATEGORY) break;
+      if (foodOnlyCount >= googleOnlyCap) break;
       if (matchedGoogleIds.has(g.id) || !g.location) continue;
       if ((g.userRatingCount ?? 0) < MIN_GOOGLE_ONLY_REVIEWS) continue;
       if ((g.rating ?? 0) < 4.2) continue;

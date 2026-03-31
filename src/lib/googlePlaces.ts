@@ -12,6 +12,7 @@
  */
 
 import { unstable_cache } from "next/cache";
+import { isGoogleBudgetMode, isGoogleRealtimeEnabled } from "@/lib/googleRuntimeControls";
 
 const PLACES_SEARCH_URL =
   "https://places.googleapis.com/v1/places:searchNearby";
@@ -83,6 +84,12 @@ async function _searchNearbyPlaces(
   apiKey: string,
   maxResults: number
 ): Promise<RawGooglePlace[]> {
+  if (!isGoogleRealtimeEnabled()) return [];
+  const budgetMode = isGoogleBudgetMode();
+  const cappedResults = budgetMode
+    ? Math.min(maxResults, 6)
+    : Math.min(maxResults, 20);
+
   try {
     const res = await fetch(PLACES_SEARCH_URL, {
       method: "POST",
@@ -99,7 +106,7 @@ async function _searchNearbyPlaces(
           },
         },
         includedTypes: [type],
-        maxResultCount: maxResults,
+        maxResultCount: cappedResults,
       }),
       // Same cache strategy as Overpass — 1 hour revalidation
       next: { revalidate: 3600 },
@@ -162,6 +169,7 @@ async function _fetchPlaceDetails(
   placeId: string,
   apiKey: string
 ): Promise<RawGooglePlaceDetails | null> {
+  if (!isGoogleRealtimeEnabled()) return null;
   try {
     const res = await fetch(
       `https://places.googleapis.com/v1/places/${placeId}`,

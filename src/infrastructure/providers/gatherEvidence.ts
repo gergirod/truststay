@@ -20,6 +20,7 @@ import type { MicroAreaDef } from "@/application/use-cases/discoverMicroAreas";
 import type { EvidencePack } from "@/schemas/zod/evidencePack.schema";
 import { EvidencePackSchema } from "@/schemas/zod/evidencePack.schema";
 import { canonicalRepository } from "@/db/repositories";
+import { isGoogleBudgetMode, isGoogleRealtimeEnabled } from "@/lib/googleRuntimeControls";
 
 let _client: OpenAI | null = null;
 function getClient() {
@@ -44,8 +45,10 @@ async function searchNearby(
   lat: number,
   lon: number,
   type: string,
-  radiusMeters: number
+  radiusMeters: number,
+  maxResultCount = 5,
 ): Promise<GooglePlaceResult[]> {
+  if (!isGoogleRealtimeEnabled()) return [];
   const apiKey = process.env.GOOGLE_MAPS_API_KEY;
   if (!apiKey) return [];
 
@@ -74,7 +77,7 @@ async function searchNearby(
           },
         },
         includedTypes: [type],
-        maxResultCount: 5,
+        maxResultCount,
       }),
     });
 
@@ -101,6 +104,7 @@ async function searchByText(
   lat: number,
   lon: number,
 ): Promise<GooglePlaceResult[]> {
+  if (!isGoogleRealtimeEnabled()) return [];
   const apiKey = process.env.GOOGLE_MAPS_API_KEY;
   if (!apiKey) return [];
 
@@ -260,22 +264,24 @@ export async function gatherEvidenceForMicroArea(
 ): Promise<EvidencePack> {
   const { lat, lon } = microArea.center;
   const radiusMeters = Math.round(microArea.radius_km * 1000);
+  const budgetMode = isGoogleBudgetMode();
+  const nearbyMax = budgetMode ? 3 : 5;
 
   console.log(`[gatherEvidence] ${microArea.name} — searching Google Places (r=${microArea.radius_km}km)`);
 
   // Parallel Google Places Nearby searches
   const [cafes, coworkings, gyms, restaurants, grocery, pharmacy] = await Promise.all([
-    searchNearby(lat, lon, "cafe", radiusMeters),
-    searchNearby(lat, lon, "coworking_space", radiusMeters),
-    searchNearby(lat, lon, "gym", radiusMeters + 1000),
-    searchNearby(lat, lon, "restaurant", radiusMeters),
-    searchNearby(lat, lon, "supermarket", radiusMeters + 2000),
-    searchNearby(lat, lon, "pharmacy", radiusMeters + 2000),
+    searchNearby(lat, lon, "cafe", radiusMeters, nearbyMax),
+    searchNearby(lat, lon, "coworking_space", radiusMeters, nearbyMax),
+    searchNearby(lat, lon, "gym", radiusMeters + 1000, nearbyMax),
+    searchNearby(lat, lon, "restaurant", radiusMeters, nearbyMax),
+    budgetMode ? Promise.resolve([]) : searchNearby(lat, lon, "supermarket", radiusMeters + 2000, nearbyMax),
+    budgetMode ? Promise.resolve([]) : searchNearby(lat, lon, "pharmacy", radiusMeters + 2000, nearbyMax),
   ]);
 
   // If Nearby returned very little, boost with Text Search for known venues
   const totalNearby = cafes.length + coworkings.length + gyms.length + restaurants.length;
-  if (totalNearby < 3 && microArea.known_venues?.length) {
+  if (!budgetMode && totalNearby < 3 && microArea.known_venues?.length) {
     console.log(`[gatherEvidence] ${microArea.name} — Nearby thin (${totalNearby}), trying Text Search for known venues`);
     const textResults = await Promise.all(
       (microArea.known_venues ?? []).slice(0, 4).map((venue) =>
@@ -546,6 +552,8 @@ export async function harvestAllPlacesForMicroArea(
   microArea: MicroAreaDef,
   citySlug: string,
 ): Promise<{ fetched: number; persistedCandidates: number }> {
+  if (!isGoogleRealtimeEnabled()) return { fetched: 0, persistedCandidates: 0 };
+  const budgetMode = isGoogleBudgetMode();
   const destination = await canonicalRepository.getDestinationBySlug(citySlug);
   if (!destination) return { fetched: 0, persistedCandidates: 0 };
 
@@ -554,7 +562,9 @@ export async function harvestAllPlacesForMicroArea(
   const radiusMeters = Math.round(microArea.radius_km * 1000);
   const expandedRadius = Math.min(radiusMeters + 1000, 3000);
 
-  const harvestTypes = [
+  const harvestTypes = budgetMode
+    ? ["cafe", "coworking_space", "restaurant", "gym", "supermarket", "pharmacy"]
+    : [
     "cafe",
     "coworking_space",
     "restaurant",
@@ -575,7 +585,7 @@ export async function harvestAllPlacesForMicroArea(
   const batches = await Promise.all(
     harvestTypes.map(async (type) => ({
       type,
-      places: await searchNearby(lat, lon, type, expandedRadius),
+      places: await searchNearby(lat, lon, type, expandedRadius, budgetMode ? 3 : 5),
     })),
   );
 
