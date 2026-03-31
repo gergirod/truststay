@@ -246,6 +246,9 @@ function IntentModal({ city, onComplete, onSkip }: IntentModalProps) {
 
 export function CitySearch() {
   const [query, setQuery] = useState("");
+  const [placeholder, setPlaceholder] = useState(
+    "e.g. Puerto Escondido, Santa Teresa, Popoyo",
+  );
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([]);
@@ -256,6 +259,25 @@ export function CitySearch() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadHints() {
+      try {
+        const res = await fetch("/api/search-hints", { cache: "no-store" });
+        const data = (await res.json()) as { examples?: string[] };
+        if (!cancelled && data.examples && data.examples.length > 0) {
+          setPlaceholder(`e.g. ${data.examples.slice(0, 3).join(", ")}`);
+        }
+      } catch {
+        // Keep default placeholder on hint fetch failure.
+      }
+    }
+    loadHints();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -406,7 +428,7 @@ export function CitySearch() {
               onChange={(e) => { setQuery(e.target.value); if (status === "error") setStatus("idle"); }}
               onKeyDown={handleKeyDown}
               onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
-              placeholder="e.g. Puerto Escondido, Medellín, Lisbon"
+              placeholder={placeholder}
               disabled={isLoading}
               className="w-full rounded-xl border border-dune bg-white px-4 py-3 text-base text-bark shadow-sm placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-teal disabled:opacity-60"
               autoComplete="off"

@@ -9,36 +9,36 @@ import {
   createLockedMarker,
 } from "@/lib/mapMarkers";
 
-// ── Hardcoded Lisbon demo data ─────────────────────────────────────────────
-// Tight cluster within ~600m of Bairro Alto core.
+// ── Hardcoded Santa Teresa demo data ───────────────────────────────────────
+// Tight cluster around Santa Teresa, Costa Rica.
 
-const DEMO_BASE = { lat: 38.7125, lon: -9.1440 };
+const DEMO_BASE = { lat: 9.6437, lon: -85.1686 };
 
 const DEMO_PINS: { lat: number; lon: number; category: string }[] = [
   // Work spots — teal laptop
-  { lat: 38.7155, lon: -9.1490, category: "work" },
-  { lat: 38.7108, lon: -9.1398, category: "work" },
-  { lat: 38.7138, lon: -9.1455, category: "work" },
-  { lat: 38.7092, lon: -9.1450, category: "work" },
-  { lat: 38.7168, lon: -9.1420, category: "work" },
+  { lat: 9.6463, lon: -85.1722, category: "work" },
+  { lat: 9.6418, lon: -85.1651, category: "work" },
+  { lat: 9.6449, lon: -85.1694, category: "work" },
+  { lat: 9.6409, lon: -85.1710, category: "work" },
+  { lat: 9.6481, lon: -85.1665, category: "work" },
   // Coffee & meals — terracotta cup
-  { lat: 38.7148, lon: -9.1408, category: "coffee" },
-  { lat: 38.7172, lon: -9.1468, category: "coffee" },
-  { lat: 38.7095, lon: -9.1478, category: "coffee" },
-  { lat: 38.7118, lon: -9.1375, category: "coffee" },
-  { lat: 38.7080, lon: -9.1420, category: "coffee" },
-  { lat: 38.7140, lon: -9.1510, category: "coffee" },
+  { lat: 9.6458, lon: -85.1659, category: "coffee" },
+  { lat: 9.6475, lon: -85.1703, category: "coffee" },
+  { lat: 9.6420, lon: -85.1733, category: "coffee" },
+  { lat: 9.6412, lon: -85.1640, category: "coffee" },
+  { lat: 9.6396, lon: -85.1680, category: "coffee" },
+  { lat: 9.6441, lon: -85.1751, category: "coffee" },
   // Wellbeing — amber figure
-  { lat: 38.7158, lon: -9.1520, category: "wellbeing" },
-  { lat: 38.7085, lon: -9.1495, category: "wellbeing" },
-  { lat: 38.7112, lon: -9.1432, category: "wellbeing" },
+  { lat: 9.6468, lon: -85.1760, category: "wellbeing" },
+  { lat: 9.6398, lon: -85.1741, category: "wellbeing" },
+  { lat: 9.6429, lon: -85.1672, category: "wellbeing" },
   // Locked — grey dots
-  { lat: 38.7125, lon: -9.1365, category: "locked" },
-  { lat: 38.7058, lon: -9.1445, category: "locked" },
-  { lat: 38.7182, lon: -9.1395, category: "locked" },
-  { lat: 38.7070, lon: -9.1480, category: "locked" },
-  { lat: 38.7145, lon: -9.1545, category: "locked" },
-  { lat: 38.7100, lon: -9.1415, category: "locked" },
+  { lat: 9.6435, lon: -85.1618, category: "locked" },
+  { lat: 9.6378, lon: -85.1692, category: "locked" },
+  { lat: 9.6486, lon: -85.1637, category: "locked" },
+  { lat: 9.6387, lon: -85.1729, category: "locked" },
+  { lat: 9.6452, lon: -85.1783, category: "locked" },
+  { lat: 9.6416, lon: -85.1660, category: "locked" },
 ];
 
 export function HeroMap() {
@@ -126,7 +126,7 @@ export function HeroMap() {
 
       {/* City label — top left */}
       <div className="absolute top-4 left-4 rounded-lg border border-dune bg-white/90 backdrop-blur-sm px-3 py-1.5 pointer-events-none">
-        <p className="text-[10px] font-semibold text-bark leading-none">Lisbon</p>
+        <p className="text-[10px] font-semibold text-bark leading-none">Santa Teresa</p>
         <p className="mt-0.5 text-[9px] text-umber leading-none">live example</p>
       </div>
 
