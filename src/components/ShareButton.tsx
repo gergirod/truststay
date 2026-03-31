@@ -18,8 +18,14 @@ export function ShareButton({
 }: Props) {
   const [copied, setCopied] = useState(false);
 
+  function buildCleanShareUrl(): string {
+    const origin = window.location.origin;
+    // Share only the destination path so recipients land like a fresh visitor.
+    return `${origin}/city/${encodeURIComponent(citySlug)}`;
+  }
+
   const handleShare = async () => {
-    const url = window.location.href;
+    const url = buildCleanShareUrl();
     const text = `Best base for remote workers in ${cityName}: ${neighborhoodName}${
       routineScore ? ` — routine score ${routineScore}/100` : ""
     }. Truststay`;

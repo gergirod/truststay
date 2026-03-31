@@ -66,3 +66,6 @@ Copy for each task:
 - Milestone 2: Task 25 merged with first successful scheduled run.
 - Milestone 3: Task 26 backfill report approved.
 - Milestone 4: Task 27 canary complete, full cutover enabled.
+
+## Current UX/UI Sprint (SDD)
+- [Task 28 - SDD UX Utility Sprint](./28-sdd-ux-utility-sprint.md)
