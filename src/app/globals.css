@@ -52,6 +52,20 @@ body {
   border-top-color: white;
 }
 
+/* Landing map popovers: soft card with brand tones */
+.truststay-popup .mapboxgl-popup-content {
+  padding: 0;
+  border-radius: 14px;
+  border: 1px solid #e6e1d9;
+  background: #fffaf3;
+  box-shadow: 0 10px 24px rgba(31, 28, 25, 0.14);
+  font-family: inherit;
+}
+
+.truststay-popup .mapboxgl-popup-tip {
+  border-top-color: #fffaf3;
+}
+
 /* ── TrustStay loading dot animation ────────────────────────────────────── */
 @keyframes ts-dot-pulse {
   0%, 60%, 100% {

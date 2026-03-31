@@ -20,6 +20,13 @@ interface RenderDestination extends BrowseDestination {
   displayLon: number;
 }
 
+interface CountryCluster {
+  country: string;
+  destinations: RenderDestination[];
+  centerLat: number;
+  centerLon: number;
+}
+
 interface Props {
   destinations: BrowseDestination[];
 }
@@ -217,16 +224,94 @@ function destinationPinHtml(primaryActivity: ActivityFilter): string {
 function destinationHoverLabelHtml(destination: BrowseDestination): string {
   return `<div style="
     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    background:#2E2A26;
-    color:white;
-    border-radius:9999px;
-    padding:4px 10px;
+    color:#1F2937;
+    border-radius:12px;
+    padding:8px 10px;
     font-size:12px;
-    font-weight:600;
+    font-weight:700;
     line-height:1.2;
-    box-shadow:0 6px 16px rgba(46,42,38,0.24);
-    white-space:nowrap;
+    letter-spacing:.01em;
+    white-space:normal;
+    max-width:220px;
   ">${destination.name}</div>`;
+}
+
+function clusterIconSvg(color: string): string {
+  return `<svg width="12" height="16" viewBox="0 0 12 16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M6 0.9C3.2 0.9 1 3.1 1 5.9c0 3.7 5 8.8 5 8.8s5-5.1 5-8.8C11 3.1 8.8 0.9 6 0.9z" fill="${color}"/>
+    <circle cx="6" cy="5.7" r="1.7" fill="white" opacity="0.95"/>
+  </svg>`;
+}
+
+function countryClusterPinHtml(count: number, activeFilter: ActivityFilter): string {
+  const accent = ACTIVITY_META[activeFilter].color;
+  const shell = activeFilter === "all" ? "#2E2A26" : accent;
+  return `<div style="
+    min-width:52px;
+    height:36px;
+    border-radius:9999px;
+    background:${shell};
+    color:white;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    font-size:11px;
+    font-weight:700;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border:2px solid white;
+    box-shadow:0 6px 14px rgba(46,42,38,0.28);
+    padding:0 7px 0 6px;
+    gap:5px;
+  ">
+    <span style="
+      width:18px;
+      height:18px;
+      border-radius:9999px;
+      background:rgba(255,255,255,0.18);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    ">${clusterIconSvg(activeFilter === "all" ? "#E07A5F" : "#F8F5F1")}</span>
+    <span style="letter-spacing:.02em;line-height:1;">${count}</span>
+  </div>`;
+}
+
+function countryClusterHoverHtml(cluster: CountryCluster): string {
+  const names = cluster.destinations
+    .map((d) => d.name)
+    .sort((a, b) => a.localeCompare(b));
+  const shown = names.slice(0, 10);
+  const remaining = Math.max(0, names.length - shown.length);
+  return `<div style="
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    color:#1F2937;
+    border-radius:14px;
+    padding:10px 12px;
+    min-width:200px;
+    max-width:300px;
+  ">
+    <p style="margin:0 0 6px 0;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B7280;">${cluster.country}</p>
+    <p style="margin:0 0 8px 0;font-size:13px;font-weight:700;">${cluster.destinations.length} destinations</p>
+    <p style="margin:0;font-size:12px;line-height:1.5;color:#374151;">
+      ${shown.join(" • ")}
+      ${remaining > 0 ? ` · +${remaining} more` : ""}
+    </p>
+  </div>`;
+}
+
+function buildCountryClusters(destinations: RenderDestination[]): CountryCluster[] {
+  const grouped = new Map<string, RenderDestination[]>();
+  for (const destination of destinations) {
+    const current = grouped.get(destination.country) ?? [];
+    current.push(destination);
+    grouped.set(destination.country, current);
+  }
+  return [...grouped.entries()].map(([country, members]) => ({
+    country,
+    destinations: members,
+    centerLat: members.reduce((sum, d) => sum + d.displayLat, 0) / members.length,
+    centerLon: members.reduce((sum, d) => sum + d.displayLon, 0) / members.length,
+  }));
 }
 
 function destinationHref(slug: string, activeFilter: ActivityFilter): string {
@@ -300,6 +385,7 @@ export function CountryDestinationsMap({ destinations }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   const [activeFilter, setActiveFilter] = useState<ActivityFilter>("all");
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const totalDestinationsFromDb = destinations.length;
   const focusRegionDestinations = useMemo(
     () => destinations.filter((d) => isWithinFocusRegion(d.lat, d.lon)),
@@ -352,6 +438,17 @@ export function CountryDestinationsMap({ destinations }: Props) {
     () => withDisplayOffsets(visibleDestinations),
     [visibleDestinations],
   );
+  const countryClusters = useMemo(
+    () => buildCountryClusters(renderedDestinations),
+    [renderedDestinations],
+  );
+  const focusedDestinations = useMemo(
+    () =>
+      selectedCountry
+        ? renderedDestinations.filter((d) => d.country === selectedCountry)
+        : renderedDestinations,
+    [renderedDestinations, selectedCountry],
+  );
   const profilePresetCount = useMemo(
     () =>
       visibleDestinations.filter(
@@ -359,6 +456,12 @@ export function CountryDestinationsMap({ destinations }: Props) {
       ).length,
     [visibleDestinations],
   );
+
+  useEffect(() => {
+    if (!selectedCountry) return;
+    const exists = renderedDestinations.some((d) => d.country === selectedCountry);
+    if (!exists) setSelectedCountry(null);
+  }, [selectedCountry, renderedDestinations]);
 
   useEffect(() => {
     if (!containerRef.current || !token) return;
@@ -402,7 +505,58 @@ export function CountryDestinationsMap({ destinations }: Props) {
       map.on("load", () => {
         if (!map) return;
         applySandMapTheme(map);
-        for (const destination of renderedDestinations) {
+        if (!selectedCountry) {
+          for (const cluster of countryClusters) {
+            const el = document.createElement("button");
+            el.type = "button";
+            el.style.cursor = "pointer";
+            el.style.background = "transparent";
+            el.style.border = "none";
+            el.style.padding = "0";
+            el.innerHTML = countryClusterPinHtml(
+              cluster.destinations.length,
+              activeFilter,
+            );
+            el.setAttribute("aria-label", `${cluster.country} destinations`);
+
+            const popup = new mapboxgl.Popup({
+              offset: 12,
+              closeButton: false,
+              className: "truststay-popup",
+              maxWidth: "280px",
+            }).setHTML(countryClusterHoverHtml(cluster));
+
+            new mapboxgl.Marker({
+              element: el,
+              anchor: "center",
+            })
+              .setLngLat([cluster.centerLon, cluster.centerLat])
+              .setPopup(popup)
+              .addTo(map);
+
+            el.addEventListener("mouseenter", () => {
+              if (!map) return;
+              popup.addTo(map);
+            });
+            el.addEventListener("mouseleave", () => {
+              popup.remove();
+            });
+            el.addEventListener("click", () => {
+              popup.remove();
+              track("destination_cluster_opened", {
+                country: cluster.country,
+                destination_count: cluster.destinations.length,
+                active_filter: activeFilter,
+              });
+              setSelectedCountry(cluster.country);
+            });
+          }
+
+          fitMapToPoints(map, focusRegionDestinations, 130);
+          return;
+        }
+
+        for (const destination of focusedDestinations) {
           const el = document.createElement("button");
           el.type = "button";
           el.style.cursor = "pointer";
@@ -453,8 +607,11 @@ export function CountryDestinationsMap({ destinations }: Props) {
           });
         }
 
-        // Keep a stable region view; do not zoom into selected activity.
-        fitMapToPoints(map, focusRegionDestinations, 130);
+        fitMapToPoints(
+          map,
+          focusedDestinations.map((d) => ({ lat: d.displayLat, lon: d.displayLon })),
+          130,
+        );
       });
     }
 
@@ -465,7 +622,14 @@ export function CountryDestinationsMap({ destinations }: Props) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (map as any)?.remove();
     };
-  }, [activeFilter, focusRegionDestinations, renderedDestinations, token, visibleDestinations]);
+  }, [
+    activeFilter,
+    countryClusters,
+    focusRegionDestinations,
+    focusedDestinations,
+    selectedCountry,
+    token,
+  ]);
 
   if (!token) {
     return (
@@ -490,13 +654,24 @@ export function CountryDestinationsMap({ destinations }: Props) {
           {totalDestinationsFromDb} destinations loaded from DB
         </p>
         <p className="text-xs text-umber">
-          Showing {visibleDestinations.length} destinations in LATAM, Caribbean, and Central America
+          {selectedCountry
+            ? `Showing ${focusedDestinations.length} destinations in ${selectedCountry}`
+            : `Showing ${visibleDestinations.length} destinations in LATAM, Caribbean, and Central America`}
         </p>
         <p className="text-xs text-umber/80">
           {profilePresetCount} open with activity-aware presets. Every destination opens in free preview first, then you can shape your stay.
         </p>
 
         <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {selectedCountry && (
+            <button
+              type="button"
+              onClick={() => setSelectedCountry(null)}
+              className="flex flex-shrink-0 items-center gap-1 rounded-full border border-dune bg-white px-3 py-1.5 text-xs font-medium text-umber transition-colors hover:border-bark/30 hover:text-bark"
+            >
+              Reset country
+            </button>
+          )}
           {availableActivityFilters.map((activity) => {
             const active = activity === activeFilter;
             const meta = ACTIVITY_META[activity];
