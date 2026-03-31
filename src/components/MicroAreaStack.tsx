@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { MicroAreaNarrative } from "@/lib/placeEnrichmentAgent";
 import { MicroAreaBaseCard } from "@/components/MicroAreaBaseCard";
+import { track } from "@/lib/analytics";
 
 interface Props {
   microAreaNarratives: MicroAreaNarrative[];
   intent: string; // e.g. "surf + heavy work"
   cityName: string;
+  citySlug: string;
 }
 
-export function MicroAreaStack({ microAreaNarratives, intent, cityName }: Props) {
+export function MicroAreaStack({ microAreaNarratives, intent, cityName, citySlug }: Props) {
   const [showAll, setShowAll] = useState(false);
 
   // Always show winner + first 2; rest collapsed unless showAll
@@ -28,6 +30,16 @@ export function MicroAreaStack({ microAreaNarratives, intent, cityName }: Props)
     if (value === "moderate") return "text-amber-700";
     return "text-red-700";
   }
+
+  useEffect(() => {
+    track("micro_area_compared", {
+      city_slug: citySlug,
+      city_name: cityName,
+      action: "panel_viewed",
+      compared_count: compareItems.length,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div>
@@ -47,7 +59,23 @@ export function MicroAreaStack({ microAreaNarratives, intent, cityName }: Props)
           </div>
           <div className="grid gap-px bg-dune sm:grid-cols-3">
             {compareItems.map((area) => (
-              <div key={area.microAreaId} className="bg-white px-3 py-3">
+              <button
+                key={area.microAreaId}
+                onClick={() => {
+                  document.getElementById(`micro-area-card-${area.microAreaId}`)?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "center",
+                  });
+                  track("micro_area_compared", {
+                    city_slug: citySlug,
+                    city_name: cityName,
+                    action: "compare_item_clicked",
+                    micro_area_id: area.microAreaId,
+                    micro_area_name: area.name,
+                  });
+                }}
+                className="bg-white px-3 py-3 text-left transition-colors hover:bg-cream/60"
+              >
                 <p className="text-sm font-semibold text-bark">{area.name}</p>
                 <p className="text-xs text-umber">Score {area.score.toFixed(1)}/10</p>
                 {area.readiness ? (
@@ -65,7 +93,7 @@ export function MicroAreaStack({ microAreaNarratives, intent, cityName }: Props)
                 ) : (
                   <p className="mt-2 text-[11px] text-umber/70">Readiness data not available</p>
                 )}
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -78,6 +106,7 @@ export function MicroAreaStack({ microAreaNarratives, intent, cityName }: Props)
             microArea={winnerArea}
             isWinner={true}
             intent={intent}
+            citySlug={citySlug}
           />
         )}
 
@@ -88,13 +117,23 @@ export function MicroAreaStack({ microAreaNarratives, intent, cityName }: Props)
             microArea={area}
             isWinner={false}
             intent={intent}
+            citySlug={citySlug}
           />
         ))}
 
         {/* Show more / show less toggle */}
         {hiddenCount > 0 && (
           <button
-            onClick={() => setShowAll((v) => !v)}
+            onClick={() => {
+              const next = !showAll;
+              setShowAll(next);
+              track("micro_area_compared", {
+                city_slug: citySlug,
+                city_name: cityName,
+                action: next ? "expanded_list" : "collapsed_list",
+                hidden_count: hiddenCount,
+              });
+            }}
             className="w-full rounded-xl border border-dune bg-cream px-4 py-3 text-sm text-umber transition-colors hover:bg-dune/20"
           >
             {showAll

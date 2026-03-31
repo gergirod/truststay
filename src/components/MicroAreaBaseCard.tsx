@@ -1,11 +1,14 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import type { MicroAreaNarrative } from "@/lib/placeEnrichmentAgent";
+import { track } from "@/lib/analytics";
 
 interface Props {
   microArea: MicroAreaNarrative;
   isWinner: boolean;
   intent: string; // e.g. "surf + heavy work"
+  citySlug: string;
 }
 
 function readinessChip(
@@ -25,12 +28,37 @@ function readinessChip(
   );
 }
 
-export function MicroAreaBaseCard({ microArea, isWinner, intent }: Props) {
+export function MicroAreaBaseCard({ microArea, isWinner, intent, citySlug }: Props) {
   const { narrativeText, hasConstraintBreakers, score, rank } = microArea;
   const isBroken = hasConstraintBreakers;
+  const logisticsRef = useRef<HTMLDivElement | null>(null);
+  const didTrackLogistics = useRef(false);
+
+  useEffect(() => {
+    if (!narrativeText.logistics || !logisticsRef.current || didTrackLogistics.current) return;
+    const el = logisticsRef.current;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting) && !didTrackLogistics.current) {
+          didTrackLogistics.current = true;
+          track("logistics_section_engaged", {
+            city_slug: citySlug,
+            micro_area_id: microArea.microAreaId,
+            micro_area_name: microArea.name,
+            source: "micro_area_card",
+          });
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.4 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [citySlug, microArea.microAreaId, microArea.name, narrativeText.logistics]);
 
   return (
     <div
+      id={`micro-area-card-${microArea.microAreaId}`}
       className={`overflow-hidden rounded-2xl border shadow-sm transition-all ${
         isWinner
           ? "border-bark bg-white"
@@ -161,7 +189,7 @@ export function MicroAreaBaseCard({ microArea, isWinner, intent }: Props) {
 
           {/* Logistics */}
           {narrativeText.logistics && (
-            <div className="rounded-xl border border-dune bg-cream px-4 py-3">
+            <div ref={logisticsRef} className="rounded-xl border border-dune bg-cream px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-umber">
                 Daily logistics
               </p>

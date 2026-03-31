@@ -13,6 +13,7 @@ import { PlaceSection } from "@/components/PlaceSection";
 import { PaywallCard } from "@/components/PaywallCard";
 import { AnalyticsEvent } from "@/components/AnalyticsEvent";
 import { CheckoutSuccessTracker } from "@/components/CheckoutSuccessTracker";
+import { CityReturnVisitTracker } from "@/components/CityReturnVisitTracker";
 import { CityMap } from "@/components/CityMap";
 import { CURATED_NEIGHBORHOODS } from "@/data/neighborhoods";
 import { PLACE_OVERRIDES } from "@/data/placeOverrides";
@@ -707,6 +708,12 @@ export default async function CityPage({ params, searchParams }: Props) {
         isUnlocked={unlocked}
         hasIntent={Boolean(intent)}
       />
+      <CityReturnVisitTracker
+        citySlug={city.slug}
+        cityName={city.name}
+        isUnlocked={unlocked}
+        hasIntent={Boolean(intent)}
+      />
 
       {/* Validation signal for checkout continuity: user returned unlocked but intent params are missing. */}
       {justUnlocked && unlocked && !intent && (
@@ -1275,6 +1282,7 @@ async function CityContent({
                 microAreaNarratives={microAreaNarratives}
                 intent={`${intent.purpose} + ${intent.workStyle} work`}
                 cityName={city.name}
+              citySlug={city.slug}
               />
             ) : (
               <BestBaseCard

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { track } from "@/lib/analytics";
+import { useEffect, useRef } from "react";
 import { CHECKOUT_PENDING_KEY } from "@/components/CheckoutSuccessTracker";
 import type {
   StayFitResult,
@@ -238,6 +239,8 @@ export function BestBaseCard({
 }: Props) {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const logisticsRef = useRef<HTMLDivElement | null>(null);
+  const didTrackLogistics = useRef(false);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -312,8 +315,36 @@ export function BestBaseCard({
   const topDailyLife  = isUnlocked ? stayFit.topDailyLifePlaces[0] ?? null : null;
 
   function scrollToPlace(id: string) {
+    track("nearby_place_clicked", {
+      city_slug: citySlug,
+      city_name: cityName,
+      place_id: id,
+      source: "best_base_card",
+    });
     document.getElementById(`place-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
+
+  useEffect(() => {
+    if (!isUnlocked || !logistics || !logisticsRef.current || didTrackLogistics.current) return;
+    const el = logisticsRef.current;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting) && !didTrackLogistics.current) {
+          didTrackLogistics.current = true;
+          track("logistics_section_engaged", {
+            city_slug: citySlug,
+            city_name: cityName,
+            micro_area_name: stayFit.baseArea,
+            source: "best_base_card",
+          });
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.4 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [cityName, citySlug, isUnlocked, logistics, stayFit.baseArea]);
 
   return (
     <div className="overflow-hidden rounded-2xl border border-dune bg-white shadow-sm">
@@ -479,7 +510,7 @@ export function BestBaseCard({
 
             {/* 5 — Logistics */}
             {logistics && (
-              <div className="rounded-xl border border-dune bg-cream px-4 py-3">
+              <div ref={logisticsRef} className="rounded-xl border border-dune bg-cream px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-umber">
                   Daily logistics
                 </p>
