@@ -126,13 +126,25 @@ function applySandMapTheme(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   map: any,
 ) {
+  const safeSetPaint = (
+    layerId: string,
+    property: string,
+    color: string,
+  ) => {
+    try {
+      if (!map.getLayer(layerId)) return;
+      map.setPaintProperty(layerId, property, color);
+    } catch {
+      // Some style layers may not support the requested paint property.
+      // Ignore safely so marker rendering is never blocked.
+    }
+  };
+
   const setFill = (layerId: string, color: string) => {
-    if (!map.getLayer(layerId)) return;
-    map.setPaintProperty(layerId, "fill-color", color);
+    safeSetPaint(layerId, "fill-color", color);
   };
   const setBg = (layerId: string, color: string) => {
-    if (!map.getLayer(layerId)) return;
-    map.setPaintProperty(layerId, "background-color", color);
+    safeSetPaint(layerId, "background-color", color);
   };
 
   // Blend base map into TrustStay sand tones.
@@ -256,7 +268,8 @@ export function CountryDestinationsMap({ destinations }: Props) {
           el.addEventListener("click", () => marker.togglePopup());
         }
 
-        fitMapToPoints(map, visibleDestinations, 78);
+        // Keep a stable region view; do not zoom into selected activity.
+        fitMapToPoints(map, focusRegionDestinations, 78);
       });
     }
 
@@ -267,7 +280,7 @@ export function CountryDestinationsMap({ destinations }: Props) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (map as any)?.remove();
     };
-  }, [token, visibleDestinations]);
+  }, [focusRegionDestinations, token, visibleDestinations]);
 
   if (!token) {
     return (
