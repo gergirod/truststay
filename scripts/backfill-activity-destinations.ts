@@ -11,8 +11,8 @@ import { resolve } from "path";
 import { mkdir, writeFile } from "fs/promises";
 config({ path: resolve(process.cwd(), ".env.local"), quiet: true });
 
-import { CITY_INTROS } from "../src/data/cityIntros.js";
-import { geocodeCity } from "../src/lib/geocode.js";
+import { getDestinationSlugsForActivity } from "../src/data/activityDestinations.js";
+import { geocodeDestinationSlug } from "../src/lib/destinationGeocode.js";
 import {
   discoverMicroAreas,
   type MicroAreaDef,
@@ -47,13 +47,6 @@ function parseArgs() {
     write: has("--write"),
     dryRun: has("--dry-run"),
   };
-}
-
-function slugToName(slug: string): string {
-  return slug
-    .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
 }
 
 function toSlug(value: string): string {
@@ -93,21 +86,11 @@ function evidenceScore(pack: Awaited<ReturnType<typeof gatherEvidenceForMicroAre
 }
 
 function getTargetSlugs(activity: Activity): string[] {
-  if (activity === "all" || activity === "exploring") {
-    return Object.keys(CITY_INTROS);
-  }
-  if (activity === "work_first") {
-    return Object.entries(CITY_INTROS)
-      .filter(([, intro]) => intro.activity === "work")
-      .map(([slug]) => slug);
-  }
-  return Object.entries(CITY_INTROS)
-    .filter(([, intro]) => intro.activity === activity)
-    .map(([slug]) => slug);
+  return getDestinationSlugsForActivity(activity);
 }
 
-async function evaluateDestination(slug: string, activity: Activity) {
-  const city = await geocodeCity(slugToName(slug));
+async function evaluateDestination(slug: string, activity: Activity, dryRun: boolean) {
+  const city = await geocodeDestinationSlug(slug);
   if (!city) {
     return { slug, status: "skip" as const, reason: "geocode_failed" };
   }
@@ -122,7 +105,13 @@ async function evaluateDestination(slug: string, activity: Activity) {
     discovered.map(async (zone) => {
       const distance = haversineKm(city.lat, city.lon, zone.center.lat, zone.center.lon);
       const geofencePass = distance <= MAX_ZONE_DISTANCE_KM;
-      const evidence = await gatherEvidenceForMicroArea(zone, city.name, city.country, slug);
+      const evidence = await gatherEvidenceForMicroArea(
+        zone,
+        city.name,
+        city.country,
+        slug,
+        !dryRun,
+      );
       const score = evidenceScore(evidence);
       const evidencePass = score >= MIN_EVIDENCE_SCORE;
       return {
@@ -205,7 +194,7 @@ async function main() {
 
   const results = [];
   for (const slug of target) {
-    const result = await evaluateDestination(slug, activity);
+    const result = await evaluateDestination(slug, activity, dryRun);
     results.push(result);
     if (write && !dryRun) {
       await writeAcceptedZones(result);

@@ -77,6 +77,7 @@ function parsePrefillPurpose(sp: SearchParams): StayPurpose | null {
 const FREE_WORK = 1;          // 1 full card — rest shown as locked name teasers
 const FREE_COFFEE_MEALS = 1;  // 1 full card — rest shown as locked name teasers
 const FREE_WELLBEING = 1;
+const FREE_ESSENTIALS = 1;
 
 // ── Café routing ────────────────────────────────────────────────────────────
 // Decides whether a café belongs in the "Work" section (work-oriented) or the
@@ -1081,6 +1082,42 @@ async function CityContent({
 
   const algorithmicSummary = computeCitySummary(city, places, areaName ?? undefined);
 
+  const essentialsPlaces: Place[] = dailyLifePlaces
+    .slice()
+    .sort((a, b) => a.distanceKm - b.distanceKm)
+    .map((p) => {
+      const routineFit: "high" | "medium" | "low" =
+        p.distanceKm < 0.6 ? "high" : p.distanceKm < 1.5 ? "medium" : "low";
+      const convenience: "high" | "medium" | "low" =
+        p.distanceKm < 0.6 ? "high" : p.distanceKm < 1.5 ? "medium" : "low";
+      const typeLabel =
+        p.type === "grocery"
+          ? "Grocery"
+          : p.type === "convenience"
+            ? "Convenience"
+            : p.type === "pharmacy"
+              ? "Pharmacy"
+              : "Laundry";
+      return {
+        id: `daily-${p.id}`,
+        name: p.name,
+        category: "essential",
+        lat: p.lat,
+        lon: p.lon,
+        distanceKm: p.distanceKm,
+        confidence: {
+          routineFit,
+          convenience,
+          routineSupport: routineFit,
+        },
+        bestFor: ["routine_support"],
+        explanation:
+          p.distanceKm < 0.6
+            ? `${typeLabel} within walking distance of your base area.`
+            : `${typeLabel} is available nearby; plan a short ride or walk.`,
+      };
+    });
+
   // Append honest daily-life gap signals to the generic summary.
   // Only when no KV narrative overrides the text — KV narrative wins.
   const summaryEnhanced = kvNarrative
@@ -1452,6 +1489,17 @@ async function CityContent({
         sectionKind="wellbeing"
         confirmations={confirmations}
         emptyMessage="No wellbeing spots found near this base yet."
+      />
+
+      <PlaceSection
+        title="Essentials"
+        subtitle="Grocery, pharmacy, and practical everyday needs near your base"
+        places={essentialsPlaces}
+        freeCount={FREE_ESSENTIALS}
+        isUnlocked={isUnlocked}
+        citySlug={city.slug}
+        neighborhoodSlug={city.slug}
+        emptyMessage="No daily-life essentials found near this base yet."
       />
 
       {/* Paywall — shown only when locked, there is locked content, and BestBaseCard

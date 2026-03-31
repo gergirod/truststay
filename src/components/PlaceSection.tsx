@@ -32,6 +32,7 @@ function tierLabel(place: Place): string {
   }
   if (place.category === "food") return "Coffee & meals spot";
   if (place.category === "gym") return "Wellbeing spot";
+  if (place.category === "essential") return "Daily essential";
   return "Place";
 }
 

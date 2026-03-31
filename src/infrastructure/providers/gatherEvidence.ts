@@ -248,6 +248,7 @@ export async function gatherEvidenceForMicroArea(
   cityName: string,
   country: string,
   citySlug?: string,
+  persistCanonical: boolean = true,
 ): Promise<EvidencePack> {
   const { lat, lon } = microArea.center;
   const radiusMeters = Math.round(microArea.radius_km * 1000);
@@ -298,7 +299,7 @@ export async function gatherEvidenceForMicroArea(
   });
 
   // Non-blocking write-through to canonical DB (if configured)
-  if (citySlug) {
+  if (citySlug && persistCanonical) {
     void persistZonePlacesAndMetrics(citySlug, {
       coworkings,
       cafes,

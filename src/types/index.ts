@@ -44,7 +44,7 @@ export type BestForTag =
   | "quick_meal"
   | "routine_support";
 
-export type PlaceCategory = "cafe" | "coworking" | "gym" | "food";
+export type PlaceCategory = "cafe" | "coworking" | "gym" | "food" | "essential";
 
 /**
  * Data sourced from Google Places API enrichment.

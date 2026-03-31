@@ -10,6 +10,8 @@ export function formatCategory(cat: PlaceCategory): string {
       return "Gym";
     case "food":
       return "Food";
+    case "essential":
+      return "Essential";
   }
 }
 

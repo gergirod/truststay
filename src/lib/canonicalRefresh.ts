@@ -1,6 +1,6 @@
 import { buildFinalResponse } from "@/application/use-cases/buildFinalResponse";
 import { canonicalRepository } from "@/db/repositories";
-import { geocodeCity } from "@/lib/geocode";
+import { geocodeDestinationSlug } from "@/lib/destinationGeocode";
 import {
   deleteDailyLifeCache,
   deletePlacesCache,
@@ -37,13 +37,6 @@ export interface DestinationRefreshResult {
     dailyLife: boolean;
     narrativesDeleted: number;
   };
-}
-
-function slugToName(slug: string): string {
-  return slug
-    .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
 }
 
 function profileForActivity(activity: RefreshActivity, structural: boolean): UserProfile {
@@ -85,7 +78,7 @@ export async function runDestinationRefresh(
   }
 
   try {
-    const geocoded = await geocodeCity(slugToName(citySlug));
+    const geocoded = await geocodeDestinationSlug(citySlug);
     if (!geocoded) {
       throw new Error(`Could not geocode destination: ${citySlug}`);
     }

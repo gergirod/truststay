@@ -12,9 +12,8 @@ import { config } from "dotenv";
 import { resolve } from "path";
 config({ path: resolve(process.cwd(), ".env.local"), quiet: true });
 
-import { geocodeCity } from "../src/lib/geocode.js";
-import { CITY_INTROS } from "../src/data/cityIntros.js";
-import { KNOWN_CITY_SLUGS } from "../src/data/slugs.js";
+import { geocodeDestinationSlug } from "../src/lib/destinationGeocode.js";
+import { getDestinationSlugsForActivity } from "../src/data/activityDestinations.js";
 import { runDestinationRefresh } from "../src/lib/canonicalRefresh.js";
 
 type CliActivity =
@@ -45,24 +44,8 @@ function parseArgs() {
   return { activity, destination, limit, dryRun };
 }
 
-function slugToName(slug: string): string {
-  return slug
-    .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
-
 function getSlugsForActivity(activity: CliActivity): string[] {
-  if (activity === "all") return [...KNOWN_CITY_SLUGS];
-  if (activity === "exploring") return [...KNOWN_CITY_SLUGS];
-  if (activity === "work_first") {
-    return Object.entries(CITY_INTROS)
-      .filter(([, intro]) => intro.activity === "work")
-      .map(([slug]) => slug);
-  }
-  return Object.entries(CITY_INTROS)
-    .filter(([, intro]) => intro.activity === activity)
-    .map(([slug]) => slug);
+  return getDestinationSlugsForActivity(activity);
 }
 
 async function sleep(ms: number): Promise<void> {
@@ -97,8 +80,7 @@ async function main() {
   const results: Array<{ slug: string; status: "ok" | "skip" | "fail"; detail: string }> = [];
 
   for (const slug of targetSlugs) {
-    const query = slugToName(slug);
-    const city = await geocodeCity(query);
+    const city = await geocodeDestinationSlug(slug);
     if (!city) {
       results.push({ slug, status: "skip", detail: "geocode_failed" });
       continue;
