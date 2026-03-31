@@ -29,15 +29,15 @@ type ActivityFilter = "all" | ActivityBucket;
 
 const ACTIVITY_META: Record<
   ActivityFilter,
-  { label: string; emoji: string; color: string }
+  { label: string; color: string }
 > = {
-  all: { label: "All", emoji: "🌎", color: "#2E2A26" },
-  surf: { label: "Surf", emoji: "🏄", color: "#E07A5F" },
-  dive: { label: "Dive", emoji: "🤿", color: "#5DA9E9" },
-  hike: { label: "Hike", emoji: "🥾", color: "#6AA84F" },
-  yoga: { label: "Yoga", emoji: "🧘", color: "#9B6AD6" },
-  kite: { label: "Kite", emoji: "🪁", color: "#F2A93B" },
-  work_first: { label: "Work", emoji: "💻", color: "#8FB7B3" },
+  all: { label: "All", color: "#2E2A26" },
+  surf: { label: "Surf", color: "#E07A5F" },
+  dive: { label: "Dive", color: "#5DA9E9" },
+  hike: { label: "Hike", color: "#6AA84F" },
+  yoga: { label: "Yoga", color: "#9B6AD6" },
+  kite: { label: "Kite", color: "#F2A93B" },
+  work_first: { label: "Work", color: "#8FB7B3" },
 };
 
 const ACTIVITY_PILL_ORDER: ActivityFilter[] = [
@@ -82,6 +82,34 @@ function destinationPinHtml(primaryActivity: ActivityFilter): string {
       ? `<g>
           <path d="M12 6.4c-1 1.7-1.6 3.5-1.6 5.4s.6 3.7 1.6 5.4c1-1.7 1.6-3.5 1.6-5.4s-.6-3.7-1.6-5.4z" fill="white" opacity="0.96"/>
           <path d="M7.5 16.5c1.5-1 3-1 4.5 0s3 1 4.5 0" stroke="white" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+        </g>`
+      : primaryActivity === "dive"
+      ? `<g>
+          <rect x="7" y="8.2" width="10" height="4.6" rx="2.2" fill="white" opacity="0.96"/>
+          <path d="M9 13.2c0 1.8 1.3 3.2 3 3.2s3-1.4 3-3.2" stroke="white" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+          <rect x="15.8" y="9.5" width="2.2" height="1.8" rx="0.8" fill="white" opacity="0.96"/>
+        </g>`
+      : primaryActivity === "hike"
+      ? `<g>
+          <path d="M7 16.5l3.2-6.5 3.2 6.5H7z" fill="white" opacity="0.96"/>
+          <path d="M10.2 16.5l2.8-5 2.8 5h-5.6z" fill="white" opacity="0.88"/>
+        </g>`
+      : primaryActivity === "yoga"
+      ? `<g>
+          <circle cx="12" cy="8.5" r="1.5" fill="white" opacity="0.96"/>
+          <path d="M8.3 14.8c1-1.3 2.2-2 3.7-2s2.7.7 3.7 2" stroke="white" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+          <path d="M7.8 16.5c1.3-.8 2.7-1.1 4.2-1.1s2.9.3 4.2 1.1" stroke="white" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+        </g>`
+      : primaryActivity === "kite"
+      ? `<g>
+          <path d="M12 7.6l3.2 3.8L12 15.2 8.8 11.4 12 7.6z" fill="white" opacity="0.96"/>
+          <path d="M12 15.2v3.1" stroke="white" stroke-width="1.1" stroke-linecap="round"/>
+          <path d="M12 18.3l-1 .9m1-.2l1 .9" stroke="white" stroke-width="1.1" stroke-linecap="round"/>
+        </g>`
+      : primaryActivity === "work_first"
+      ? `<g>
+          <rect x="8" y="9.4" width="8" height="5.6" rx="1.1" fill="white" opacity="0.96"/>
+          <path d="M10 9.4v-1c0-.6.4-1 1-1h2c.6 0 1 .4 1 1v1" stroke="white" stroke-width="1.1" fill="none"/>
         </g>`
       : `<g>
           <circle cx="12" cy="11.5" r="5.3" fill="${ringColor}"/>
@@ -207,6 +235,7 @@ export function CountryDestinationsMap({ destinations }: Props) {
       map = new mapboxgl.Map({
         container: containerRef.current,
         style: "mapbox://styles/mapbox/light-v11",
+        projection: "mercator",
         center: [-75, -12],
         zoom: 3,
         minZoom: 1.5,
@@ -327,12 +356,10 @@ export function CountryDestinationsMap({ destinations }: Props) {
                 <span
                   className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[9px]"
                   style={{
-                    background: active ? "rgba(255,255,255,0.2)" : meta.color,
+                    background: active ? "rgba(255,255,255,0.22)" : meta.color,
                     color: "white",
                   }}
-                >
-                  {meta.emoji}
-                </span>
+                />
                 <span>{meta.label}</span>
               </button>
             );
