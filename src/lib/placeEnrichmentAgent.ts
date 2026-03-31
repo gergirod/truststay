@@ -44,6 +44,18 @@ import type { CachedMicroAreaNarrative } from "@/lib/kv";
 import { buildFinalResponse } from "@/application/use-cases/buildFinalResponse";
 import type { FinalOutput } from "@/schemas/zod/finalOutput.schema";
 
+function formatError(err: unknown): string {
+  if (err instanceof Error) {
+    const stackTop = err.stack?.split("\n")[1]?.trim();
+    return `${err.name}: ${err.message}${stackTop ? ` | ${stackTop}` : ""}`;
+  }
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+}
+
 // ── Phase 1: Batch fetch ─────────────────────────────────────────────────────
 
 /**
@@ -105,6 +117,12 @@ export async function batchFetchPlaceDetails(
       r.status === "fulfilled" && r.value !== null
     )
     .map((r) => r.value);
+  const rejected = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+  if (rejected.length > 0) {
+    console.warn(
+      `[enrichmentAgent] batch fetch had ${rejected.length} rejected detail calls for ${citySlug}; sample=${formatError(rejected[0].reason)}`,
+    );
+  }
 
   // Persist to KV (fire-and-forget)
   saveEnrichedPlaces(citySlug, cityName, enrichedPlaces).catch((err) =>
@@ -576,8 +594,10 @@ Remember: only use data you found via tools. No hallucinations. Be honest about 
           planAround,
           logistics:      typeof parsed.logistics === "string" ? parsed.logistics.trim() : "",
         };
-      } catch {
-        console.warn("[enrichmentAgent] failed to parse agent output:", raw?.slice(0, 200));
+      } catch (err) {
+        console.warn(
+          `[enrichmentAgent] failed to parse agent output: ${formatError(err)} raw=${raw?.slice(0, 200)}`,
+        );
         break;
       }
     }
@@ -652,7 +672,10 @@ ${reviewsText}`;
         } else {
           result = `Unknown tool: ${toolCall.function.name}`;
         }
-      } catch {
+      } catch (err) {
+        console.warn(
+          `[enrichmentAgent] tool call failed tool=${toolCall.function.name}: ${formatError(err)}`,
+        );
         result = "Tool call failed — could not parse arguments.";
       }
 
@@ -799,7 +822,9 @@ Return ONLY this JSON array (one object per zone, in rank order):
       };
     });
   } catch (err) {
-    console.error("[enrichmentAgent] generateAllMicroAreaNarratives failed:", err);
+    console.error(
+      `[enrichmentAgent] generateAllMicroAreaNarratives failed city=${cityName} country=${country}: ${formatError(err)}`,
+    );
     // Fallback: generate basic narratives from engine data only
     return decisionOutput.ranking.map((rankEntry) => {
       const zone = decisionOutput.candidate_micro_areas.find((m) => m.name === rankEntry.micro_area);
@@ -976,7 +1001,10 @@ export async function getOrGenerateEnrichedNarrative(
         narrative: cachedNarrative,
         microAreaNarratives: recoveredMicroAreas,
       };
-    } catch {
+    } catch (err) {
+      console.warn(
+        `[enrichmentAgent] failed to recover micro-area narratives from cached entry city=${citySlug}: ${formatError(err)}`,
+      );
       return {
         narrative: cachedNarrative,
         microAreaNarratives: null,
@@ -1005,8 +1033,10 @@ export async function getOrGenerateEnrichedNarrative(
       },
     });
     console.log(`[enrichmentAgent] decision engine ran: ${decisionOutput.ranking.length} micro-areas, top pick: ${decisionOutput.recommendation.top_pick}`);
-  } catch {
-    console.warn(`[enrichmentAgent] decision engine unavailable for ${citySlug} — continuing without structured output`);
+  } catch (err) {
+    console.warn(
+      `[enrichmentAgent] decision engine unavailable for ${citySlug} — continuing without structured output (${formatError(err)})`,
+    );
   }
 
   // 3. Phase 1 — batch Place Details (cached per city)
@@ -1034,7 +1064,10 @@ export async function getOrGenerateEnrichedNarrative(
         decisionOutput,
         { purpose, workStyle, dailyBalance: balance },
       );
-    } catch {
+    } catch (err) {
+      console.warn(
+        `[enrichmentAgent] deterministic micro-area fallback generation failed city=${citySlug}: ${formatError(err)}`,
+      );
       fallbackAreas = fallbackMicroAreaNarrativesFromDecision(decisionOutput);
     }
     if (!fallbackAreas || fallbackAreas.length === 0) {

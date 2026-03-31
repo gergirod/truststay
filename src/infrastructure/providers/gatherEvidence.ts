@@ -39,6 +39,18 @@ interface GooglePlaceResult {
   websiteUri?: string;
 }
 
+function formatError(err: unknown): string {
+  if (err instanceof Error) {
+    const stackTop = err.stack?.split("\n")[1]?.trim();
+    return `${err.name}: ${err.message}${stackTop ? ` | ${stackTop}` : ""}`;
+  }
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+}
+
 // ── Google Places Nearby Search ───────────────────────────────────────────────
 
 async function searchNearby(
@@ -81,10 +93,18 @@ async function searchNearby(
       }),
     });
 
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.warn(
+        `[gatherEvidence] searchNearby non-200 type=${type} status=${res.status} radius=${radiusMeters}`,
+      );
+      return [];
+    }
     const data = (await res.json()) as { places?: GooglePlaceResult[] };
     return data.places ?? [];
-  } catch {
+  } catch (err) {
+    console.warn(
+      `[gatherEvidence] searchNearby exception type=${type} radius=${radiusMeters}: ${formatError(err)}`,
+    );
     return [];
   }
 }
@@ -137,10 +157,18 @@ async function searchByText(
       }),
     });
 
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.warn(
+        `[gatherEvidence] searchText non-200 status=${res.status} query="${query.slice(0, 64)}"`,
+      );
+      return [];
+    }
     const data = (await res.json()) as { places?: GooglePlaceResult[] };
     return data.places ?? [];
-  } catch {
+  } catch (err) {
+    console.warn(
+      `[gatherEvidence] searchText exception query="${query.slice(0, 64)}": ${formatError(err)}`,
+    );
     return [];
   }
 }
@@ -248,7 +276,10 @@ Return ONLY a JSON object with these fields:
     const raw = response.choices[0]?.message?.content;
     if (!raw) return {};
     return JSON.parse(raw) as LLMFillResult;
-  } catch {
+  } catch (err) {
+    console.warn(
+      `[gatherEvidence] llmFillEvidence failed zone=${microArea.id} (${microArea.name}): ${formatError(err)}`,
+    );
     return {};
   }
 }
@@ -483,7 +514,14 @@ export async function gatherEvidenceForMicroArea(
   };
 
   // Validate before returning — catches any shape mismatches early
-  return EvidencePackSchema.parse(pack);
+  try {
+    return EvidencePackSchema.parse(pack);
+  } catch (err) {
+    console.error(
+      `[gatherEvidence] EvidencePack parse failed zone=${microArea.id} (${microArea.name}) confidence=${confidence} cafes=${cafes.length} coworks=${coworkings.length} gyms=${gyms.length} restaurants=${restaurants.length}: ${formatError(err)}`,
+    );
+    throw err;
+  }
 }
 
 function normalizeName(value: string): string {

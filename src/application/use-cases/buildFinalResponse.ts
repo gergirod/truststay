@@ -32,6 +32,18 @@ import { canonicalRepository } from "@/db/repositories";
 const MAX_ZONE_DISTANCE_FROM_ANCHOR_KM = 22;
 const MIN_ACCEPTED_EVIDENCE_SCORE = 2.5;
 
+function formatError(err: unknown): string {
+  if (err instanceof Error) {
+    const stackTop = err.stack?.split("\n")[1]?.trim();
+    return `${err.name}: ${err.message}${stackTop ? ` | ${stackTop}` : ""}`;
+  }
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+}
+
 export interface RecommendationInput {
   citySlug: string;
   cityName: string;
@@ -117,8 +129,10 @@ export async function buildFinalResponse(
     `[buildFinalResponse] ranking city=${citySlug} top=${recommendation.top_pick} top_score=${rankingResult.rankings[0]?.final_score?.toFixed(2) ?? "n/a"} top_has_breakers=${rankingResult.rankings[0]?.has_constraint_breakers ?? false}`,
   );
   for (const card of scoreCards) {
+    const penaltyIds = card.penalties.map((p) => p.id).join("|") || "none";
+    const breakerReasons = card.constraint_breakers.join(" | ") || "none";
     console.log(
-      `[buildFinalResponse] area city=${citySlug} zone=${card.micro_area_name} score=${card.final_score.toFixed(2)} confidence=${card.confidence.toFixed(2)} breakers=${card.constraint_breakers.length} work=${card.scores.work_environment.toFixed(1)} internet=${card.scores.internet_reliability.toFixed(1)} routine=${card.scores.routine_support.toFixed(1)} friction=${card.scores.walkability_and_friction.toFixed(1)} activity=${card.scores.activity_access.toFixed(1)}`,
+      `[buildFinalResponse] area city=${citySlug} zone=${card.micro_area_name} score=${card.final_score.toFixed(2)} confidence=${card.confidence.toFixed(2)} breakers=${card.constraint_breakers.length} penalty_ids=${penaltyIds} breaker_reasons=${breakerReasons} work=${card.scores.work_environment.toFixed(1)} internet=${card.scores.internet_reliability.toFixed(1)} routine=${card.scores.routine_support.toFixed(1)} friction=${card.scores.walkability_and_friction.toFixed(1)} activity=${card.scores.activity_access.toFixed(1)}`,
     );
   }
 
@@ -394,7 +408,9 @@ async function seedCanonicalMicroAreas(
       }),
     );
   } catch (err) {
-    console.warn("[buildFinalResponse] canonical seeding failed:", err);
+    console.warn(
+      `[buildFinalResponse] canonical seeding failed destinationId=${destinationId}: ${formatError(err)}`,
+    );
   }
 }
 

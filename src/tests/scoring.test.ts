@@ -129,6 +129,22 @@ describe("scoreMicroArea — Popoyo", () => {
     const card = scoreMicroArea(POPOYO_EVIDENCE["popoyo-santana"], weights, routineFirstProfile);
     expect(card.penalties.some((p) => p.id === "no_gym_when_required")).toBe(false);
   });
+
+  it("uses a soft transport penalty for surf purpose-first when activity is not walkable", () => {
+    const weights = adjustWeights(DEFAULT_WEIGHTS, surfLightProfile);
+    const synthetic = {
+      ...POPOYO_EVIDENCE["popoyo-guasacate"],
+      friction: {
+        ...POPOYO_EVIDENCE["popoyo-guasacate"].friction,
+        activity_walkable: false,
+        requires_scooter_for_daily_life: true,
+      },
+    };
+    const card = scoreMicroArea(synthetic, weights, surfLightProfile);
+    expect(card.penalties.some((p) => p.id === "activity_requires_transport_unknown")).toBe(true);
+    expect(card.penalties.some((p) => p.id === "activity_inaccessible_no_transport")).toBe(false);
+    expect(card.constraint_breakers).toHaveLength(0);
+  });
 });
 
 // ── rankMicroAreas tests ──────────────────────────────────────────────────────

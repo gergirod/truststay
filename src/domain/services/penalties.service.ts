@@ -57,7 +57,17 @@ export function evaluatePenalties(
     !evidence.friction.activity_walkable &&
     evidence.friction.requires_scooter_for_daily_life
   ) {
-    apply("activity_inaccessible_no_transport");
+    const activityFirstIntent =
+      profile.main_activity === "surf" ||
+      profile.main_activity === "dive" ||
+      profile.main_activity === "kite" ||
+      profile.daily_balance === "purpose_first";
+    if (activityFirstIntent) {
+      // In many activity destinations, scooter access is normal and should not hard-fail all zones.
+      apply("activity_requires_transport_unknown");
+    } else {
+      apply("activity_inaccessible_no_transport");
+    }
   }
 
   // ── Soft penalties ──────────────────────────────────────────────────────────

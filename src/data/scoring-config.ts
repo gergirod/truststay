@@ -118,6 +118,13 @@ export const PENALTY_CONFIG = {
     dimension: "activity_access",
     reason: "Activity requires car or scooter but transport assumption is unknown",
   },
+  activity_requires_transport_unknown: {
+    id: "activity_requires_transport_unknown",
+    value: 0.8,
+    is_hard: false,
+    dimension: "activity_access",
+    reason: "Activity is not walkable and transport is unknown — scooter likely needed",
+  },
   no_reliable_wifi_heavy_work: {
     id: "no_reliable_wifi_heavy_work",
     value: 2.0,
