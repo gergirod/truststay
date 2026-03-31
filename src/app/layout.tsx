@@ -9,7 +9,7 @@ const geist = Geist({
 });
 
 const APP_URL = "https://truststay.co";
-const OG_IMAGE = `${APP_URL}/og.png`;
+const OG_IMAGE = `${APP_URL}/opengraph-image`;
 
 export const metadata: Metadata = {
   title: {
@@ -18,11 +18,10 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
       { url: "/icon", type: "image/png", sizes: "32x32" },
     ],
-    shortcut: "/favicon.svg",
-    apple: "/favicon.svg",
+    shortcut: "/icon",
+    apple: "/apple-icon",
   },
   description:
     "Find the best neighborhood to base yourself in any city — work spots, cafes, and gyms organized around a walkable daily routine. Built for remote workers.",

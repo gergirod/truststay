@@ -151,7 +151,7 @@ export async function generateMetadata({
 
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://truststay.co";
-  const ogImage = `${appUrl}/og.png`;
+  const ogImage = `${appUrl}/city/${slug}/opengraph-image`;
   const canonicalUrl = `${appUrl}/city/${slug}`;
 
   const hasParentCity =
