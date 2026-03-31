@@ -117,6 +117,29 @@ function fitMapToPoints(
   );
 }
 
+function applySandMapTheme(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  map: any,
+) {
+  const setFill = (layerId: string, color: string) => {
+    if (!map.getLayer(layerId)) return;
+    map.setPaintProperty(layerId, "fill-color", color);
+  };
+  const setBg = (layerId: string, color: string) => {
+    if (!map.getLayer(layerId)) return;
+    map.setPaintProperty(layerId, "background-color", color);
+  };
+
+  // Blend base map into TrustStay sand tones.
+  setBg("background", "#F8F5F1");
+  setFill("land", "#F8F5F1");
+  setFill("land-structure-polygon", "#F1ECE5");
+  setFill("water", "#EEE8DF");
+  setFill("water-shadow", "#EEE8DF");
+  setFill("park", "#EEF3EC");
+  setFill("national-park", "#EEF3EC");
+}
+
 export function CountryDestinationsMap({ destinations }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -177,6 +200,7 @@ export function CountryDestinationsMap({ destinations }: Props) {
 
       map.on("load", () => {
         if (!map) return;
+        applySandMapTheme(map);
 
         for (const destination of visibleDestinations) {
           const el = document.createElement("button");
@@ -248,7 +272,7 @@ export function CountryDestinationsMap({ destinations }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="space-y-3 px-4 sm:px-6">
+      <div className="mx-auto max-w-4xl space-y-3 px-6">
         <p className="text-xs text-umber">
           {visibleDestinations.length} destinations in LATAM, Caribbean, and Central America
         </p>
@@ -286,7 +310,7 @@ export function CountryDestinationsMap({ destinations }: Props) {
       </div>
 
       <div
-        className="relative w-full overflow-hidden border-y border-dune bg-white"
+        className="relative w-full overflow-hidden border-y border-dune bg-sand"
         style={{ height: "clamp(420px, 72vh, 780px)" }}
       >
         <div ref={containerRef} className="h-full w-full" />
