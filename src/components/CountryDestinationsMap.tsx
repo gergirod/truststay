@@ -40,7 +40,7 @@ const ACTIVITY_META: Record<
   work_first: { label: "Work", emoji: "💻", color: "#8FB7B3" },
 };
 
-const ACTIVITY_PILLS: ActivityFilter[] = [
+const ACTIVITY_PILL_ORDER: ActivityFilter[] = [
   "all",
   "surf",
   "dive",
@@ -67,6 +67,11 @@ function getPrimaryActivity(activities: ActivityBucket[]): ActivityFilter {
   if (activities.includes("kite")) return "kite";
   if (activities.includes("work_first")) return "work_first";
   return "all";
+}
+
+function getActivitiesForDestination(d: BrowseDestination): ActivityBucket[] {
+  if (d.activities && d.activities.length > 0) return d.activities;
+  return d.activity === "surf" ? (["surf"] as ActivityBucket[]) : [];
 }
 
 function destinationPinHtml(primaryActivity: ActivityFilter): string {
@@ -144,20 +149,34 @@ export function CountryDestinationsMap({ destinations }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   const [activeFilter, setActiveFilter] = useState<ActivityFilter>("all");
+  const focusRegionDestinations = useMemo(
+    () => destinations.filter((d) => isWithinFocusRegion(d.lat, d.lon)),
+    [destinations],
+  );
+  const availableActivityFilters = useMemo(() => {
+    const present = new Set<ActivityFilter>(["all"]);
+    for (const destination of focusRegionDestinations) {
+      for (const activity of getActivitiesForDestination(destination)) {
+        present.add(activity);
+      }
+    }
+    return ACTIVITY_PILL_ORDER.filter((activity) => present.has(activity));
+  }, [focusRegionDestinations]);
+
+  useEffect(() => {
+    if (!availableActivityFilters.includes(activeFilter)) {
+      setActiveFilter("all");
+    }
+  }, [activeFilter, availableActivityFilters]);
+
   const visibleDestinations = useMemo(
-    () =>
-      destinations
-        .filter((d) => isWithinFocusRegion(d.lat, d.lon))
-        .filter((d) => {
-          const activities =
-            d.activities && d.activities.length > 0
-              ? d.activities
-              : d.activity === "surf"
-                ? (["surf"] as ActivityBucket[])
-                : [];
-          return activeFilter === "all" || activities.includes(activeFilter);
-        }),
-    [activeFilter, destinations],
+    () => {
+      return focusRegionDestinations.filter((d) => {
+        const activities = getActivitiesForDestination(d);
+        return activeFilter === "all" || activities.includes(activeFilter);
+      });
+    },
+    [activeFilter, focusRegionDestinations],
   );
 
   useEffect(() => {
@@ -209,12 +228,7 @@ export function CountryDestinationsMap({ destinations }: Props) {
           el.style.background = "transparent";
           el.style.border = "none";
           el.style.padding = "0";
-          const activities: ActivityBucket[] =
-            destination.activities && destination.activities.length > 0
-              ? destination.activities
-              : destination.activity === "surf"
-                ? (["surf"] as ActivityBucket[])
-                : [];
+          const activities = getActivitiesForDestination(destination);
           el.innerHTML = destinationPinHtml(getPrimaryActivity(activities));
           el.setAttribute("aria-label", destination.name);
 
@@ -278,7 +292,7 @@ export function CountryDestinationsMap({ destinations }: Props) {
         </p>
 
         <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {ACTIVITY_PILLS.map((activity) => {
+        {availableActivityFilters.map((activity) => {
             const active = activity === activeFilter;
             const meta = ACTIVITY_META[activity];
             return (
