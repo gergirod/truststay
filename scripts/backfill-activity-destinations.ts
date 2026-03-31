@@ -163,8 +163,28 @@ async function writeAcceptedZones(
   if (!destination) return;
 
   const accepted = entry.zones.filter((z) => z.geofencePass && z.evidencePass);
+  const fallback =
+    accepted.length > 0
+      ? []
+      : entry.zones
+          .slice()
+          .sort((a, b) => {
+            if (a.geofencePass !== b.geofencePass) return a.geofencePass ? -1 : 1;
+            if (a.evidenceScore !== b.evidenceScore) return b.evidenceScore - a.evidenceScore;
+            return a.distanceFromAnchorKm - b.distanceFromAnchorKm;
+          })
+          .slice(0, 1);
+
+  const toPersist = accepted.length > 0 ? accepted : fallback;
+  if (accepted.length === 0 && fallback.length > 0) {
+    console.warn(
+      `[backfill] ${entry.slug} no strict-accepted zones; persisting fallback zone "${fallback[0].zone.name}"`,
+    );
+  }
+
   await Promise.all(
-    accepted.map(async (z) => {
+    toPersist.map(async (z) => {
+      const isFallback = accepted.length === 0;
       const saved = await canonicalRepository.upsertMicroArea({
         destinationId: destination.id,
         canonicalName: z.zone.name,
@@ -173,8 +193,10 @@ async function writeAcceptedZones(
         centerLon: z.zone.center.lon,
         radiusKm: z.zone.radius_km,
         status: "active",
-        confidence: Math.min(100, Math.round(z.evidenceScore * 20)),
-        source: "backfill_quality_gated",
+        confidence: isFallback
+          ? Math.min(100, Math.round(z.evidenceScore * 15))
+          : Math.min(100, Math.round(z.evidenceScore * 20)),
+        source: isFallback ? "backfill_fallback" : "backfill_quality_gated",
         lastVerifiedAt: new Date(),
       });
       if (!saved) return;
@@ -183,8 +205,10 @@ async function writeAcceptedZones(
         microAreaId: saved.id,
         aliasName: z.zone.name,
         normalizedAlias: z.zone.name.toLowerCase(),
-        source: "backfill_quality_gated",
-        confidence: Math.min(100, Math.round(z.evidenceScore * 20)),
+        source: isFallback ? "backfill_fallback" : "backfill_quality_gated",
+        confidence: isFallback
+          ? Math.min(100, Math.round(z.evidenceScore * 15))
+          : Math.min(100, Math.round(z.evidenceScore * 20)),
       });
     }),
   );
@@ -192,7 +216,7 @@ async function writeAcceptedZones(
   if (fullHarvest) {
     let totalFetched = 0;
     let totalCandidates = 0;
-    for (const z of accepted) {
+    for (const z of toPersist) {
       const harvest = await harvestAllPlacesForMicroArea(z.zone, entry.slug);
       totalFetched += harvest.fetched;
       totalCandidates += harvest.persistedCandidates;

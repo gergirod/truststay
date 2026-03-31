@@ -39,6 +39,7 @@ on:
 
 jobs:
   refresh:
+    if: ${{ github.event_name != 'schedule' || secrets.ENABLE_SCHEDULED_REFRESH == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
