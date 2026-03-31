@@ -43,6 +43,9 @@ export async function buildFinalResponse(
   input: RecommendationInput
 ): Promise<FinalOutput> {
   const { citySlug, cityName, country, userProfile } = input;
+  console.log(
+    `[buildFinalResponse] start city=${citySlug} activity=${userProfile.main_activity} work=${userProfile.work_mode} balance=${userProfile.daily_balance ?? "balanced"}`,
+  );
 
   // Step 1: Adjust weights
   const weights = adjustWeights(DEFAULT_WEIGHTS, userProfile);
@@ -110,6 +113,14 @@ export async function buildFinalResponse(
     evidencePacks,
     userProfile
   );
+  console.log(
+    `[buildFinalResponse] ranking city=${citySlug} top=${recommendation.top_pick} top_score=${rankingResult.rankings[0]?.final_score?.toFixed(2) ?? "n/a"} top_has_breakers=${rankingResult.rankings[0]?.has_constraint_breakers ?? false}`,
+  );
+  for (const card of scoreCards) {
+    console.log(
+      `[buildFinalResponse] area city=${citySlug} zone=${card.micro_area_name} score=${card.final_score.toFixed(2)} confidence=${card.confidence.toFixed(2)} breakers=${card.constraint_breakers.length} work=${card.scores.work_environment.toFixed(1)} internet=${card.scores.internet_reliability.toFixed(1)} routine=${card.scores.routine_support.toFixed(1)} friction=${card.scores.walkability_and_friction.toFixed(1)} activity=${card.scores.activity_access.toFixed(1)}`,
+    );
+  }
 
   // Step 7: Assemble output
   const candidateMicroAreas: MicroAreaOutput[] = scoreCards.map((card) => {
@@ -146,6 +157,9 @@ export async function buildFinalResponse(
   };
 
   // Validate before return — never return invalid output silently
+  console.log(
+    `[buildFinalResponse] done city=${citySlug} candidate_micro_areas=${output.candidate_micro_areas.length} warnings=${output.recommendation.warnings.length}`,
+  );
   return FinalOutputSchema.parse(output);
 }
 
@@ -247,6 +261,11 @@ function gateMicroAreasByEvidence(
     pack,
     score: evidenceStrengthScore(pack),
   }));
+  for (const s of scored) {
+    console.log(
+      `[buildFinalResponse] evidence_score zone=${s.pack.micro_area_id} score=${s.score.toFixed(2)} confidence=${s.pack.confidence} coworkings=${s.pack.work.coworkings.length} work_cafes=${s.pack.work.work_cafes.length} restaurants=${s.pack.food.restaurants.length} gyms=${s.pack.routine.gym?.found ? 1 : 0}`,
+    );
+  }
   const accepted = scored.filter((s) => s.score >= MIN_ACCEPTED_EVIDENCE_SCORE);
   if (accepted.length >= 2) {
     const acceptedIds = new Set(accepted.map((s) => s.pack.micro_area_id));
@@ -256,6 +275,9 @@ function gateMicroAreasByEvidence(
     };
   }
   // Fallback to all if filters are too strict.
+  console.warn(
+    `[buildFinalResponse] evidence_gate fallback accepted=${accepted.length}/${scored.length} threshold=${MIN_ACCEPTED_EVIDENCE_SCORE}`,
+  );
   return {
     acceptedMicroAreas: zones,
     acceptedEvidencePacks: packs,

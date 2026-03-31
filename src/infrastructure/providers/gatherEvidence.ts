@@ -266,8 +266,11 @@ export async function gatherEvidenceForMicroArea(
   const radiusMeters = Math.round(microArea.radius_km * 1000);
   const budgetMode = isGoogleBudgetMode();
   const nearbyMax = budgetMode ? 3 : 5;
+  const realtimeEnabled = isGoogleRealtimeEnabled();
 
-  console.log(`[gatherEvidence] ${microArea.name} — searching Google Places (r=${microArea.radius_km}km)`);
+  console.log(
+    `[gatherEvidence] ${microArea.name} — searching Google Places (r=${microArea.radius_km}km, realtime=${realtimeEnabled}, budget=${budgetMode}, max=${nearbyMax})`,
+  );
 
   // Parallel Google Places Nearby searches
   const [cafes, coworkings, gyms, restaurants, grocery, pharmacy] = await Promise.all([
