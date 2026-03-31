@@ -635,14 +635,14 @@ export default async function CityPage({ params, searchParams }: Props) {
                 Not found
               </p>
               <h1 className="mt-3 text-3xl font-semibold tracking-tight text-bark">
-                City not found
+                This destination is not available yet
               </h1>
               <p className="mt-4 text-base leading-7 text-umber">
                 We could not find a city matching{" "}
                 <span className="font-medium text-bark">
                   &ldquo;{cityLabel}&rdquo;
                 </span>
-                . Try searching again with a different spelling.
+                . Leave your email and we will notify you as soon as this destination is available.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link

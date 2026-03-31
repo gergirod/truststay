@@ -1,4 +1,5 @@
 import { geocodeCity } from "@/lib/geocode";
+import { getCanonicalDestinationMeta } from "@/data/activityDestinations";
 
 const GEOCODE_QUERY_BY_SLUG: Record<string, string> = {
   // Surf disambiguation hints (LATAM + Caribbean)
@@ -58,8 +59,18 @@ export async function geocodeDestinationSlug(slug: string) {
   };
 
   const override = DISPLAY_NAME_OVERRIDES[slug];
-  return override
+  const displayAdjusted = override
     ? { ...city, name: override.name, country: override.country ?? city.country }
     : city;
+
+  // Final canonical source for label/country to avoid geocoder drift.
+  const canonical = getCanonicalDestinationMeta(slug);
+  return canonical
+    ? {
+        ...displayAdjusted,
+        name: canonical.name,
+        country: canonical.country,
+      }
+    : displayAdjusted;
 }
 

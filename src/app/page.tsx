@@ -1,301 +1,38 @@
 import { CitySearch } from "@/components/CitySearch";
 import { AnalyticsEvent } from "@/components/AnalyticsEvent";
 import { HeroMap } from "@/components/HeroMap";
-import { DestinationBrowse } from "@/components/DestinationBrowse";
+import { CountryDestinationsMap } from "@/components/CountryDestinationsMap";
+import { getDb } from "@/db/client";
+import { destinations } from "@/db/schema";
+import { asc, isNotNull } from "drizzle-orm";
+import {
+  ACTIVITY_DESTINATIONS_BY_COUNTRY,
+  type ActivityBucket,
+} from "@/data/activityDestinations";
 
-const CATEGORY_META: Record<string, { icon: string; description: string }> = {
-  "Surf":             { icon: "🏄", description: "Pacific breaks · reef points · beach towns" },
-  "Dive":             { icon: "🤿", description: "Reefs · walls · cenotes · marine parks" },
-  "Hike":             { icon: "⛰️", description: "Volcanoes · cloud forests · Andean circuits" },
-  "Yoga & wellness":  { icon: "🧘", description: "Retreat towns · slow living · recovery" },
-  "Kite & wind":      { icon: "🪁", description: "Trade winds · lagoons · flat water" },
-  "Remote work hubs": { icon: "💻", description: "Coworkings · fast wifi · expat community" },
-};
-
-const DESTINATION_CATEGORIES = [
-  {
-    label: "Surf",
-    destinations: [
-      // Mexico
-      { label: "Puerto Escondido", slug: "puerto-escondido" },
-      { label: "Sayulita", slug: "sayulita" },
-      { label: "Troncones", slug: "troncones" },
-      { label: "Todos Santos", slug: "todos-santos" },
-      { label: "Mazunte", slug: "mazunte" },
-      { label: "Tulum", slug: "tulum" },
-      // Central America
-      { label: "El Tunco", slug: "el-tunco" },
-      { label: "El Zonte", slug: "el-zonte" },
-      { label: "Popoyo", slug: "popoyo" },
-      { label: "Gigante", slug: "gigante" },
-      { label: "San Juan del Sur", slug: "san-juan-del-sur" },
-      { label: "El Paredon", slug: "el-paredon" },
-      { label: "Santa Teresa", slug: "santa-teresa" },
-      { label: "Nosara", slug: "nosara" },
-      { label: "Tamarindo", slug: "tamarindo" },
-      { label: "Dominical", slug: "dominical" },
-      { label: "Jacó", slug: "jaco" },
-      { label: "Pavones", slug: "pavones" },
-      { label: "Santa Catalina", slug: "santa-catalina" },
-      { label: "Playa Venao", slug: "playa-venao" },
-      // Caribbean
-      { label: "Rincón", slug: "rincon" },
-      { label: "Martinique", slug: "martinique" },
-      { label: "Barbados", slug: "barbados" },
-      { label: "Guadeloupe", slug: "guadeloupe" },
-      // South America
-      { label: "Montañita", slug: "montanita" },
-      { label: "Canoa", slug: "canoa" },
-      { label: "Ayampe", slug: "ayampe" },
-      { label: "Máncora", slug: "mancora" },
-      { label: "Lobitos", slug: "lobitos" },
-      { label: "Chicama", slug: "chicama" },
-      { label: "Huanchaco", slug: "huanchaco" },
-      { label: "Jericoacoara", slug: "jericoacoara" },
-      { label: "Itacaré", slug: "itacare" },
-      { label: "Pipa", slug: "pipa" },
-      { label: "Arraial do Cabo", slug: "arraial-do-cabo" },
-      { label: "Praia do Rosa", slug: "praia-do-rosa" },
-      { label: "Punta del Diablo", slug: "punta-del-diablo" },
-      { label: "Pichilemu", slug: "pichilemu" },
-    ],
-  },
-  {
-    label: "Dive",
-    destinations: [
-      // Mexico
-      { label: "Cozumel", slug: "cozumel" },
-      { label: "Isla Mujeres", slug: "isla-mujeres" },
-      { label: "Playa del Carmen", slug: "playa-del-carmen" },
-      { label: "Mahahual", slug: "mahahual" },
-      { label: "Huatulco", slug: "huatulco" },
-      // Central America
-      { label: "Roatán", slug: "roatan" },
-      { label: "Utila", slug: "utila" },
-      { label: "Caye Caulker", slug: "caye-caulker" },
-      { label: "San Pedro", slug: "san-pedro-belize" },
-      { label: "Placencia", slug: "placencia" },
-      { label: "Bocas del Toro", slug: "bocas-del-toro" },
-      { label: "Coiba", slug: "coiba" },
-      { label: "Cahuita", slug: "cahuita" },
-      // Caribbean / Colombia
-      { label: "San Andrés", slug: "san-andres" },
-      { label: "Providencia", slug: "providencia" },
-      { label: "Taganga", slug: "taganga" },
-      // Dominican Republic
-      { label: "Bayahíbe", slug: "bayahibe" },
-      { label: "Las Terrenas", slug: "las-terrenas" },
-      // Caribbean — ABC islands
-      { label: "Bonaire", slug: "bonaire" },
-      { label: "Curaçao", slug: "curacao" },
-      { label: "Aruba", slug: "aruba" },
-      { label: "Dominica", slug: "dominica" },
-      // South America — Brazil
-      { label: "Fernando de Noronha", slug: "fernando-de-noronha" },
-      { label: "Arraial do Cabo", slug: "arraial-do-cabo" },
-      { label: "Abrolhos", slug: "abrolhos" },
-      { label: "Bonito", slug: "bonito" },
-      // South America — Ecuador
-      { label: "Galápagos", slug: "galapagos" },
-      // South America — Colombia Pacific
-      { label: "Nuquí", slug: "nuqui" },
-      // South America — Argentina
-      { label: "Puerto Madryn", slug: "puerto-madryn" },
-      { label: "Ushuaia", slug: "ushuaia" },
-      // South America — Chile
-      { label: "Hanga Roa", slug: "hanga-roa" },
-      // South America — Venezuela
-      { label: "Los Roques", slug: "los-roques" },
-    ],
-  },
-  {
-    label: "Hike",
-    destinations: [
-      // Mexico & Central America
-      { label: "Oaxaca", slug: "oaxaca" },
-      { label: "San Cristóbal", slug: "san-cristobal-de-las-casas" },
-      { label: "Lago Atitlán", slug: "lago-atitlan" },
-      { label: "Acatenango", slug: "acatenango" },
-      { label: "Antigua Guatemala", slug: "antigua-guatemala" },
-      { label: "Quetzaltenango", slug: "quetzaltenango" },
-      { label: "Ometepe", slug: "ometepe" },
-      { label: "Copán Ruinas", slug: "copan-ruinas" },
-      { label: "Boquete", slug: "boquete" },
-      { label: "El Valle de Antón", slug: "el-valle-de-anton" },
-      { label: "Monteverde", slug: "monteverde" },
-      { label: "Arenal", slug: "arenal" },
-      // Colombia
-      { label: "Minca", slug: "minca" },
-      { label: "Tayrona", slug: "tayrona" },
-      { label: "Villa de Leyva", slug: "villa-de-leyva" },
-      // Ecuador
-      { label: "Baños", slug: "banos" },
-      { label: "Quilotoa", slug: "quilotoa" },
-      { label: "Mindo", slug: "mindo" },
-      // Peru
-      { label: "Huaraz", slug: "huaraz" },
-      { label: "Cusco", slug: "cusco" },
-      { label: "Ollantaytambo", slug: "ollantaytambo" },
-      { label: "Chachapoyas", slug: "chachapoyas" },
-      // Bolivia
-      { label: "Sorata", slug: "sorata" },
-      { label: "Rurrenabaque", slug: "rurrenabaque" },
-      // Caribbean volcanoes
-      { label: "Martinique", slug: "martinique" },
-      { label: "Guadeloupe", slug: "guadeloupe" },
-      { label: "Dominica", slug: "dominica" },
-      // Brazil
-      { label: "Lençóis", slug: "lencois" },
-      { label: "Alto Paraíso", slug: "alto-paraiso" },
-      // Argentina — NW highlands (Quebrada de Humahuaca & pre-Puna)
-      { label: "Tilcara", slug: "tilcara" },
-      { label: "Purmamarca", slug: "purmamarca" },
-      { label: "Humahuaca", slug: "humahuaca" },
-      { label: "Iruya", slug: "iruya" },
-      { label: "Cafayate", slug: "cafayate" },
-      // Argentina — Mendoza Andes
-      { label: "Uspallata", slug: "uspallata" },
-      { label: "Potrerillos", slug: "potrerillos" },
-      // Argentina — Patagonia
-      { label: "Bariloche", slug: "bariloche" },
-      { label: "El Bolsón", slug: "el-bolson" },
-      { label: "San Martín de los Andes", slug: "san-martin-de-los-andes" },
-      { label: "Villa La Angostura", slug: "villa-la-angostura" },
-      { label: "Esquel", slug: "esquel" },
-      { label: "El Chaltén", slug: "el-chalten" },
-      // Chile
-      { label: "Pucón", slug: "pucon" },
-      { label: "Cajón del Maipo", slug: "cajon-del-maipo" },
-      { label: "Cochamo", slug: "cochamo" },
-      { label: "Futaleufú", slug: "futaleufu" },
-      { label: "Conguillo", slug: "conguillo" },
-      { label: "Puerto Natales", slug: "puerto-natales" },
-      { label: "San Pedro de Atacama", slug: "san-pedro-de-atacama" },
-    ],
-  },
-  {
-    label: "Yoga & wellness",
-    destinations: [
-      // Mexico
-      { label: "Tepoztlán", slug: "tepoztlan" },
-      { label: "Todos Santos", slug: "todos-santos" },
-      { label: "Mazunte", slug: "mazunte" },
-      { label: "Bacalar", slug: "bacalar" },
-      // Guatemala
-      { label: "San Marcos La Laguna", slug: "san-marcos-la-laguna" },
-      { label: "San Pedro La Laguna", slug: "san-pedro-la-laguna" },
-      { label: "Panajachel", slug: "panajachel" },
-      // Costa Rica
-      { label: "Nosara", slug: "nosara" },
-      { label: "Montezuma", slug: "montezuma" },
-      { label: "Puerto Viejo", slug: "puerto-viejo" },
-      { label: "Uvita", slug: "uvita" },
-      { label: "Santa Teresa", slug: "santa-teresa" },
-      // Colombia
-      { label: "Palomino", slug: "palomino" },
-      { label: "Villa de Leyva", slug: "villa-de-leyva" },
-      { label: "Minca", slug: "minca" },
-      // Ecuador
-      { label: "Olón", slug: "olon" },
-      { label: "Vilcabamba", slug: "vilcabamba" },
-      { label: "Mindo", slug: "mindo" },
-      // Peru
-      { label: "Pisac", slug: "pisac" },
-      { label: "Ollantaytambo", slug: "ollantaytambo" },
-      // Bolivia
-      { label: "Coroico", slug: "coroico" },
-      // Brazil
-      { label: "Trancoso", slug: "trancoso" },
-      { label: "Paraty", slug: "paraty" },
-      { label: "Alto Paraíso", slug: "alto-paraiso" },
-      // Chile / Argentina
-      { label: "Pucón", slug: "pucon" },
-    ],
-  },
-  {
-    label: "Kite & wind",
-    destinations: [
-      // Caribbean
-      { label: "Cabarete", slug: "cabarete" },
-      // Brazil — world-class kite corridor
-      { label: "Cumbuco", slug: "cumbuco" },
-      { label: "Preá", slug: "prea" },
-      { label: "Jericoacoara", slug: "jericoacoara" },
-      { label: "Atins", slug: "atins" },
-      { label: "Canoa Quebrada", slug: "canoa-quebrada" },
-      { label: "São Miguel do Gostoso", slug: "sao-miguel-do-gostoso" },
-      // Caribbean ABC islands — world-class flat water & trade winds
-      { label: "Aruba", slug: "aruba" },
-      { label: "Bonaire", slug: "bonaire" },
-      { label: "Curaçao", slug: "curacao" },
-      // Colombia
-      { label: "Cabo de la Vela", slug: "cabo-de-la-vela" },
-      // Mexico — Baja
-      { label: "La Ventana", slug: "la-ventana" },
-      { label: "Los Barriles", slug: "los-barriles" },
-      // Peru / Chile
-      { label: "Paracas", slug: "paracas" },
-      { label: "Iquique", slug: "iquique" },
-      // Uruguay
-      { label: "La Paloma", slug: "la-paloma" },
-    ],
-  },
-  {
-    label: "Remote work hubs",
-    destinations: [
-      // Mexico
-      { label: "Mexico City", slug: "mexico-city" },
-      { label: "Guadalajara", slug: "guadalajara" },
-      { label: "Puerto Vallarta", slug: "puerto-vallarta" },
-      { label: "Playa del Carmen", slug: "playa-del-carmen" },
-      { label: "Oaxaca", slug: "oaxaca" },
-      { label: "San Cristóbal", slug: "san-cristobal-de-las-casas" },
-      { label: "Mérida", slug: "merida" },
-      // Central America & Caribbean
-      { label: "Panama City", slug: "panama-city" },
-      { label: "San José CR", slug: "san-jose-costa-rica" },
-      { label: "Antigua", slug: "antigua-guatemala" },
-      { label: "Granada", slug: "granada" },
-      { label: "San Juan PR", slug: "san-juan-puerto-rico" },
-      { label: "Las Terrenas", slug: "las-terrenas" },
-      // Colombia
-      { label: "Medellín", slug: "medellin" },
-      { label: "Bogotá", slug: "bogota" },
-      { label: "Cartagena", slug: "cartagena" },
-      { label: "Santa Marta", slug: "santa-marta" },
-      { label: "Cali", slug: "cali" },
-      { label: "Salento", slug: "salento" },
-      // Ecuador
-      { label: "Quito", slug: "quito" },
-      { label: "Cuenca", slug: "cuenca" },
-      // Peru
-      { label: "Lima", slug: "lima" },
-      { label: "Arequipa", slug: "arequipa" },
-      { label: "Cusco", slug: "cusco" },
-      // Bolivia
-      { label: "Sucre", slug: "sucre" },
-      { label: "La Paz", slug: "la-paz-bolivia" },
-      // Brazil
-      { label: "São Paulo", slug: "sao-paulo" },
-      { label: "Rio de Janeiro", slug: "rio-de-janeiro" },
-      { label: "Florianópolis", slug: "florianopolis" },
-      { label: "Curitiba", slug: "curitiba" },
-      { label: "Porto Alegre", slug: "porto-alegre" },
-      { label: "Recife", slug: "recife" },
-      { label: "Salvador", slug: "salvador" },
-      { label: "Fortaleza", slug: "fortaleza" },
-      // Southern Cone
-      { label: "Buenos Aires", slug: "buenos-aires" },
-      { label: "Montevideo", slug: "montevideo" },
-      { label: "Córdoba", slug: "cordoba" },
-      { label: "Rosario", slug: "rosario" },
-      { label: "Mendoza", slug: "mendoza" },
-      { label: "Santiago", slug: "santiago" },
-      { label: "Valparaíso", slug: "valparaiso" },
-      { label: "Asunción", slug: "asuncion" },
-    ],
-  },
+const ACTIVITY_BUCKETS: ActivityBucket[] = [
+  "surf",
+  "dive",
+  "hike",
+  "yoga",
+  "kite",
+  "work_first",
 ];
+
+const SLUG_ACTIVITIES = (() => {
+  const map = new Map<string, ActivityBucket[]>();
+  for (const activity of ACTIVITY_BUCKETS) {
+    const slugs = Object.values(ACTIVITY_DESTINATIONS_BY_COUNTRY[activity])
+      .flat()
+      .map((d) => d.slug);
+    for (const slug of slugs) {
+      const current = map.get(slug) ?? [];
+      if (!current.includes(activity)) current.push(activity);
+      map.set(slug, current);
+    }
+  }
+  return map;
+})();
 
 const HOW_IT_WORKS = [
   {
@@ -352,7 +89,38 @@ const BUNDLE_FEATURES = [
   "One payment — arrive prepared for any part of the city",
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const db = getDb();
+  const browseDestinations = db
+    ? (
+        await db
+          .select({
+            slug: destinations.slug,
+            name: destinations.name,
+            country: destinations.country,
+            lat: destinations.anchorLat,
+            lon: destinations.anchorLon,
+          })
+          .from(destinations)
+          .where(
+            isNotNull(destinations.anchorLat),
+          )
+          .orderBy(asc(destinations.name))
+      )
+        .filter((d) => d.lat != null && d.lon != null)
+        .map((d) => ({
+          slug: d.slug,
+          name: d.name,
+          country: d.country,
+          lat: d.lat as number,
+          lon: d.lon as number,
+          activities: SLUG_ACTIVITIES.get(d.slug) ?? [],
+          activity: (SLUG_ACTIVITIES.get(d.slug) ?? []).includes("surf")
+            ? ("surf" as const)
+            : ("other" as const),
+        }))
+    : [];
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* ── Header ──────────────────────────────────────────── */}
@@ -436,22 +204,18 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── Browse destinations ── sand ──────────────────────── */}
+        {/* ── Coverage ── sand ─────────────────────────────────── */}
         <section className="border-b border-dune bg-sand">
           <div className="mx-auto max-w-4xl px-6 py-20">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
-              Pick your spot
+              Coverage
             </p>
             <p className="mt-2 text-sm text-umber">
-              Already know where you&rsquo;re going? Pick your destination — we&rsquo;ll show you where to base yourself and what to prepare before you arrive.
+              Explore all mapped destinations in LATAM, Caribbean, and Central America. Filter by activity.
             </p>
-
-            <div className="mt-8">
-              <DestinationBrowse
-                categories={DESTINATION_CATEGORIES}
-                categoryMeta={CATEGORY_META}
-              />
-            </div>
+          </div>
+          <div className="mt-8 w-full">
+            <CountryDestinationsMap destinations={browseDestinations} />
           </div>
         </section>
 

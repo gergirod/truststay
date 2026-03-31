@@ -189,6 +189,48 @@ export const ACTIVITY_DESTINATIONS_BY_COUNTRY: Record<
   },
 };
 
+export interface CanonicalDestinationMeta {
+  slug: string;
+  name: string;
+  country: string;
+  activities: ActivityBucket[];
+}
+
+const CANONICAL_DESTINATION_BY_SLUG: Map<string, CanonicalDestinationMeta> = (() => {
+  const map = new Map<string, CanonicalDestinationMeta>();
+  const buckets = Object.entries(ACTIVITY_DESTINATIONS_BY_COUNTRY) as Array<
+    [ActivityBucket, CountryGroupedDestinations]
+  >;
+  for (const [activity, grouped] of buckets) {
+    for (const [country, destinations] of Object.entries(grouped)) {
+      for (const destination of destinations) {
+        const existing = map.get(destination.slug);
+        if (!existing) {
+          map.set(destination.slug, {
+            slug: destination.slug,
+            name: destination.name,
+            country,
+            activities: [activity],
+          });
+          continue;
+        }
+        if (!existing.activities.includes(activity)) {
+          existing.activities.push(activity);
+        }
+      }
+    }
+  }
+  return map;
+})();
+
+export function getCanonicalDestinationMeta(slug: string): CanonicalDestinationMeta | null {
+  return CANONICAL_DESTINATION_BY_SLUG.get(slug) ?? null;
+}
+
+export function listCanonicalDestinationMetas(): CanonicalDestinationMeta[] {
+  return Array.from(CANONICAL_DESTINATION_BY_SLUG.values());
+}
+
 function flattenCountries(map: CountryGroupedDestinations): string[] {
   return Object.values(map)
     .flat()

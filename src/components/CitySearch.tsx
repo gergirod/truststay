@@ -7,6 +7,7 @@ import { track } from "@/lib/analytics";
 import type { City, StayPurpose, WorkStyle, DailyBalance } from "@/types";
 import type { AutocompleteSuggestion } from "@/app/api/autocomplete/route";
 import { IntentLoadingCard } from "@/components/IntentLoadingCard";
+import { EmailCapture } from "@/components/EmailCapture";
 
 type Status = "idle" | "loading" | "error";
 type IntentStep = "purpose" | "workStyle" | "dailyBalance";
@@ -251,6 +252,7 @@ export function CitySearch() {
   const [activeIndex, setActiveIndex] = useState(-1);
   const [showDropdown, setShowDropdown] = useState(false);
   const [pendingCity, setPendingCity] = useState<City | null>(null);
+  const [notFoundLead, setNotFoundLead] = useState<{ cityName: string; citySlug: string } | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -349,15 +351,26 @@ export function CitySearch() {
     if (!trimmed) return;
     setStatus("loading");
     setErrorMsg("");
+    setNotFoundLead(null);
     try {
       const res = await fetch(`/api/geocode?q=${encodeURIComponent(trimmed)}`);
       const data = await res.json();
       if (!res.ok || !data.ok) {
         setStatus("error");
-        setErrorMsg(res.status === 404 ? "Place not found. Try a city or neighbourhood name." : "Something went wrong. Please try again.");
+        if (res.status === 404) {
+          const citySlug = trimmed
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "");
+          setNotFoundLead({ cityName: trimmed, citySlug });
+          setErrorMsg("This place is not available yet.");
+        } else {
+          setErrorMsg("Something went wrong. Please try again.");
+        }
         return;
       }
       setStatus("idle");
+      setNotFoundLead(null);
       openIntentModal(data.city as City);
     } catch {
       setStatus("error");
@@ -444,6 +457,17 @@ export function CitySearch() {
 
         {status === "error" && (
           <p className="mt-3 text-sm text-red-600">{errorMsg}</p>
+        )}
+
+        {notFoundLead && (
+          <div className="mt-4">
+            <EmailCapture
+              context="homepage"
+              citySlug={notFoundLead.citySlug}
+              cityName={notFoundLead.cityName}
+              prompt={`We are not in ${notFoundLead.cityName} yet. Leave your email and we will notify you when it is available.`}
+            />
+          </div>
         )}
       </div>
 
