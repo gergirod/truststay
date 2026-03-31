@@ -1182,6 +1182,19 @@ async function CityContent({
         <CoverageNotice city={city.name} level={dataCoverage} />
       )}
 
+      {/* Post-unlock value reveal: make the "what now" path explicit immediately. */}
+      {justUnlocked && isUnlocked && (
+        <div className="rounded-2xl border border-teal/30 bg-teal/5 px-5 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-teal-700">
+            Unlocked successfully
+          </p>
+          <p className="mt-1 text-sm text-bark">
+            Full setup is now available. Compare the top micro-areas, check daily logistics, and
+            shortlist your work and essentials before booking.
+          </p>
+        </div>
+      )}
+
       {/* Routine map — first thing the user sees; locked places as grey dots */}
       {(baseCentroid || places.length > 0) && (
         <CityMap
