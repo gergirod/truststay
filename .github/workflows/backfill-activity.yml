@@ -32,6 +32,11 @@ on:
         required: true
         default: true
         type: boolean
+      full_harvest:
+        description: "In write mode, ingest broad Google place inventory per accepted zone"
+        required: true
+        default: false
+        type: boolean
 
 jobs:
   backfill:
@@ -58,6 +63,9 @@ jobs:
           fi
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             CMD="$CMD --dry-run"
+          fi
+          if [ "${{ github.event.inputs.full_harvest }}" = "true" ]; then
+            CMD="$CMD --full-harvest"
           fi
           echo "Running: $CMD"
           eval "$CMD"

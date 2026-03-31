@@ -86,6 +86,14 @@ async function searchNearby(
   }
 }
 
+function mapGoogleTypeToCategory(type: string): "coworking" | "cafe" | "food" | "gym" | "other" {
+  if (type === "coworking_space") return "coworking";
+  if (type === "cafe" || type === "bakery") return "cafe";
+  if (type === "restaurant" || type === "meal_takeaway" || type === "bar") return "food";
+  if (type === "gym") return "gym";
+  return "other";
+}
+
 // ── Google Places Text Search — for known venues by name ─────────────────────
 
 async function searchByText(
@@ -528,4 +536,88 @@ async function persistZonePlacesAndMetrics(
       });
     }),
   );
+}
+
+/**
+ * Full-harvest mode: fetch a broad place inventory for a micro-area and persist
+ * all unique Google place ids for the destination (deduped by external id).
+ */
+export async function harvestAllPlacesForMicroArea(
+  microArea: MicroAreaDef,
+  citySlug: string,
+): Promise<{ fetched: number; persistedCandidates: number }> {
+  const destination = await canonicalRepository.getDestinationBySlug(citySlug);
+  if (!destination) return { fetched: 0, persistedCandidates: 0 };
+
+  const lat = microArea.center.lat;
+  const lon = microArea.center.lon;
+  const radiusMeters = Math.round(microArea.radius_km * 1000);
+  const expandedRadius = Math.min(radiusMeters + 1000, 3000);
+
+  const harvestTypes = [
+    "cafe",
+    "coworking_space",
+    "restaurant",
+    "meal_takeaway",
+    "bakery",
+    "bar",
+    "gym",
+    "supermarket",
+    "convenience_store",
+    "pharmacy",
+    "laundry",
+    "lodging",
+    "park",
+    "atm",
+    "bus_station",
+  ];
+
+  const batches = await Promise.all(
+    harvestTypes.map(async (type) => ({
+      type,
+      places: await searchNearby(lat, lon, type, expandedRadius),
+    })),
+  );
+
+  const merged = batches.flatMap((b) =>
+    b.places.map((p) => ({
+      type: b.type,
+      place: p,
+    })),
+  );
+
+  const byId = new Map<string, { type: string; place: GooglePlaceResult }>();
+  for (const row of merged) {
+    if (!row.place.id) continue;
+    if (!byId.has(row.place.id)) byId.set(row.place.id, row);
+  }
+  const unique = [...byId.values()];
+
+  await Promise.all(
+    unique.map(async ({ type, place }) => {
+      const name = place.displayName?.text ?? "Unknown";
+      const saved = await canonicalRepository.upsertPlaceByExternalId({
+        destinationId: destination.id,
+        externalPlaceId: place.id,
+        name,
+        normalizedName: normalizeName(name),
+        category: mapGoogleTypeToCategory(type),
+        lat: place.location?.latitude ?? null,
+        lon: place.location?.longitude ?? null,
+        address: place.formattedAddress ?? null,
+        websiteUri: place.websiteUri ?? null,
+      });
+      if (!saved) return;
+      await canonicalRepository.upsertPlaceMetric({
+        placeId: saved.id,
+        rating: place.rating ?? null,
+        reviewCount: place.userRatingCount ?? null,
+        openingHoursJson: place.currentOpeningHours?.weekdayDescriptions ?? null,
+        source: "google_places_harvest",
+        refreshedAt: new Date(),
+      });
+    }),
+  );
+
+  return { fetched: merged.length, persistedCandidates: unique.length };
 }

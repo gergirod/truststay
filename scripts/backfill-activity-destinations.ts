@@ -4,6 +4,7 @@
  * Usage:
  *   node -r ./scripts/preload.cjs scripts/backfill-activity-destinations.ts --activity surf --limit 20 --dry-run
  *   node -r ./scripts/preload.cjs scripts/backfill-activity-destinations.ts --activity dive --write
+ *   node -r ./scripts/preload.cjs scripts/backfill-activity-destinations.ts --activity surf --write --full-harvest
  */
 
 import { config } from "dotenv";
@@ -17,7 +18,10 @@ import {
   discoverMicroAreas,
   type MicroAreaDef,
 } from "../src/application/use-cases/discoverMicroAreas.js";
-import { gatherEvidenceForMicroArea } from "../src/infrastructure/providers/gatherEvidence.js";
+import {
+  gatherEvidenceForMicroArea,
+  harvestAllPlacesForMicroArea,
+} from "../src/infrastructure/providers/gatherEvidence.js";
 import { canonicalRepository } from "../src/db/repositories/index.js";
 
 type Activity =
@@ -46,6 +50,7 @@ function parseArgs() {
     limit: Number(get("--limit") ?? "0"),
     write: has("--write"),
     dryRun: has("--dry-run"),
+    fullHarvest: has("--full-harvest"),
   };
 }
 
@@ -145,6 +150,7 @@ async function evaluateDestination(slug: string, activity: Activity, dryRun: boo
 
 async function writeAcceptedZones(
   entry: Awaited<ReturnType<typeof evaluateDestination>>,
+  fullHarvest: boolean,
 ): Promise<void> {
   if (entry.status !== "ok") return;
   const destination = await canonicalRepository.upsertDestination({
@@ -182,22 +188,37 @@ async function writeAcceptedZones(
       });
     }),
   );
+
+  if (fullHarvest) {
+    let totalFetched = 0;
+    let totalCandidates = 0;
+    for (const z of accepted) {
+      const harvest = await harvestAllPlacesForMicroArea(z.zone, entry.slug);
+      totalFetched += harvest.fetched;
+      totalCandidates += harvest.persistedCandidates;
+    }
+    console.log(
+      `[backfill] ${entry.slug} full-harvest: fetched=${totalFetched} unique_candidates=${totalCandidates}`,
+    );
+  }
 }
 
 async function main() {
-  const { activity, limit, write, dryRun } = parseArgs();
+  const { activity, limit, write, dryRun, fullHarvest } = parseArgs();
   const slugs = getTargetSlugs(activity);
   const target = limit > 0 ? slugs.slice(0, limit) : slugs;
 
   console.log(`\n=== Backfill by activity ===`);
-  console.log(`activity=${activity} targets=${target.length} write=${write} dryRun=${dryRun}`);
+  console.log(
+    `activity=${activity} targets=${target.length} write=${write} dryRun=${dryRun} fullHarvest=${fullHarvest}`,
+  );
 
   const results = [];
   for (const slug of target) {
     const result = await evaluateDestination(slug, activity, dryRun);
     results.push(result);
     if (write && !dryRun) {
-      await writeAcceptedZones(result);
+      await writeAcceptedZones(result, fullHarvest);
     }
   }
 
