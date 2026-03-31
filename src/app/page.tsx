@@ -206,7 +206,7 @@ export default async function HomePage() {
 
         {/* ── Coverage ── sand ─────────────────────────────────── */}
         <section className="border-b border-dune bg-sand">
-          <div className="mx-auto max-w-4xl px-6 py-20">
+          <div className="mx-auto max-w-4xl px-6 pt-14 pb-4">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
               Coverage
             </p>
@@ -214,7 +214,7 @@ export default async function HomePage() {
               Explore all mapped destinations in LATAM, Caribbean, and Central America. Filter by activity.
             </p>
           </div>
-          <div className="mt-8 w-full">
+          <div className="w-full pb-10">
             <CountryDestinationsMap destinations={browseDestinations} />
           </div>
         </section>

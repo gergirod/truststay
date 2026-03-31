@@ -149,6 +149,7 @@ export function CountryDestinationsMap({ destinations }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   const [activeFilter, setActiveFilter] = useState<ActivityFilter>("all");
+  const totalDestinationsFromDb = destinations.length;
   const focusRegionDestinations = useMemo(
     () => destinations.filter((d) => isWithinFocusRegion(d.lat, d.lon)),
     [destinations],
@@ -285,14 +286,17 @@ export function CountryDestinationsMap({ destinations }: Props) {
   }
 
   return (
-    <div className="space-y-3">
-      <div className="mx-auto max-w-4xl space-y-3 px-6">
+    <div className="space-y-2">
+      <div className="mx-auto max-w-4xl space-y-2 px-6">
         <p className="text-xs text-umber">
-          {visibleDestinations.length} destinations in LATAM, Caribbean, and Central America
+          {totalDestinationsFromDb} destinations loaded from DB
+        </p>
+        <p className="text-xs text-umber">
+          Showing {visibleDestinations.length} destinations in LATAM, Caribbean, and Central America
         </p>
 
         <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {availableActivityFilters.map((activity) => {
+          {availableActivityFilters.map((activity) => {
             const active = activity === activeFilter;
             const meta = ACTIVITY_META[activity];
             return (
