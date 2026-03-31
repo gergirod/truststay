@@ -3,6 +3,7 @@
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ActivityBucket } from "@/data/activityDestinations";
+import { track } from "@/lib/analytics";
 
 interface BrowseDestination {
   slug: string;
@@ -336,6 +337,13 @@ export function CountryDestinationsMap({ destinations }: Props) {
     () => withDisplayOffsets(visibleDestinations),
     [visibleDestinations],
   );
+  const profilePresetCount = useMemo(
+    () =>
+      visibleDestinations.filter(
+        (d) => getActivitiesForDestination(d).length > 0,
+      ).length,
+    [visibleDestinations],
+  );
 
   useEffect(() => {
     if (!containerRef.current || !token) return;
@@ -407,7 +415,7 @@ export function CountryDestinationsMap({ destinations }: Props) {
             </div>
           `);
 
-          const marker = new mapboxgl.Marker({
+          new mapboxgl.Marker({
             element: el,
             anchor: "bottom",
           })
@@ -416,6 +424,12 @@ export function CountryDestinationsMap({ destinations }: Props) {
             .addTo(map);
           const href = destinationHref(destination.slug, activeFilter);
           el.addEventListener("click", () => {
+            track("destination_clicked_from_map", {
+              city_slug: destination.slug,
+              city_name: destination.name,
+              country: destination.country,
+              active_filter: activeFilter,
+            });
             window.location.href = href;
           });
         }
@@ -432,7 +446,7 @@ export function CountryDestinationsMap({ destinations }: Props) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (map as any)?.remove();
     };
-  }, [focusRegionDestinations, renderedDestinations, token, visibleDestinations]);
+  }, [activeFilter, focusRegionDestinations, renderedDestinations, token, visibleDestinations]);
 
   if (!token) {
     return (
@@ -458,6 +472,9 @@ export function CountryDestinationsMap({ destinations }: Props) {
         </p>
         <p className="text-xs text-umber">
           Showing {visibleDestinations.length} destinations in LATAM, Caribbean, and Central America
+        </p>
+        <p className="text-xs text-umber/80">
+          {profilePresetCount} open with activity-aware presets. Every destination opens in free preview first, then you can shape your stay.
         </p>
 
         <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
