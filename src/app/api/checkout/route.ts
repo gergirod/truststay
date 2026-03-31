@@ -33,6 +33,19 @@ export async function POST(req: NextRequest) {
 
   const { product, citySlug, bundleCitySlug, purpose, workStyle, dailyBalance } = body;
   const isBundle = product === "city_bundle";
+  const hasPurpose = Boolean(purpose);
+  const hasWorkStyle = Boolean(workStyle);
+  const intentComplete = hasPurpose && hasWorkStyle;
+  const intentPartial = hasPurpose !== hasWorkStyle;
+  const safePurpose = intentComplete ? purpose : undefined;
+  const safeWorkStyle = intentComplete ? workStyle : undefined;
+  const safeDailyBalance = intentComplete ? dailyBalance : undefined;
+
+  if (intentPartial) {
+    console.warn(
+      `[checkout] partial intent ignored city=${citySlug ?? "unknown"} purpose=${purpose ?? "none"} workStyle=${workStyle ?? "none"}`,
+    );
+  }
 
   if (!citySlug?.trim()) {
     return NextResponse.json(
@@ -73,19 +86,26 @@ export async function POST(req: NextRequest) {
     : env.stripe.cityPassPriceId;
 
   try {
+    const cancelParams = new URLSearchParams({
+      slug: citySlug,
+      ...(safePurpose ? { purpose: safePurpose } : {}),
+      ...(safeWorkStyle ? { workStyle: safeWorkStyle } : {}),
+      ...(safeDailyBalance ? { dailyBalance: safeDailyBalance } : {}),
+    });
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: [{ price: priceId, quantity: 1 }],
       allow_promotion_codes: true,
       success_url: `${appUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/checkout/cancel?slug=${encodeURIComponent(citySlug)}`,
+      cancel_url: `${appUrl}/checkout/cancel?${cancelParams.toString()}`,
       metadata: {
         product: product ?? "city_pass",
         citySlug,
         ...(isBundle && bundleCitySlug ? { bundleCitySlug } : {}),
-        ...(purpose ? { purpose } : {}),
-        ...(workStyle ? { workStyle } : {}),
-        ...(dailyBalance ? { dailyBalance } : {}),
+        ...(safePurpose ? { purpose: safePurpose } : {}),
+        ...(safeWorkStyle ? { workStyle: safeWorkStyle } : {}),
+        ...(safeDailyBalance ? { dailyBalance: safeDailyBalance } : {}),
       },
     });
 

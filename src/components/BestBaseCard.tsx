@@ -237,6 +237,7 @@ export function BestBaseCard({
   lowConfidence = false,
 }: Props) {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [errorMessage, setErrorMessage] = useState<string>("");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -265,6 +266,7 @@ export function BestBaseCard({
     });
 
     setStatus("loading");
+    setErrorMessage("");
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
@@ -289,9 +291,11 @@ export function BestBaseCard({
         window.location.href = data.checkoutUrl;
       } else {
         setStatus("error");
+        setErrorMessage(data.error ?? "Could not start checkout. Keep browsing the free setup and try again.");
       }
     } catch {
       setStatus("error");
+      setErrorMessage("Payment service is temporarily unavailable. Please try again in a moment.");
     }
   }
 
@@ -412,7 +416,7 @@ export function BestBaseCard({
 
             {status === "error" && (
               <p className="mt-3 text-sm text-red-600">
-                Could not start checkout — please try again.
+                {errorMessage || "Could not start checkout — please try again."}
               </p>
             )}
           </>

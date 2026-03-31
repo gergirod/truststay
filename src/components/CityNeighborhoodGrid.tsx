@@ -103,10 +103,16 @@ function BundleButton({
   citySlug,
   cityName,
   bundlePrice,
+  intent,
 }: {
   citySlug: string;
   cityName: string;
   bundlePrice: string;
+  intent?: {
+    purpose: string;
+    workStyle: string;
+    dailyBalance?: string;
+  };
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -124,6 +130,9 @@ function BundleButton({
           product: "city_bundle",
           citySlug,
           bundleCitySlug: citySlug,
+          ...(intent?.purpose ? { purpose: intent.purpose } : {}),
+          ...(intent?.workStyle ? { workStyle: intent.workStyle } : {}),
+          ...(intent?.dailyBalance ? { dailyBalance: intent.dailyBalance } : {}),
         }),
       });
       const data = await res.json();
@@ -201,6 +210,7 @@ export default function CityNeighborhoodGrid({
   const searchParams = useSearchParams();
   const purpose = searchParams.get("purpose") ?? "";
   const workStyle = searchParams.get("workStyle") ?? "";
+  const dailyBalance = searchParams.get("dailyBalance") ?? "";
 
   const hasIntent =
     VALID_PURPOSES.includes(purpose) && VALID_WORK_STYLES.includes(workStyle);
@@ -259,6 +269,15 @@ export default function CityNeighborhoodGrid({
           citySlug={config.citySlug}
           cityName={config.cityName}
           bundlePrice={bundlePrice}
+          intent={
+            hasIntent
+              ? {
+                  purpose,
+                  workStyle,
+                  ...(dailyBalance ? { dailyBalance } : {}),
+                }
+              : undefined
+          }
         />
       )}
     </div>

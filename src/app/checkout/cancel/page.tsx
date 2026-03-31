@@ -2,11 +2,23 @@ import Link from "next/link";
 import { AnalyticsEvent } from "@/components/AnalyticsEvent";
 
 type Props = {
-  searchParams: Promise<{ slug?: string }>;
+  searchParams: Promise<{
+    slug?: string;
+    purpose?: string;
+    workStyle?: string;
+    dailyBalance?: string;
+  }>;
 };
 
 export default async function CheckoutCancelPage({ searchParams }: Props) {
-  const { slug } = await searchParams;
+  const { slug, purpose, workStyle, dailyBalance } = await searchParams;
+  const backParams = new URLSearchParams();
+  if (purpose) backParams.set("purpose", purpose);
+  if (workStyle) backParams.set("workStyle", workStyle);
+  if (dailyBalance) backParams.set("dailyBalance", dailyBalance);
+  const backHref = slug
+    ? `/city/${slug}${backParams.toString() ? `?${backParams.toString()}` : ""}`
+    : "/";
 
   return (
     <div className="flex flex-col min-h-screen bg-stone-50">
@@ -20,7 +32,10 @@ export default async function CheckoutCancelPage({ searchParams }: Props) {
 
       <AnalyticsEvent
         event="checkout_cancelled"
-        properties={{ city_slug: slug ?? null }}
+        properties={{
+          city_slug: slug ?? null,
+          had_intent: Boolean(purpose && workStyle),
+        }}
       />
       <main className="flex-1 flex items-center justify-center px-6">
         <div className="max-w-md text-center">
@@ -36,7 +51,7 @@ export default async function CheckoutCancelPage({ searchParams }: Props) {
           <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             {slug ? (
               <Link
-                href={`/city/${slug}`}
+                href={backHref}
                 className="inline-block rounded-lg bg-stone-900 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-stone-700"
               >
                 Back to city setup

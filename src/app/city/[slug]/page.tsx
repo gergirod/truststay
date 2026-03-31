@@ -705,7 +705,20 @@ export default async function CityPage({ params, searchParams }: Props) {
         cityName={city.name}
         country={city.country}
         isUnlocked={unlocked}
+        hasIntent={Boolean(intent)}
       />
+
+      {/* Validation signal for checkout continuity: user returned unlocked but intent params are missing. */}
+      {justUnlocked && unlocked && !intent && (
+        <AnalyticsEvent
+          event="checkout_intent_missing_after_return"
+          properties={{
+            city_slug: city.slug,
+            city_name: city.name,
+            country: city.country,
+          }}
+        />
+      )}
 
       <main className="flex-1">
         {/* Treat as a neighbourhood if: URL has parentCity param, OR geocoding
@@ -1189,8 +1202,9 @@ async function CityContent({
             Unlocked successfully
           </p>
           <p className="mt-1 text-sm text-bark">
-            Full setup is now available. Compare the top micro-areas, check daily logistics, and
-            shortlist your work and essentials before booking.
+            {intent
+              ? "Full setup is now available. Compare the top micro-areas, check daily logistics, and shortlist your work and essentials before booking."
+              : "Full setup is now available. Shape this stay to apply your intent, then compare micro-areas with the right profile."}
           </p>
         </div>
       )}

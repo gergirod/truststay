@@ -13,6 +13,7 @@ interface Props {
   cityName: string;
   country: string;
   isUnlocked: boolean;
+  hasIntent: boolean;
 }
 
 /**
@@ -25,6 +26,7 @@ export function CheckoutSuccessTracker({
   cityName,
   country,
   isUnlocked,
+  hasIntent,
 }: Props) {
   useEffect(() => {
     if (!isUnlocked) return;
@@ -36,8 +38,9 @@ export function CheckoutSuccessTracker({
       city_name: cityName,
       country,
       is_unlocked: true,
+      intent_preserved: hasIntent,
     });
-  }, [citySlug, cityName, country, isUnlocked]);
+  }, [citySlug, cityName, country, isUnlocked, hasIntent]);
 
   return null;
 }

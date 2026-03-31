@@ -61,9 +61,18 @@ export async function GET(req: NextRequest) {
 
   const intentParams = new URLSearchParams();
   intentParams.set("justUnlocked", "1");
-  if (purpose) intentParams.set("purpose", purpose);
-  if (workStyle) intentParams.set("workStyle", workStyle);
-  if (dailyBalance) intentParams.set("dailyBalance", dailyBalance);
+  const hasFullIntent = Boolean(purpose && workStyle);
+  const hasPartialIntent = Boolean((purpose && !workStyle) || (!purpose && workStyle));
+  if (hasFullIntent) {
+    intentParams.set("purpose", purpose!);
+    intentParams.set("workStyle", workStyle!);
+    if (dailyBalance) intentParams.set("dailyBalance", dailyBalance);
+  } else if (hasPartialIntent) {
+    intentParams.set("intentIncomplete", "1");
+    console.warn(
+      `[finalize] partial intent metadata for session=${sessionId} city=${citySlug} purpose=${purpose ?? "none"} workStyle=${workStyle ?? "none"}`,
+    );
+  }
 
   if (product === "city_bundle" && bundleCitySlug) {
     // Bundle purchase: unlock all neighborhoods in the parent city
