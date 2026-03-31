@@ -224,6 +224,10 @@ export function CityMap({
   const freeSet = new Set(freePlaceIds);
   const hasZones = microAreas && microAreas.length > 0;
   const hasScores = hasZones && microAreas.some((z) => z.score !== undefined);
+  const interactiveZones = hasZones
+    ? microAreas.filter((z) => !z.hasConstraintBreakers)
+    : [];
+  const shouldAutoDrillSingleZone = interactiveZones.length === 1;
 
   // ── Fly back to zone overview ───────────────────────────────────────────────
   const flyToOverview = useCallback(() => {
@@ -521,6 +525,15 @@ export function CityMap({
             });
           } catch { /* single point */ }
         }
+
+        if (shouldAutoDrillSingleZone) {
+          const singleZone = interactiveZones[0];
+          if (singleZone) {
+            window.setTimeout(() => {
+              onZoneClickRef.current?.(singleZone);
+            }, 140);
+          }
+        }
       });
     }
 
@@ -583,7 +596,7 @@ export function CityMap({
         )}
 
         {/* ── "Tap zone" hint (Layer 1, zones exist) ─────────────────────── */}
-        {!activeZone && hasZones && (
+        {!activeZone && hasZones && !shouldAutoDrillSingleZone && (
           <div className="absolute top-3 left-3 rounded-lg bg-white/90 backdrop-blur-sm border border-dune px-2.5 py-1.5">
             <p className="text-[10px] text-umber">
               <span className="hidden sm:inline">Click</span>

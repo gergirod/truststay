@@ -14,6 +14,7 @@ const GEOCODE_QUERY_BY_SLUG: Record<string, string> = {
   "las-penitas": "Las Penitas, Leon, Nicaragua",
   lobitos: "Lobitos, Piura, Peru",
   "mal-pais": "Mal Pais, Puntarenas, Costa Rica",
+  gigante: "Playa Gigante, Rivas, Nicaragua",
   monterrico: "Monterrico, Santa Rosa, Guatemala",
   "morro-negrito": "Morro Negrito, Veraguas, Panama",
   nuqui: "Nuqui, Choco, Colombia",
