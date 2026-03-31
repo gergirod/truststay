@@ -40,6 +40,7 @@ import {
   getStayFitNarrative,
   saveStayFitNarrative,
 } from "@/lib/kv";
+import type { CachedMicroAreaNarrative } from "@/lib/kv";
 import { buildFinalResponse } from "@/application/use-cases/buildFinalResponse";
 import type { FinalOutput } from "@/schemas/zod/finalOutput.schema";
 
@@ -830,6 +831,51 @@ export interface EnrichedNarrativeResult {
   microAreaNarratives: MicroAreaNarrative[] | null;
 }
 
+function fallbackMicroAreaNarrativesFromDecision(
+  decisionOutput: FinalOutput,
+): MicroAreaNarrative[] {
+  return decisionOutput.ranking.map((rankEntry) => {
+    const area = decisionOutput.candidate_micro_areas.find(
+      (m) => m.name === rankEntry.micro_area,
+    );
+    return {
+      microAreaId: rankEntry.micro_area.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      name: rankEntry.micro_area,
+      rank: rankEntry.rank,
+      score: rankEntry.final_score,
+      hasConstraintBreakers: rankEntry.has_constraint_breakers ?? false,
+      center: area?.center,
+      radius_km: area?.radius_km,
+      narrativeText: {
+        whyItFits: area?.strengths.slice(0, 2).join(". ") || "Strong fit for this profile.",
+        dailyRhythm: "",
+        walkingOptions: "",
+        planAround:
+          area?.weaknesses.slice(0, 2).join(". ") ||
+          decisionOutput.recommendation.main_tradeoffs.join(". ") ||
+          "Review logistics before booking.",
+        logistics: decisionOutput.recommendation.warnings.slice(0, 1).join(" "),
+      },
+    };
+  });
+}
+
+function toCachedMicroAreaNarratives(
+  microAreas: MicroAreaNarrative[] | null,
+): CachedMicroAreaNarrative[] | undefined {
+  if (!microAreas || microAreas.length === 0) return undefined;
+  return microAreas.map((m) => ({
+    microAreaId: m.microAreaId,
+    name: m.name,
+    rank: m.rank,
+    score: m.score,
+    hasConstraintBreakers: m.hasConstraintBreakers,
+    center: m.center,
+    radius_km: m.radius_km,
+    narrativeText: m.narrativeText,
+  }));
+}
+
 /**
  * Get or generate an enrichment-agent-powered stay-fit narrative.
  * Returns narrative + micro-area zone data for map rendering.
@@ -844,20 +890,73 @@ export async function getOrGenerateEnrichedNarrative(
   const { purpose, workStyle, dailyBalance } = stayFit.narrativeInputs;
   const balance = dailyBalance ?? "balanced";
 
-  // 1. KV hit with enriched flag → instant return (no engine re-run, no map zones from cache)
+  // 1. KV hit with enriched flag.
+  // Newer cache entries include microAreaNarratives; older ones may not.
   const cached = await getStayFitNarrative(citySlug, purpose, workStyle, balance);
   if (cached?.enriched) {
     console.log(`[enrichmentAgent] enriched narrative KV hit: ${citySlug}:${purpose}:${workStyle}:${balance}`);
-    return {
-      narrative: {
-        whyItFits:      cached.whyItFits,
-        dailyRhythm:    cached.dailyRhythm ?? "",
-        walkingOptions: cached.walkingOptions ?? "",
-        planAround:     cached.planAround,
-        logistics:      cached.logistics ?? "",
-      },
-      microAreaNarratives: null, // re-generated on next full run
+    const cachedNarrative = {
+      whyItFits:      cached.whyItFits,
+      dailyRhythm:    cached.dailyRhythm ?? "",
+      walkingOptions: cached.walkingOptions ?? "",
+      planAround:     cached.planAround,
+      logistics:      cached.logistics ?? "",
     };
+    const cachedMicroAreas = cached.microAreaNarratives as MicroAreaNarrative[] | undefined;
+    if (cachedMicroAreas && cachedMicroAreas.length > 0) {
+      return {
+        narrative: cachedNarrative,
+        microAreaNarratives: cachedMicroAreas,
+      };
+    }
+
+    // Backfill behavior for old cache entries: recover zone stack from decision output
+    // without regenerating the main narrative.
+    try {
+      const decisionOutput = await buildFinalResponse({
+        citySlug,
+        cityName,
+        country,
+        userProfile: {
+          destination: `${cityName}, ${country}`,
+          duration_days: null,
+          main_activity: purpose as "surf" | "dive" | "hike" | "yoga" | "kite" | "work_first" | "exploring",
+          work_mode: workStyle as "light" | "balanced" | "heavy",
+          daily_balance: (balance ?? "balanced") as "purpose_first" | "balanced" | "work_first",
+          routine_needs: [],
+          budget_level: null,
+          preferred_vibe: null,
+          transport_assumption: "unknown",
+          hard_constraints: [],
+        },
+      });
+      const recoveredMicroAreas = fallbackMicroAreaNarrativesFromDecision(decisionOutput);
+      saveStayFitNarrative({
+        citySlug,
+        purpose,
+        workStyle,
+        dailyBalance: balance,
+        whyItFits: cachedNarrative.whyItFits,
+        dailyRhythm: cachedNarrative.dailyRhythm,
+        walkingOptions: cachedNarrative.walkingOptions,
+        planAround: cachedNarrative.planAround,
+        logistics: cachedNarrative.logistics,
+        generatedAt: cached.generatedAt,
+        enriched: true,
+        microAreaNarratives: toCachedMicroAreaNarratives(recoveredMicroAreas),
+      }).catch((err) =>
+        console.warn("[enrichmentAgent] KV save failed while backfilling micro-area narratives:", err)
+      );
+      return {
+        narrative: cachedNarrative,
+        microAreaNarratives: recoveredMicroAreas,
+      };
+    } catch {
+      return {
+        narrative: cachedNarrative,
+        microAreaNarratives: null,
+      };
+    }
   }
 
   // 2. Decision engine — run structured scoring (fixture or dynamic discovery)
@@ -932,6 +1031,7 @@ export async function getOrGenerateEnrichedNarrative(
     logistics:      narrative.logistics,
     generatedAt:    new Date().toISOString(),
     enriched:       true,
+    microAreaNarratives: toCachedMicroAreaNarratives(microAreaNarratives),
   }).catch((err) =>
     console.warn("[enrichmentAgent] KV save failed for enriched narrative:", err)
   );
