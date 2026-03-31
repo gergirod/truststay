@@ -43,6 +43,7 @@ import {
 import type { CachedMicroAreaNarrative } from "@/lib/kv";
 import { buildFinalResponse } from "@/application/use-cases/buildFinalResponse";
 import type { FinalOutput } from "@/schemas/zod/finalOutput.schema";
+import { haversineKm } from "@/lib/overpass";
 
 function formatError(err: unknown): string {
   if (err instanceof Error) {
@@ -712,6 +713,52 @@ export interface MicroAreaNarrative {
   };
 }
 
+interface ZonePlaceEvidence {
+  total: number;
+  coworking: string[];
+  cafes: string[];
+  food: string[];
+  gyms: string[];
+  essentials: string[];
+}
+
+function summarizePlacesForZone(
+  places: Place[],
+  center?: { lat: number; lon: number },
+  radiusKm?: number,
+): ZonePlaceEvidence {
+  if (!center || !radiusKm) {
+    return { total: 0, coworking: [], cafes: [], food: [], gyms: [], essentials: [] };
+  }
+
+  const inZone = places.filter((p) => {
+    const distance = haversineKm(center.lat, center.lon, p.lat, p.lon);
+    // Allow a small buffer so we don't miss edge-of-zone candidates.
+    return distance <= radiusKm * 1.25;
+  });
+
+  const byDistance = [...inZone].sort(
+    (a, b) =>
+      haversineKm(center.lat, center.lon, a.lat, a.lon) -
+      haversineKm(center.lat, center.lon, b.lat, b.lon),
+  );
+
+  const pick = (category: Place["category"]) =>
+    byDistance
+      .filter((p) => p.category === category)
+      .slice(0, 4)
+      .map((p) => p.name);
+
+  return {
+    total: inZone.length,
+    coworking: pick("coworking"),
+    cafes: pick("cafe"),
+    food: pick("food"),
+    gyms: pick("gym"),
+    essentials: pick("essential"),
+  };
+}
+
 /**
  * Generate one short narrative per micro-area in a single LLM call.
  * Returns a ranked array — winner first, constraint-broken areas last.
@@ -721,6 +768,7 @@ export async function generateAllMicroAreaNarratives(
   country: string,
   decisionOutput: FinalOutput,
   intent: { purpose: string; workStyle: string; dailyBalance?: string },
+  places: Place[] = [],
 ): Promise<MicroAreaNarrative[]> {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const model = process.env.OPENAI_NARRATIVE_MODEL ?? "gpt-4o-mini";
@@ -731,6 +779,7 @@ export async function generateAllMicroAreaNarratives(
 
   const areasBlock = decisionOutput.candidate_micro_areas.map((m) => {
     const rankEntry = decisionOutput.ranking.find((r) => r.micro_area === m.name);
+    const zonePlaces = summarizePlacesForZone(places, m.center, m.radius_km);
     const scoreLines = Object.entries(m.scores)
       .filter(([k]) => k !== "weighted_total")
       .map(([k, v]) => `    ${k}: ${(v as number).toFixed(1)}`)
@@ -743,7 +792,14 @@ Scores:\n${scoreLines}
 Strengths: ${m.strengths.join("; ")}
 Weaknesses: ${m.weaknesses.join("; ")}
 Constraint breakers: ${m.constraint_breakers.length ? m.constraint_breakers.join("; ") : "none"}
-Best for: ${m.best_for.join(", ")}`;
+Best for: ${m.best_for.join(", ")}
+Zone place evidence:
+  total places in/near zone: ${zonePlaces.total}
+  coworking: ${zonePlaces.coworking.join(", ") || "none"}
+  cafes: ${zonePlaces.cafes.join(", ") || "none"}
+  food: ${zonePlaces.food.join(", ") || "none"}
+  gyms: ${zonePlaces.gyms.join(", ") || "none"}
+  essentials: ${zonePlaces.essentials.join(", ") || "none"}`;
   }).join("\n---\n");
 
   const prompt = `You are writing BestBaseCard content for a remote-worker travel app.
@@ -763,7 +819,8 @@ WHY IT WINS: ${decisionOutput.recommendation.why_it_wins.join("; ")}
 TRADEOFFS: ${decisionOutput.recommendation.main_tradeoffs.join("; ")}
 WARNINGS: ${decisionOutput.recommendation.warnings.join("; ")}
 
-Write one BestBaseCard narrative per zone. Be specific and honest — use the scoring data above.
+Write one BestBaseCard narrative per zone. Be specific and honest — use the scoring data and zone place evidence above.
+Reference concrete places from the same zone whenever available.
 For CONSTRAINT BREAKER zones: still write the narrative but make planAround honest about WHY it doesn't work for this profile.
 Keep each field to 1-2 sentences max — these are card snippets, not essays.
 
@@ -1063,6 +1120,7 @@ export async function getOrGenerateEnrichedNarrative(
         country,
         decisionOutput,
         { purpose, workStyle, dailyBalance: balance },
+        places,
       );
     } catch (err) {
       console.warn(
@@ -1104,6 +1162,7 @@ export async function getOrGenerateEnrichedNarrative(
       country,
       decisionOutput,
       { purpose, workStyle, dailyBalance: balance },
+      places,
     ).catch((err) => {
       console.warn("[enrichmentAgent] micro-area narrative generation failed:", err);
       return null;

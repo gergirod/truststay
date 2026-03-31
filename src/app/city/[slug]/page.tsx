@@ -1371,6 +1371,7 @@ async function CityContent({
           lockedCounts={lockedCounts}
           hookLine={hookLine}
           hasIntent={!!intent}
+          intent={intent}
           parentCity={city.parentCity}
           parentCitySlug={city.parentCity ? toSlug(city.parentCity) : undefined}
           bundlePrice={

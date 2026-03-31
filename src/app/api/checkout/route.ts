@@ -18,6 +18,9 @@ export async function POST(req: NextRequest) {
     citySlug?: string;
     /** For city_bundle: the parent city slug whose neighborhoods should unlock */
     bundleCitySlug?: string;
+    purpose?: string;
+    workStyle?: string;
+    dailyBalance?: string;
   };
   try {
     body = await req.json();
@@ -28,7 +31,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { product, citySlug, bundleCitySlug } = body;
+  const { product, citySlug, bundleCitySlug, purpose, workStyle, dailyBalance } = body;
   const isBundle = product === "city_bundle";
 
   if (!citySlug?.trim()) {
@@ -80,6 +83,9 @@ export async function POST(req: NextRequest) {
         product: product ?? "city_pass",
         citySlug,
         ...(isBundle && bundleCitySlug ? { bundleCitySlug } : {}),
+        ...(purpose ? { purpose } : {}),
+        ...(workStyle ? { workStyle } : {}),
+        ...(dailyBalance ? { dailyBalance } : {}),
       },
     });
 

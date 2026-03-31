@@ -42,6 +42,9 @@ export async function GET(req: NextRequest) {
   const citySlug = session.metadata?.citySlug;
   const product = session.metadata?.product;
   const bundleCitySlug = session.metadata?.bundleCitySlug;
+  const purpose = session.metadata?.purpose;
+  const workStyle = session.metadata?.workStyle;
+  const dailyBalance = session.metadata?.dailyBalance;
 
   if (!citySlug) {
     console.error("[finalize] citySlug missing from session metadata:", sessionId);
@@ -56,6 +59,12 @@ export async function GET(req: NextRequest) {
     path: "/",
   };
 
+  const intentParams = new URLSearchParams();
+  intentParams.set("justUnlocked", "1");
+  if (purpose) intentParams.set("purpose", purpose);
+  if (workStyle) intentParams.set("workStyle", workStyle);
+  if (dailyBalance) intentParams.set("dailyBalance", dailyBalance);
+
   if (product === "city_bundle" && bundleCitySlug) {
     // Bundle purchase: unlock all neighborhoods in the parent city
     const rawBundle = req.cookies.get(BUNDLE_COOKIE)?.value ?? "";
@@ -64,7 +73,7 @@ export async function GET(req: NextRequest) {
       current.push(bundleCitySlug);
     }
     const response = NextResponse.redirect(
-      new URL(`/city/${bundleCitySlug}?justUnlocked=1`, origin)
+      new URL(`/city/${bundleCitySlug}?${intentParams.toString()}`, origin)
     );
     response.cookies.set(BUNDLE_COOKIE, serializeSlugs(current), cookieOpts);
     return response;
@@ -79,7 +88,7 @@ export async function GET(req: NextRequest) {
 
   // Set-Cookie on a redirect response is valid — browser stores it before following.
   const response = NextResponse.redirect(
-    new URL(`/city/${citySlug}?justUnlocked=1`, origin)
+    new URL(`/city/${citySlug}?${intentParams.toString()}`, origin)
   );
   response.cookies.set(UNLOCK_COOKIE, serializeSlugs(current), cookieOpts);
   return response;

@@ -28,6 +28,11 @@ interface Props {
    * been computed yet and the personalized recommendation doesn't exist.
    */
   hasIntent?: boolean;
+  intent?: {
+    purpose: string;
+    workStyle: string;
+    dailyBalance?: string;
+  } | null;
 }
 
 export function PaywallCard({
@@ -40,6 +45,7 @@ export function PaywallCard({
   parentCitySlug,
   bundlePrice,
   hasIntent = false,
+  intent = null,
 }: Props) {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [bundleStatus, setBundleStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -78,6 +84,9 @@ export function PaywallCard({
           product: "city_bundle",
           citySlug: parentCitySlug,
           bundleCitySlug: parentCitySlug,
+          ...(intent?.purpose ? { purpose: intent.purpose } : {}),
+          ...(intent?.workStyle ? { workStyle: intent.workStyle } : {}),
+          ...(intent?.dailyBalance ? { dailyBalance: intent.dailyBalance } : {}),
         }),
       });
       const data = await res.json();
@@ -113,7 +122,13 @@ export function PaywallCard({
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ product: "city_pass", citySlug }),
+        body: JSON.stringify({
+          product: "city_pass",
+          citySlug,
+          ...(intent?.purpose ? { purpose: intent.purpose } : {}),
+          ...(intent?.workStyle ? { workStyle: intent.workStyle } : {}),
+          ...(intent?.dailyBalance ? { dailyBalance: intent.dailyBalance } : {}),
+        }),
       });
       const data = await res.json();
 
