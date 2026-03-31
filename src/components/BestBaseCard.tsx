@@ -7,7 +7,6 @@ import { CHECKOUT_PENDING_KEY } from "@/components/CheckoutSuccessTracker";
 import type {
   StayFitResult,
   StayIntent,
-  FitProfile,
   PlaceCategory,
   DailyLifePlaceType,
 } from "@/types";
@@ -205,7 +204,7 @@ function buildWhyItFits(stayFit: StayFitResult, intent: StayIntent): string {
  * Uses real redFlags from the scoring engine — deterministic, honest.
  * Falls back to a soft profile note if no flags exist.
  */
-function buildTradeoffs(stayFit: StayFitResult, intent: StayIntent): string[] {
+function buildTradeoffs(stayFit: StayFitResult): string[] {
   const flags = stayFit.redFlags.slice(0, 2);
   if (flags.length >= 1) return flags;
 
@@ -270,7 +269,13 @@ export function BestBaseCard({
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ product: "city_pass", citySlug }),
+        body: JSON.stringify({
+          product: "city_pass",
+          citySlug,
+          purpose: intent.purpose,
+          workStyle: intent.workStyle,
+          ...(intent.dailyBalance ? { dailyBalance: intent.dailyBalance } : {}),
+        }),
       });
       const data = await res.json();
       if (data.ok && data.checkoutUrl) {
@@ -295,7 +300,7 @@ export function BestBaseCard({
   const dailyRhythm   = isUnlocked ? (narrativeText?.dailyRhythm    ?? null) : null;
   const walkingOpts   = isUnlocked ? (narrativeText?.walkingOptions  ?? null) : null;
   const mainRedFlag   = isUnlocked ? (stayFit.redFlags[0]           ?? null) : null;
-  const planAround    = isUnlocked ? (narrativeText?.planAround      ?? buildTradeoffs(stayFit, intent)[0] ?? null) : null;
+  const planAround    = isUnlocked ? (narrativeText?.planAround      ?? buildTradeoffs(stayFit)[0] ?? null) : null;
   const logistics     = isUnlocked ? (narrativeText?.logistics       ?? null) : null;
 
   // Top 3 nearby places: up to 2 work spots + 1 daily-life

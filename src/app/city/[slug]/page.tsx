@@ -1244,71 +1244,80 @@ async function CityContent({
         </div>
       )}
 
+      <DecisionNextStepCard
+        isUnlocked={isUnlocked}
+        hasIntent={Boolean(intent)}
+      />
+
       {/* Intent-aware main card — the primary product moment.
           · intent present + stayFit computed → BestBaseCard answers "where to base myself"
           · intent absent → IntentPrompt lets the user shape the stay and activate BestBaseCard
           · intent present but stayFit null → should not happen (stayFit is computed whenever intent exists) */}
-      {intent && stayFit ? (
-        microAreaNarratives && microAreaNarratives.length > 0 ? (
-          isUnlocked ? (
-            <MicroAreaStack
-              microAreaNarratives={microAreaNarratives}
-              intent={`${intent.purpose} + ${intent.workStyle} work`}
-              cityName={city.name}
-            />
+      <div id="decision-flow">
+        {intent && stayFit ? (
+          microAreaNarratives && microAreaNarratives.length > 0 ? (
+            isUnlocked ? (
+              <MicroAreaStack
+                microAreaNarratives={microAreaNarratives}
+                intent={`${intent.purpose} + ${intent.workStyle} work`}
+                cityName={city.name}
+              />
+            ) : (
+              <BestBaseCard
+                isUnlocked={false}
+                cityName={city.name}
+                citySlug={city.slug}
+                country={city.country}
+                stayFit={{ ...stayFit, baseArea: microAreaNarratives[0]?.name ?? stayFit.baseArea }}
+                intent={intent}
+                narrativeText={null}
+                lowConfidence={dataCoverage === "limited"}
+              />
+            )
           ) : (
             <BestBaseCard
-              isUnlocked={false}
+              isUnlocked={isUnlocked}
               cityName={city.name}
               citySlug={city.slug}
               country={city.country}
-              stayFit={{ ...stayFit, baseArea: microAreaNarratives[0]?.name ?? stayFit.baseArea }}
+              stayFit={stayFit}
               intent={intent}
-              narrativeText={null}
+              narrativeText={stayFitNarrative}
+              baseNeighborhoodHref={(() => {
+                const curatedConfig = CURATED_NEIGHBORHOODS[city.slug];
+                if (!curatedConfig) return null;
+                const base = stayFit.baseArea.toLowerCase().trim();
+                const match = curatedConfig.neighborhoods.find((n) => {
+                  const name = n.name.toLowerCase().trim();
+                  return name === base || name.includes(base) || base.includes(name);
+                });
+                if (!match) return null;
+                const params = new URLSearchParams({
+                  lat: String(match.lat),
+                  lon: String(match.lon),
+                  name: match.name,
+                  country: "",
+                  parentCity: city.name,
+                  bbox: match.bbox.join(","),
+                  purpose: intent.purpose,
+                  workStyle: intent.workStyle,
+                  ...(intent.dailyBalance ? { dailyBalance: intent.dailyBalance } : {}),
+                });
+                return `/city/${match.slug}?${params.toString()}`;
+              })()}
               lowConfidence={dataCoverage === "limited"}
             />
           )
-        ) : (
-          <BestBaseCard
-            isUnlocked={isUnlocked}
-            cityName={city.name}
-            citySlug={city.slug}
-            country={city.country}
-            stayFit={stayFit}
-            intent={intent}
-            narrativeText={stayFitNarrative}
-            baseNeighborhoodHref={(() => {
-              const curatedConfig = CURATED_NEIGHBORHOODS[city.slug];
-              if (!curatedConfig) return null;
-              const base = stayFit.baseArea.toLowerCase().trim();
-              const match = curatedConfig.neighborhoods.find((n) => {
-                const name = n.name.toLowerCase().trim();
-                return name === base || name.includes(base) || base.includes(name);
-              });
-              if (!match) return null;
-              const params = new URLSearchParams({
-                lat: String(match.lat),
-                lon: String(match.lon),
-                name: match.name,
-                country: "",
-                parentCity: city.name,
-                bbox: match.bbox.join(","),
-                purpose: intent.purpose,
-                workStyle: intent.workStyle,
-                ...(intent.dailyBalance ? { dailyBalance: intent.dailyBalance } : {}),
-              });
-              return `/city/${match.slug}?${params.toString()}`;
-            })()}
-            lowConfidence={dataCoverage === "limited"}
-          />
-        )
-      ) : !intent ? (
-        <IntentPrompt
-          citySlug={city.slug}
-          cityName={city.name}
-          prefillPurpose={prefillPurpose}
-        />
-      ) : null}
+        ) : !intent ? (
+          <div id="intent-prompt-section">
+            <IntentPrompt
+              citySlug={city.slug}
+              cityName={city.name}
+              prefillPurpose={prefillPurpose}
+            />
+          </div>
+        ) : null}
+      </div>
 
 
       <PlaceSection
@@ -1410,6 +1419,56 @@ async function CityContent({
       )}
 
       <MethodologyNote />
+    </div>
+  );
+}
+
+function DecisionNextStepCard({
+  isUnlocked,
+  hasIntent,
+}: {
+  isUnlocked: boolean;
+  hasIntent: boolean;
+}) {
+  if (!hasIntent) {
+    return (
+      <div className="rounded-2xl border border-dune bg-white px-5 py-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-umber">
+          Next step
+        </p>
+        <p className="mt-1 text-sm text-bark">
+          Shape this stay first so recommendations match how you travel and work.
+          {" "}
+          <a href="#intent-prompt-section" className="font-medium text-teal underline underline-offset-2">
+            Start now
+          </a>
+          .
+        </p>
+      </div>
+    );
+  }
+
+  if (!isUnlocked) {
+    return (
+      <div className="rounded-2xl border border-dune bg-white px-5 py-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-umber">
+          Next step
+        </p>
+        <p className="mt-1 text-sm text-bark">
+          Review your best base card below, then unlock full micro-area setup to compare all options with logistics and tradeoffs.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-dune bg-white px-5 py-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-umber">
+        Next step
+      </p>
+      <p className="mt-1 text-sm text-bark">
+        Compare all ranked micro-areas below, then shortlist places in Work, Essentials, and Wellbeing to finalize your base decision.
+      </p>
     </div>
   );
 }
