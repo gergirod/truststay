@@ -2,8 +2,8 @@ import { getPlacesCache, savePlacesCache, getDailyLifeCache, saveDailyLifeCache 
 import { fetchPlaces, fetchDailyLifePlaces } from "@/lib/overpass";
 import type { City, Place, DailyLifePlace } from "@/types";
 
-/** Max age before we re-run Google enrichment even if enrichedAt is set (7 days) */
-const ENRICHMENT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+/** Max age before we re-run Google enrichment even if enrichedAt is set (90 days). */
+const ENRICHMENT_MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 
 /**
  * Returns the place list for a city, using KV cache when available.

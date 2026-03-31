@@ -73,7 +73,14 @@ export async function isUnlocked(
 
   // Individual neighborhood / city unlock
   const rawUnlock = cookieStore.get(UNLOCK_COOKIE)?.value;
-  if (rawUnlock && parseSlugs(rawUnlock).includes(citySlug)) return true;
+  if (rawUnlock) {
+    const unlockedSlugs = parseSlugs(rawUnlock);
+    // Direct unlock for this exact slug.
+    if (unlockedSlugs.includes(citySlug)) return true;
+    // If a parent city is unlocked via the normal city pass, its child
+    // neighborhoods should also be unlocked.
+    if (parentCitySlug && unlockedSlugs.includes(parentCitySlug)) return true;
+  }
 
   // Bundle unlock: if the parent city was purchased, all its neighborhoods unlock
   if (parentCitySlug) {

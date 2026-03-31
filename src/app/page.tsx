@@ -5,6 +5,8 @@ import { CountryDestinationsMap } from "@/components/CountryDestinationsMap";
 import { getDb } from "@/db/client";
 import { destinations } from "@/db/schema";
 import { asc, isNotNull } from "drizzle-orm";
+import { cookies } from "next/headers";
+import { BUNDLE_COOKIE, UNLOCK_COOKIE, parseSlugs } from "@/lib/unlock";
 import {
   ACTIVITY_DESTINATIONS_BY_COUNTRY,
   type ActivityBucket,
@@ -90,7 +92,21 @@ const BUNDLE_FEATURES = [
   "Join waitlist for early access rollout",
 ];
 
+function slugToDisplayName(slug: string): string {
+  return slug
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 export default async function HomePage() {
+  const cookieStore = await cookies();
+  const unlockedRaw = cookieStore.get(UNLOCK_COOKIE)?.value ?? "";
+  const bundlesRaw = cookieStore.get(BUNDLE_COOKIE)?.value ?? "";
+  const unlockedSlugs = parseSlugs(unlockedRaw);
+  const bundleSlugs = parseSlugs(bundlesRaw);
+  const unlockedSet = new Set([...unlockedSlugs, ...bundleSlugs]);
+
   const db = getDb();
   const browseDestinations = db
     ? (
@@ -121,6 +137,16 @@ export default async function HomePage() {
             : ("other" as const),
         }))
     : [];
+  const destinationNameBySlug = new Map(
+    browseDestinations.map((d) => [d.slug, d.name]),
+  );
+  const unlockedItems = [...unlockedSet]
+    .sort((a, b) => a.localeCompare(b))
+    .map((slug) => ({
+      slug,
+      name: destinationNameBySlug.get(slug) ?? slugToDisplayName(slug),
+      isBundle: bundleSlugs.includes(slug),
+    }));
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -204,6 +230,38 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
+
+        {/* ── My unlocked stays ─────────────────────────────────── */}
+        {unlockedItems.length > 0 && (
+          <section className="border-b border-dune bg-white">
+            <div className="mx-auto max-w-4xl px-6 py-12">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
+                My unlocked stays
+              </p>
+              <p className="mt-2 text-sm text-umber">
+                Quick access to destinations you already unlocked.
+              </p>
+
+              <div className="mt-5 flex flex-wrap gap-2.5">
+                {unlockedItems.map((item) => (
+                  <a
+                    key={item.slug}
+                    href={`/city/${item.slug}`}
+                    className="inline-flex items-center gap-2 rounded-full border border-dune bg-sand px-3 py-1.5 text-xs font-medium text-bark transition-colors hover:border-teal/50 hover:bg-mist"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-teal" />
+                    <span>{item.name}</span>
+                    {item.isBundle && (
+                      <span className="rounded-full bg-[#DCEBE9] px-2 py-0.5 text-[10px] font-semibold text-[#2E2A26]">
+                        bundle
+                      </span>
+                    )}
+                  </a>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* ── Coverage ── sand ─────────────────────────────────── */}
         <section className="border-b border-dune bg-sand">

@@ -14,15 +14,12 @@ import { PaywallCard } from "@/components/PaywallCard";
 import { AnalyticsEvent } from "@/components/AnalyticsEvent";
 import { CheckoutSuccessTracker } from "@/components/CheckoutSuccessTracker";
 import { CityMap } from "@/components/CityMap";
-import CityNeighborhoodGrid from "@/components/CityNeighborhoodGrid";
 import { CURATED_NEIGHBORHOODS } from "@/data/neighborhoods";
-import type { CityNeighborhoodConfig } from "@/data/neighborhoods";
 import { PLACE_OVERRIDES } from "@/data/placeOverrides";
 import { getPlaceConfirmations } from "@/lib/confirmations";
 import { CITY_INTROS } from "@/data/cityIntros";
 import { CityIntro } from "@/components/CityIntro";
 import { getNarrative } from "@/lib/kv";
-import { discoverNeighborhoods } from "@/lib/neighborhoodDiscovery";
 import { EmailCapture } from "@/components/EmailCapture";
 import { ShareButton } from "@/components/ShareButton";
 import { BestBaseCard } from "@/components/BestBaseCard";
@@ -590,25 +587,6 @@ export default async function CityPage({ params, searchParams }: Props) {
   // when the user arrived from Browse (purpose in URL but workStyle missing).
   const prefillPurpose = intent ? null : parsePrefillPurpose(sp);
 
-  // ── Curated city grid (instant — no geocoding needed) ───────────────────
-  // If the slug is in CURATED_NEIGHBORHOODS and we're not already inside a
-  // specific neighbourhood, show the grid immediately — BUT only when no intent
-  // is present. When intent is present, fall through to full city resolution so
-  // BestBaseCard can answer the "where to base myself" question first.
-  const curated = CURATED_NEIGHBORHOODS[slug];
-  if (curated && !hasParentCityParam && !intent) {
-    const bundlePrice = process.env.NEXT_PUBLIC_CITY_BUNDLE_PRICE ?? "15";
-    return (
-      <div className="flex flex-col min-h-screen">
-        <Header />
-        <main className="flex-1">
-          <CityNeighborhoodGrid config={curated} bundlePrice={bundlePrice} />
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
   const parentCitySlug = (() => {
     // Prefer URL param (set by autocomplete/grid), fall back to geocoded parentCity
     const raw = sp.parentCity;
@@ -786,11 +764,8 @@ export default async function CityPage({ params, searchParams }: Props) {
               prefillPurpose={prefillPurpose}
             />
           </div>
-        ) : curated ? (
-          // ── Curated city WITH intent ───────────────────────────────────
-          // (no-intent case returned early above as a fast grid-only response)
-          // BestBaseCard answers "where to base myself" first.
-          // The curated neighborhood grid renders below as exploration/confirmation.
+        ) : (
+          // ── Top-level city: always use direct city/micro-area flow ─────
           <div className="mx-auto w-full max-w-4xl px-6 py-16">
             <CityPageHeader city={city} kvNarrative={kvNarrativePage} />
             <CityContent
@@ -801,24 +776,7 @@ export default async function CityPage({ params, searchParams }: Props) {
               intent={intent}
               prefillPurpose={prefillPurpose}
             />
-            <div className="mt-16 border-t border-dune pt-12">
-              <CityNeighborhoodGrid
-                config={curated}
-                explorationMode
-                recommendedAreaName={kvNarrativePage?.baseAreaName ?? null}
-              />
-            </div>
           </div>
-        ) : (
-          // ── Top-level city: try auto-discovery, fallback to place content ─
-          <AutoNeighborhoodOrContent
-            city={city}
-            isUnlocked={unlocked}
-            justUnlocked={justUnlocked}
-            kvNarrative={kvNarrativePage}
-            intent={intent}
-            prefillPurpose={prefillPurpose}
-          />
         )}
       </main>
 
@@ -877,104 +835,6 @@ function CityPageHeader({
           your routine.
         </p>
       )}
-    </div>
-  );
-}
-
-// ── Auto-discovery wrapper ────────────────────────────────────────────────────
-// For top-level city pages (no parentCity): try to discover neighborhoods first.
-// If >= 3 are found → show the neighborhood grid.
-// If not enough data → fall through to the normal single-city place content.
-//
-// When intent is present and >= 3 neighborhoods found, BestBaseCard renders first
-// and the grid moves below as an exploration/confirmation layer.
-//
-// Performance: discoverNeighborhoods + fetchPlaces run in PARALLEL.
-// For cities without neighborhoods this cuts the critical path from ~4-5s to ~2s
-// because CityContent gets a cache-warm hit on fetchPlaces (instant).
-async function AutoNeighborhoodOrContent({
-  city,
-  isUnlocked,
-  justUnlocked,
-  kvNarrative,
-  intent,
-  prefillPurpose = null,
-}: {
-  city: City;
-  isUnlocked: boolean;
-  justUnlocked: boolean;
-  kvNarrative: import("@/lib/kv").StoredNarrative | null;
-  intent: StayIntent | null;
-  prefillPurpose?: StayPurpose | null;
-}) {
-  // Run all three in parallel — place caches warm so CityContent resolves instantly.
-  const [neighborhoods] = await Promise.all([
-    discoverNeighborhoods(city),
-    getPlacesWithCache(city).catch(() => ({ places: [], needsEnrichment: false })),
-    getDailyLifeWithCache(city).catch(() => []),
-  ]);
-
-  if (neighborhoods.length >= 3) {
-    const config: CityNeighborhoodConfig = {
-      cityName: city.name,
-      citySlug: city.slug,
-      neighborhoods,
-    };
-
-    if (intent) {
-      // ── Intent-aware path: BestBaseCard leads, grid confirms ──────────
-      // The user asked a specific question ("where for surf + light work?").
-      // BestBaseCard answers it. The neighborhood grid moves below as exploration.
-      return (
-        <div className="mx-auto w-full max-w-4xl px-6 py-16">
-          <CityPageHeader city={city} kvNarrative={kvNarrative} />
-          {/* Caches warmed above — resolves from KV */}
-          <CityContent
-            city={city}
-            isUnlocked={isUnlocked}
-            justUnlocked={justUnlocked}
-            kvNarrative={kvNarrative}
-            intent={intent}
-            prefillPurpose={prefillPurpose}
-          />
-          <div className="mt-16 border-t border-dune pt-12">
-            <CityNeighborhoodGrid
-              config={config}
-              explorationMode
-              recommendedAreaName={kvNarrative?.baseAreaName ?? null}
-            />
-          </div>
-        </div>
-      );
-    }
-
-    // No intent: current grid-only behavior
-    // No bundlePrice for auto-discovered cities — bundle is only for curated ones
-    return <CityNeighborhoodGrid config={config} bundlePrice={undefined} />;
-  }
-
-  // Not enough neighborhood data — fire analytics and show normal city page
-  return (
-    <div className="mx-auto w-full max-w-4xl px-6 py-16">
-      <AnalyticsEvent
-        event="city_no_neighborhoods_found"
-        properties={{
-          city_slug: city.slug,
-          city_name: city.name,
-          country: city.country,
-          neighborhoods_found: neighborhoods.length,
-        }}
-      />
-      <CityPageHeader city={city} kvNarrative={kvNarrative} />
-      {/* Caches warmed above — CityContent resolves instantly from KV */}
-      <CityContent
-        city={city}
-        isUnlocked={isUnlocked}
-        justUnlocked={justUnlocked}
-        kvNarrative={kvNarrative}
-        intent={intent}
-        prefillPurpose={prefillPurpose}
-      />
     </div>
   );
 }
@@ -1066,8 +926,6 @@ async function CityContent({
     : enrichedPlaces;
 
   // Run remaining async work in parallel: reverse geocode + daily-life fetch + confirmations.
-  // getDailyLifeWithCache was already called in AutoNeighborhoodOrContent to warm the KV
-  // cache — this call resolves instantly from KV on cache hit.
   // Note: reverseGeocodeArea runs for ALL users (not just unlocked) because the BestBaseCard
   // shows the area name in the free/locked state too. Nominatim is free and fast.
   const [areaName, dailyLifePlaces, confirmations] = await Promise.all([

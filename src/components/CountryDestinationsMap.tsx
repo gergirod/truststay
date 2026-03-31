@@ -19,10 +19,6 @@ interface RenderDestination extends BrowseDestination {
   displayLon: number;
 }
 
-type RenderItem =
-  | { kind: "destination"; destination: RenderDestination }
-  | { kind: "cluster"; lat: number; lon: number; count: number; names: string[] };
-
 interface Props {
   destinations: BrowseDestination[];
 }
@@ -146,82 +142,6 @@ function withDisplayOffsets(destinations: BrowseDestination[]): RenderDestinatio
   return rendered;
 }
 
-function clusterRadiusKmForZoom(zoom: number): number {
-  if (zoom < 3.8) return 120;
-  if (zoom < 4.8) return 72;
-  return 0;
-}
-
-function buildRenderItems(
-  destinations: BrowseDestination[],
-  zoom: number,
-): RenderItem[] {
-  const radiusKm = clusterRadiusKmForZoom(zoom);
-  if (radiusKm <= 0) {
-    return withDisplayOffsets(destinations).map((destination) => ({
-      kind: "destination",
-      destination,
-    }));
-  }
-
-  const groups: {
-    centerLat: number;
-    centerLon: number;
-    members: BrowseDestination[];
-  }[] = [];
-
-  for (const destination of destinations) {
-    const group = groups.find((candidate) => {
-      return (
-        distanceKm(
-          candidate.centerLat,
-          candidate.centerLon,
-          destination.lat,
-          destination.lon,
-        ) <= radiusKm
-      );
-    });
-
-    if (!group) {
-      groups.push({
-        centerLat: destination.lat,
-        centerLon: destination.lon,
-        members: [destination],
-      });
-      continue;
-    }
-
-    group.members.push(destination);
-    const latTotal = group.members.reduce((sum, item) => sum + item.lat, 0);
-    const lonTotal = group.members.reduce((sum, item) => sum + item.lon, 0);
-    group.centerLat = latTotal / group.members.length;
-    group.centerLon = lonTotal / group.members.length;
-  }
-
-  const items: RenderItem[] = [];
-  for (const group of groups) {
-    if (group.members.length === 1) {
-      const only = group.members[0];
-      items.push({
-        kind: "destination",
-        destination: {
-          ...only,
-          displayLat: only.lat,
-          displayLon: only.lon,
-        },
-      });
-      continue;
-    }
-    items.push({
-      kind: "cluster",
-      lat: group.centerLat,
-      lon: group.centerLon,
-      count: group.members.length,
-      names: group.members.map((item) => item.name),
-    });
-  }
-  return items;
-}
 
 function getPrimaryActivity(activities: ActivityBucket[]): ActivityFilter {
   if (activities.includes("surf")) return "surf";
@@ -291,25 +211,6 @@ function destinationPinHtml(primaryActivity: ActivityFilter): string {
       ${centerIcon}
     </svg>
   </div>`;
-}
-
-function clusterPinHtml(count: number): string {
-  return `<div style="
-    min-width:30px;
-    height:30px;
-    border-radius:9999px;
-    background:#2E2A26;
-    color:white;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    font-size:12px;
-    font-weight:700;
-    padding:0 8px;
-    border:2px solid #FFFFFF;
-    box-shadow:0 4px 10px rgba(46,42,38,0.22);
-  ">${count}</div>`;
 }
 
 function destinationHref(slug: string, activeFilter: ActivityFilter): string {
@@ -431,6 +332,10 @@ export function CountryDestinationsMap({ destinations }: Props) {
     },
     [activeFilter, focusRegionDestinations],
   );
+  const renderedDestinations = useMemo(
+    () => withDisplayOffsets(visibleDestinations),
+    [visibleDestinations],
+  );
 
   useEffect(() => {
     if (!containerRef.current || !token) return;
@@ -474,44 +379,7 @@ export function CountryDestinationsMap({ destinations }: Props) {
       map.on("load", () => {
         if (!map) return;
         applySandMapTheme(map);
-        const renderItems = buildRenderItems(visibleDestinations, map.getZoom());
-
-        for (const item of renderItems) {
-          if (item.kind === "cluster") {
-            const el = document.createElement("button");
-            el.type = "button";
-            el.style.cursor = "pointer";
-            el.style.background = "transparent";
-            el.style.border = "none";
-            el.style.padding = "0";
-            el.innerHTML = clusterPinHtml(item.count);
-            el.setAttribute("aria-label", `${item.count} destinations clustered`);
-
-            const previewNames = item.names.slice(0, 3).join(", ");
-            const popup = new mapboxgl.Popup({
-              offset: 12,
-              closeButton: false,
-              className: "truststay-popup",
-              maxWidth: "240px",
-            }).setHTML(`
-              <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:8px 10px;">
-                <p style="margin:0;font-size:12px;font-weight:600;color:#2E2A26;">${item.count} destinations here</p>
-                <p style="margin:4px 0 0 0;font-size:11px;color:#8A847D;">${previewNames}${item.count > 3 ? ", ..." : ""}</p>
-              </div>
-            `);
-
-            const clusterMarker = new mapboxgl.Marker({
-              element: el,
-              anchor: "center",
-            })
-              .setLngLat([item.lon, item.lat])
-              .setPopup(popup)
-              .addTo(map);
-            el.addEventListener("click", () => clusterMarker.togglePopup());
-            continue;
-          }
-
-          const destination = item.destination;
+        for (const destination of renderedDestinations) {
           const el = document.createElement("button");
           el.type = "button";
           el.style.cursor = "pointer";
@@ -564,7 +432,7 @@ export function CountryDestinationsMap({ destinations }: Props) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (map as any)?.remove();
     };
-  }, [focusRegionDestinations, token, visibleDestinations]);
+  }, [focusRegionDestinations, renderedDestinations, token, visibleDestinations]);
 
   if (!token) {
     return (
