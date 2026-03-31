@@ -7,6 +7,8 @@ import {
   serializeSlugs,
 } from "@/lib/unlock";
 import { env } from "@/lib/env";
+import { persistUnlockEntitlementFromStripeSession } from "@/lib/unlockEntitlements";
+import { sendUnlockConfirmationEmail } from "@/lib/transactionalEmails";
 
 // Route Handler — the only correct place to set cookies while also redirecting.
 // cookies().set() is forbidden in Server Component render context, so the
@@ -38,6 +40,16 @@ export async function GET(req: NextRequest) {
   if (session.payment_status !== "paid") {
     return NextResponse.redirect(new URL("/checkout/cancel", origin));
   }
+
+  persistUnlockEntitlementFromStripeSession(session)
+    .then((result) => {
+      if (result.inserted) {
+        sendUnlockConfirmationEmail(session, { origin }).catch((err) =>
+          console.warn("[finalize] unlock confirmation email failed:", err),
+        );
+      }
+    })
+    .catch((err) => console.warn("[finalize] entitlement persistence failed:", err));
 
   const citySlug = session.metadata?.citySlug;
   const product = session.metadata?.product;

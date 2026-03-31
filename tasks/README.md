@@ -69,3 +69,4 @@ Copy for each task:
 
 ## Current UX/UI Sprint (SDD)
 - [Task 28 - SDD UX Utility Sprint](./28-sdd-ux-utility-sprint.md)
+- [Task 29 - SDD Unlock Recovery Without Auth](./29-sdd-unlock-recovery-without-auth.md)

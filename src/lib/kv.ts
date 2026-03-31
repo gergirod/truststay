@@ -384,6 +384,22 @@ export interface CachedMicroAreaNarrative {
   };
 }
 
+export const TRUSTSTAY_USER_COOKIE = "ts_uid";
+
+export interface SavedUserStaySetup {
+  userId: string;
+  citySlug: string;
+  purpose: string;
+  workStyle: string;
+  dailyBalance?: string;
+  updatedAt: string;
+}
+
+const USER_STAY_SETUP_KEY = (userId: string, citySlug: string) =>
+  `user-stay-setup:${userId}:${citySlug}`;
+/** 180 days — keeps each user's city setup sticky across visits. */
+const USER_STAY_SETUP_TTL_SECONDS = 180 * 24 * 60 * 60;
+
 const STAY_FIT_KEY = (
   slug: string,
   purpose: string,
@@ -461,5 +477,41 @@ export async function deleteStayFitNarrativesForCity(
     return keys.length;
   } catch {
     return 0;
+  }
+}
+
+export async function getUserStaySetup(
+  userId: string,
+  citySlug: string,
+): Promise<SavedUserStaySetup | null> {
+  if (!redis) return null;
+  try {
+    const data = await redis.get(USER_STAY_SETUP_KEY(userId, citySlug));
+    if (!data) return null;
+    return typeof data === "string"
+      ? JSON.parse(data)
+      : (data as SavedUserStaySetup);
+  } catch {
+    return null;
+  }
+}
+
+export async function saveUserStaySetup(
+  setup: Omit<SavedUserStaySetup, "updatedAt">,
+): Promise<boolean> {
+  if (!redis) return false;
+  try {
+    const payload: SavedUserStaySetup = {
+      ...setup,
+      updatedAt: new Date().toISOString(),
+    };
+    await redis.set(
+      USER_STAY_SETUP_KEY(setup.userId, setup.citySlug),
+      JSON.stringify(payload),
+      { ex: USER_STAY_SETUP_TTL_SECONDS },
+    );
+    return true;
+  } catch {
+    return false;
   }
 }

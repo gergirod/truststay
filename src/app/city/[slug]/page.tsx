@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { geocodeCity, reverseGeocodeArea, toSlug } from "@/lib/geocode";
 import { sortByDistance, haversineKm } from "@/lib/overpass";
 import { getPlacesWithCache, saveEnrichedPlaces, getDailyLifeWithCache } from "@/lib/placesCache";
@@ -14,13 +15,19 @@ import { PaywallCard } from "@/components/PaywallCard";
 import { AnalyticsEvent } from "@/components/AnalyticsEvent";
 import { CheckoutSuccessTracker } from "@/components/CheckoutSuccessTracker";
 import { CityReturnVisitTracker } from "@/components/CityReturnVisitTracker";
+import { RestoreUnlocksCard } from "@/components/RestoreUnlocksCard";
 import { CityMap } from "@/components/CityMap";
 import { CURATED_NEIGHBORHOODS } from "@/data/neighborhoods";
 import { PLACE_OVERRIDES } from "@/data/placeOverrides";
 import { getPlaceConfirmations } from "@/lib/confirmations";
 import { CITY_INTROS } from "@/data/cityIntros";
 import { CityIntro } from "@/components/CityIntro";
-import { getNarrative } from "@/lib/kv";
+import {
+  getNarrative,
+  getUserStaySetup,
+  saveUserStaySetup,
+  TRUSTSTAY_USER_COOKIE,
+} from "@/lib/kv";
 import { EmailCapture } from "@/components/EmailCapture";
 import { ShareButton } from "@/components/ShareButton";
 import { BestBaseCard } from "@/components/BestBaseCard";
@@ -69,6 +76,26 @@ function parsePrefillPurpose(sp: SearchParams): StayPurpose | null {
   const raw = typeof sp.purpose === "string" ? sp.purpose : undefined;
   if (!raw || !VALID_PURPOSES.includes(raw as StayPurpose)) return null;
   return raw as StayPurpose;
+}
+
+function parseSavedSetupIntent(input: {
+  purpose: string;
+  workStyle: string;
+  dailyBalance?: string;
+} | null): StayIntent | null {
+  if (!input) return null;
+  const purpose = VALID_PURPOSES.includes(input.purpose as StayPurpose)
+    ? (input.purpose as StayPurpose)
+    : null;
+  const workStyle = VALID_WORK_STYLES.includes(input.workStyle as WorkStyle)
+    ? (input.workStyle as WorkStyle)
+    : null;
+  if (!purpose || !workStyle) return null;
+  const dailyBalance = input.dailyBalance &&
+    VALID_DAILY_BALANCES.includes(input.dailyBalance as DailyBalance)
+      ? (input.dailyBalance as DailyBalance)
+      : undefined;
+  return { purpose, workStyle, dailyBalance };
 }
 
 // Free tier limits — per merged section
@@ -578,12 +605,35 @@ async function resolveCity(
 export default async function CityPage({ params, searchParams }: Props) {
   const { slug } = await params;
   const sp = await searchParams;
+  const cookieStore = await cookies();
+  const userId = cookieStore.get(TRUSTSTAY_USER_COOKIE)?.value ?? null;
 
   const hasParentCityParam =
     typeof sp.parentCity === "string" && sp.parentCity.trim().length > 0;
 
   const justUnlocked = sp.justUnlocked === "1";
-  const intent = parseIntent(sp);
+  const urlIntent = parseIntent(sp);
+  const hasAnyIntentParam =
+    typeof sp.purpose === "string" ||
+    typeof sp.workStyle === "string" ||
+    typeof sp.dailyBalance === "string";
+  const shouldUseSavedSetup = !urlIntent && !hasAnyIntentParam && Boolean(userId);
+  const savedSetup = shouldUseSavedSetup && userId
+    ? await getUserStaySetup(userId, slug).catch(() => null)
+    : null;
+  const intent: StayIntent | null = urlIntent ?? parseSavedSetupIntent(savedSetup);
+
+  if (urlIntent && userId) {
+    saveUserStaySetup({
+      userId,
+      citySlug: slug,
+      purpose: urlIntent.purpose,
+      workStyle: urlIntent.workStyle,
+      dailyBalance: urlIntent.dailyBalance,
+    }).catch((err) => {
+      console.warn("[intent] failed to save user setup:", err);
+    });
+  }
   // Extracted even when intent is null — lets IntentPrompt pre-select purpose
   // when the user arrived from Browse (purpose in URL but workStyle missing).
   const prefillPurpose = intent ? null : parsePrefillPurpose(sp);
@@ -1429,6 +1479,8 @@ async function CityContent({
           }
         />
       )}
+
+      {!isUnlocked && <RestoreUnlocksCard />}
 
       {/* Post-payment email capture — shown once, right after unlock */}
       {justUnlocked && isUnlocked && (

@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { env } from "@/lib/env";
+import { persistUnlockEntitlementFromStripeSession } from "@/lib/unlockEntitlements";
+import { sendUnlockConfirmationEmail } from "@/lib/transactionalEmails";
 import type Stripe from "stripe";
 
-// Per cursor rule 02-unlock-persistence.mdc:
-// The webhook validates the Stripe signature and logs events.
-// It does NOT write to a database. Unlock state is handled client-side
-// via cookie set during the success redirect flow.
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const sig = req.headers.get("stripe-signature") ?? "";
@@ -46,11 +44,13 @@ export async function POST(req: NextRequest) {
     const session = event.data.object as Stripe.Checkout.Session;
     const citySlug = session.metadata?.citySlug ?? "unknown";
     const product = session.metadata?.product ?? "unknown";
+    const persistResult = await persistUnlockEntitlementFromStripeSession(session);
+    if (persistResult.inserted) {
+      await sendUnlockConfirmationEmail(session, { origin: req.nextUrl.origin });
+    }
     console.log(
-      `[webhook] checkout.session.completed — product: ${product}, citySlug: ${citySlug}, customer: ${session.customer_email ?? "no email"}`
+      `[webhook] checkout.session.completed — product: ${product}, citySlug: ${citySlug}, customer: ${session.customer_email ?? "no email"}, persisted=${persistResult.ok ? "yes" : "no"}, inserted=${persistResult.inserted ? "yes" : "no"}`
     );
-    // Unlock is persisted via cookie during the success redirect.
-    // No database write required per Phase 1 architecture decision.
   }
 
   return NextResponse.json({ received: true });

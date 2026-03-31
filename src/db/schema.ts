@@ -263,6 +263,53 @@ export const refreshJobs = pgTable(
   }),
 );
 
+export const unlockEntitlements = pgTable(
+  "unlock_entitlements",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    email: text("email").notNull(),
+    emailNormalized: text("email_normalized").notNull(),
+    product: text("product").notNull(),
+    citySlug: text("city_slug").notNull(),
+    bundleCitySlug: text("bundle_city_slug"),
+    stripeSessionId: text("stripe_session_id").notNull(),
+    stripePaymentIntentId: text("stripe_payment_intent_id"),
+    stripeCustomerId: text("stripe_customer_id"),
+    purchasedAt: timestamp("purchased_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    stripeSessionUnique: uniqueIndex("unlock_entitlements_session_unique").on(
+      table.stripeSessionId,
+    ),
+    emailIdx: index("unlock_entitlements_email_idx").on(table.emailNormalized),
+    cityIdx: index("unlock_entitlements_city_idx").on(table.citySlug),
+  }),
+);
+
+export const unlockRestoreTokens = pgTable(
+  "unlock_restore_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    emailNormalized: text("email_normalized").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    tokenHashUnique: uniqueIndex("unlock_restore_tokens_hash_unique").on(table.tokenHash),
+    emailIdx: index("unlock_restore_tokens_email_idx").on(table.emailNormalized),
+    expiresIdx: index("unlock_restore_tokens_expires_idx").on(table.expiresAt),
+  }),
+);
+
 export const destinationsRelations = relations(destinations, ({ many }) => ({
   microAreas: many(microAreas),
   places: many(places),
@@ -341,4 +388,8 @@ export type MicroAreaSnapshot = typeof microAreaSnapshots.$inferSelect;
 export type NewMicroAreaSnapshot = typeof microAreaSnapshots.$inferInsert;
 export type RefreshJob = typeof refreshJobs.$inferSelect;
 export type NewRefreshJob = typeof refreshJobs.$inferInsert;
+export type UnlockEntitlement = typeof unlockEntitlements.$inferSelect;
+export type NewUnlockEntitlement = typeof unlockEntitlements.$inferInsert;
+export type UnlockRestoreToken = typeof unlockRestoreTokens.$inferSelect;
+export type NewUnlockRestoreToken = typeof unlockRestoreTokens.$inferInsert;
 

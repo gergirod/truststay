@@ -941,6 +941,48 @@ export interface EnrichedNarrativeResult {
   microAreaNarratives: MicroAreaNarrative[] | null;
 }
 
+interface LocalSetupCacheEntry {
+  result: EnrichedNarrativeResult | null;
+  expiresAt: number;
+}
+
+const LOCAL_SETUP_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+const LOCAL_SETUP_CACHE_MAX_ENTRIES = 500;
+const localSetupCache = new Map<string, LocalSetupCacheEntry>();
+
+function buildSetupCacheKey(
+  citySlug: string,
+  purpose: string,
+  workStyle: string,
+  dailyBalance?: string,
+): string {
+  return `${citySlug}:${purpose}:${workStyle}:${dailyBalance ?? "balanced"}`;
+}
+
+function readLocalSetupCache(key: string): EnrichedNarrativeResult | null | undefined {
+  const entry = localSetupCache.get(key);
+  if (!entry) return undefined;
+  if (entry.expiresAt <= Date.now()) {
+    localSetupCache.delete(key);
+    return undefined;
+  }
+  return entry.result;
+}
+
+function writeLocalSetupCache(
+  key: string,
+  result: EnrichedNarrativeResult | null,
+): void {
+  if (localSetupCache.size >= LOCAL_SETUP_CACHE_MAX_ENTRIES) {
+    const oldestKey = localSetupCache.keys().next().value;
+    if (oldestKey) localSetupCache.delete(oldestKey);
+  }
+  localSetupCache.set(key, {
+    result,
+    expiresAt: Date.now() + LOCAL_SETUP_CACHE_TTL_MS,
+  });
+}
+
 function fallbackNarrativeFromDecision(
   decisionOutput: FinalOutput,
 ): StayFitNarrative {
@@ -1026,6 +1068,14 @@ export async function getOrGenerateEnrichedNarrative(
 ): Promise<EnrichedNarrativeResult | null> {
   const { purpose, workStyle, dailyBalance } = stayFit.narrativeInputs;
   const balance = dailyBalance ?? "balanced";
+  const setupCacheKey = buildSetupCacheKey(citySlug, purpose, workStyle, balance);
+
+  // Fast local fallback cache, especially useful when Redis is not configured.
+  const localCached = readLocalSetupCache(setupCacheKey);
+  if (localCached !== undefined) {
+    console.log(`[enrichmentAgent] local setup cache hit: ${setupCacheKey}`);
+    return localCached;
+  }
 
   // 1. KV hit with enriched flag.
   // Newer cache entries include microAreaNarratives; older ones may not.
@@ -1041,10 +1091,12 @@ export async function getOrGenerateEnrichedNarrative(
     };
     const cachedMicroAreas = cached.microAreaNarratives as MicroAreaNarrative[] | undefined;
     if (cachedMicroAreas && cachedMicroAreas.length > 0) {
-      return {
+      const result = {
         narrative: cachedNarrative,
         microAreaNarratives: cachedMicroAreas,
       };
+      writeLocalSetupCache(setupCacheKey, result);
+      return result;
     }
 
     // Backfill behavior for old cache entries: recover zone stack from decision output
@@ -1084,18 +1136,22 @@ export async function getOrGenerateEnrichedNarrative(
       }).catch((err) =>
         console.warn("[enrichmentAgent] KV save failed while backfilling micro-area narratives:", err)
       );
-      return {
+      const result = {
         narrative: cachedNarrative,
         microAreaNarratives: recoveredMicroAreas,
       };
+      writeLocalSetupCache(setupCacheKey, result);
+      return result;
     } catch (err) {
       console.warn(
         `[enrichmentAgent] failed to recover micro-area narratives from cached entry city=${citySlug}: ${formatError(err)}`,
       );
-      return {
+      const result = {
         narrative: cachedNarrative,
         microAreaNarratives: null,
       };
+      writeLocalSetupCache(setupCacheKey, result);
+      return result;
     }
   }
 
@@ -1178,10 +1234,12 @@ export async function getOrGenerateEnrichedNarrative(
     }).catch((err) =>
       console.warn("[enrichmentAgent] KV save failed for fallback narrative:", err)
     );
-    return {
+    const result = {
       narrative: fallbackNarrative,
       microAreaNarratives: fallbackAreas,
     };
+    writeLocalSetupCache(setupCacheKey, result);
+    return result;
   }
 
   // 5. Generate per-micro-area narratives for stacked card display
@@ -1221,5 +1279,7 @@ export async function getOrGenerateEnrichedNarrative(
     console.warn("[enrichmentAgent] KV save failed for enriched narrative:", err)
   );
 
-  return { narrative, microAreaNarratives };
+  const result = { narrative, microAreaNarratives };
+  writeLocalSetupCache(setupCacheKey, result);
+  return result;
 }
