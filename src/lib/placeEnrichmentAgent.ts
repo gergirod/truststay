@@ -702,6 +702,12 @@ export interface MicroAreaNarrative {
   rank: number;
   score: number;
   hasConstraintBreakers: boolean;
+  readiness?: {
+    workSetup: "strong" | "moderate" | "limited";
+    dailyRoutine: "strong" | "moderate" | "limited";
+    activityAccess: "strong" | "moderate" | "limited";
+    movement: "strong" | "moderate" | "limited";
+  };
   center?: { lat: number; lon: number };
   radius_km?: number;
   narrativeText: {
@@ -720,6 +726,26 @@ interface ZonePlaceEvidence {
   food: string[];
   gyms: string[];
   essentials: string[];
+}
+
+function toReadinessLevel(score: number): "strong" | "moderate" | "limited" {
+  if (score >= 7) return "strong";
+  if (score >= 4.5) return "moderate";
+  return "limited";
+}
+
+function buildReadinessSnapshot(scores: {
+  work_environment: number;
+  routine_support: number;
+  activity_access: number;
+  walkability_and_friction: number;
+}): NonNullable<MicroAreaNarrative["readiness"]> {
+  return {
+    workSetup: toReadinessLevel(scores.work_environment),
+    dailyRoutine: toReadinessLevel(scores.routine_support),
+    activityAccess: toReadinessLevel(scores.activity_access),
+    movement: toReadinessLevel(scores.walkability_and_friction),
+  };
 }
 
 function summarizePlacesForZone(
@@ -865,6 +891,7 @@ Return ONLY this JSON array (one object per zone, in rank order):
         rank: rankEntry.rank,
         score: rankEntry.final_score,
         hasConstraintBreakers: rankEntry.has_constraint_breakers ?? false,
+        readiness: zone ? buildReadinessSnapshot(zone.scores) : undefined,
         center: zone?.center,
         radius_km: zone?.radius_km,
         narrativeText: {
@@ -891,6 +918,7 @@ Return ONLY this JSON array (one object per zone, in rank order):
         rank: rankEntry.rank,
         score: rankEntry.final_score,
         hasConstraintBreakers: rankEntry.has_constraint_breakers ?? false,
+        readiness: zone ? buildReadinessSnapshot(zone.scores) : undefined,
         center: zone?.center,
         radius_km: zone?.radius_km,
         narrativeText: {
@@ -951,6 +979,7 @@ function fallbackMicroAreaNarrativesFromDecision(
       rank: rankEntry.rank,
       score: rankEntry.final_score,
       hasConstraintBreakers: rankEntry.has_constraint_breakers ?? false,
+      readiness: area ? buildReadinessSnapshot(area.scores) : undefined,
       center: area?.center,
       radius_km: area?.radius_km,
       narrativeText: {
@@ -977,6 +1006,7 @@ function toCachedMicroAreaNarratives(
     rank: m.rank,
     score: m.score,
     hasConstraintBreakers: m.hasConstraintBreakers,
+    readiness: m.readiness,
     center: m.center,
     radius_km: m.radius_km,
     narrativeText: m.narrativeText,

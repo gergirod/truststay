@@ -367,6 +367,12 @@ export interface CachedMicroAreaNarrative {
   rank: number;
   score: number;
   hasConstraintBreakers: boolean;
+  readiness?: {
+    workSetup: "strong" | "moderate" | "limited";
+    dailyRoutine: "strong" | "moderate" | "limited";
+    activityAccess: "strong" | "moderate" | "limited";
+    movement: "strong" | "moderate" | "limited";
+  };
   center?: { lat: number; lon: number };
   radius_km?: number;
   narrativeText: {

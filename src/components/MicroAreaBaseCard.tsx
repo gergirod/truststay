@@ -8,25 +8,20 @@ interface Props {
   intent: string; // e.g. "surf + heavy work"
 }
 
-function ScoreBar({ score }: { score: number }) {
-  const pct = Math.round((score / 10) * 100);
-  const color =
-    score >= 7 ? "bg-teal" :
-    score >= 4 ? "bg-amber-400" :
-    "bg-red-400";
-
+function readinessChip(
+  label: string,
+  value: "strong" | "moderate" | "limited",
+) {
+  const tone =
+    value === "strong"
+      ? "bg-teal/10 border-teal/25 text-teal-700"
+      : value === "moderate"
+      ? "bg-amber-50 border-amber-200 text-amber-700"
+      : "bg-red-50 border-red-200 text-red-700";
   return (
-    <div className="flex items-center gap-2">
-      <div className="h-1.5 flex-1 rounded-full bg-dune/50 overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all ${color}`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <span className="w-7 shrink-0 text-right text-xs font-medium text-bark">
-        {score.toFixed(1)}
-      </span>
-    </div>
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium ${tone}`}>
+      {label}: {value}
+    </span>
   );
 }
 
@@ -103,6 +98,19 @@ export function MicroAreaBaseCard({ microArea, isWinner, intent }: Props) {
 
         {/* Content */}
         <div className="mt-5 space-y-4 border-t border-dune pt-5">
+          {microArea.readiness && (
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-umber">
+                Day-1 readiness
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {readinessChip("Work setup", microArea.readiness.workSetup)}
+                {readinessChip("Daily routine", microArea.readiness.dailyRoutine)}
+                {readinessChip("Activity access", microArea.readiness.activityAccess)}
+                {readinessChip("Movement", microArea.readiness.movement)}
+              </div>
+            </div>
+          )}
 
           {/* Why it fits */}
           {narrativeText.whyItFits && (

@@ -29,7 +29,7 @@ export function MicroAreaStack({ microAreaNarratives, intent, cityName }: Props)
           {microAreaNarratives.length} micro-areas in {cityName}
         </p>
         <p className="mt-0.5 text-xs text-umber/60">
-          Ranked by fit score for your profile
+          Ranked by fit score for your profile — compare day-1 readiness and tradeoffs
         </p>
       </div>
 
