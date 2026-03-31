@@ -369,14 +369,14 @@ export function BestBaseCard({
             <p className="mt-5 text-sm text-umber">
               Your base analysis for{" "}
               <span className="font-medium text-bark">{intentLabel(intent)}</span>{" "}
-              is ready — why this area fits, what to plan around, and what nearby support makes it work.
+              is ready — unlock to compare all ranked micro-areas in this destination, including why each one fits, tradeoffs, and nearby support.
             </p>
 
             <ul className="mt-4 space-y-1.5">
               {[
-                "Why this base fits your kind of stay",
-                "Tradeoffs and what to plan around",
-                "All work spots, cafés, and wellbeing places",
+                "All ranked micro-areas for this destination",
+                "Why each base fits your stay + tradeoffs to plan around",
+                "All work spots, cafés, and wellbeing places per base area",
               ].map((item) => (
                 <li key={item} className="flex items-center gap-2 text-sm text-umber">
                   <span className="h-1 w-1 shrink-0 rounded-full bg-dune" />
@@ -398,7 +398,7 @@ export function BestBaseCard({
                 disabled={status === "loading"}
                 className="w-full rounded-xl bg-bark px-5 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
-                {status === "loading" ? "Opening checkout…" : "Unlock your base →"}
+                {status === "loading" ? "Opening checkout…" : "Unlock all micro-area insights →"}
               </button>
               <p className="text-xs text-umber">
                 One-time &middot; No account needed &middot; Instant access

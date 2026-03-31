@@ -9,36 +9,37 @@ import {
   createLockedMarker,
 } from "@/lib/mapMarkers";
 
-// ── Hardcoded Santa Teresa demo data ───────────────────────────────────────
-// Tight cluster around Santa Teresa, Costa Rica.
+// ── Hardcoded Puerto Escondido demo data ───────────────────────────────────
+// Tight cluster around Puerto Escondido center (land-heavy, less ocean bleed).
 
-const DEMO_BASE = { lat: 9.6437, lon: -85.1686 };
+const DEMO_BASE = { lat: 15.8639, lon: -97.0729 };
+const DEMO_CENTER = { lat: 15.8648, lon: -97.0706 };
 
 const DEMO_PINS: { lat: number; lon: number; category: string }[] = [
   // Work spots — teal laptop
-  { lat: 9.6463, lon: -85.1722, category: "work" },
-  { lat: 9.6418, lon: -85.1651, category: "work" },
-  { lat: 9.6449, lon: -85.1694, category: "work" },
-  { lat: 9.6409, lon: -85.1710, category: "work" },
-  { lat: 9.6481, lon: -85.1665, category: "work" },
+  { lat: 15.8662, lon: -97.0752, category: "work" },
+  { lat: 15.8619, lon: -97.0698, category: "work" },
+  { lat: 15.8651, lon: -97.0717, category: "work" },
+  { lat: 15.8628, lon: -97.0668, category: "work" },
+  { lat: 15.8670, lon: -97.0689, category: "work" },
   // Coffee & meals — terracotta cup
-  { lat: 9.6458, lon: -85.1659, category: "coffee" },
-  { lat: 9.6475, lon: -85.1703, category: "coffee" },
-  { lat: 9.6420, lon: -85.1733, category: "coffee" },
-  { lat: 9.6412, lon: -85.1640, category: "coffee" },
-  { lat: 9.6396, lon: -85.1680, category: "coffee" },
-  { lat: 9.6441, lon: -85.1751, category: "coffee" },
+  { lat: 15.8658, lon: -97.0675, category: "coffee" },
+  { lat: 15.8681, lon: -97.0737, category: "coffee" },
+  { lat: 15.8621, lon: -97.0759, category: "coffee" },
+  { lat: 15.8611, lon: -97.0702, category: "coffee" },
+  { lat: 15.8644, lon: -97.0658, category: "coffee" },
+  { lat: 15.8669, lon: -97.0710, category: "coffee" },
   // Wellbeing — amber figure
-  { lat: 9.6468, lon: -85.1760, category: "wellbeing" },
-  { lat: 9.6398, lon: -85.1741, category: "wellbeing" },
-  { lat: 9.6429, lon: -85.1672, category: "wellbeing" },
+  { lat: 15.8686, lon: -97.0699, category: "wellbeing" },
+  { lat: 15.8608, lon: -97.0736, category: "wellbeing" },
+  { lat: 15.8630, lon: -97.0670, category: "wellbeing" },
   // Locked — grey dots
-  { lat: 9.6435, lon: -85.1618, category: "locked" },
-  { lat: 9.6378, lon: -85.1692, category: "locked" },
-  { lat: 9.6486, lon: -85.1637, category: "locked" },
-  { lat: 9.6387, lon: -85.1729, category: "locked" },
-  { lat: 9.6452, lon: -85.1783, category: "locked" },
-  { lat: 9.6416, lon: -85.1660, category: "locked" },
+  { lat: 15.8640, lon: -97.0645, category: "locked" },
+  { lat: 15.8601, lon: -97.0714, category: "locked" },
+  { lat: 15.8674, lon: -97.0663, category: "locked" },
+  { lat: 15.8617, lon: -97.0748, category: "locked" },
+  { lat: 15.8680, lon: -97.0719, category: "locked" },
+  { lat: 15.8636, lon: -97.0691, category: "locked" },
 ];
 
 export function HeroMap() {
@@ -63,9 +64,9 @@ export function HeroMap() {
       map = new mapboxgl.Map({
         container: containerRef.current,
         style: "mapbox://styles/mapbox/light-v11",
-        center: [DEMO_BASE.lon, DEMO_BASE.lat],
-        zoom: 15,
-        minZoom: 14.5,        // prevent any drift toward wider view
+        center: [DEMO_CENTER.lon, DEMO_CENTER.lat],
+        zoom: 15.8,
+        minZoom: 15.5,        // keep it tight so markers stay visible around card
         interactive: false,   // hero preview — no pan / zoom
         attributionControl: false,
       });
@@ -80,7 +81,7 @@ export function HeroMap() {
         if (!map) return;
 
         // Force zoom in case initial render drifted
-        map.jumpTo({ center: [DEMO_BASE.lon, DEMO_BASE.lat], zoom: 15 });
+        map.jumpTo({ center: [DEMO_CENTER.lon, DEMO_CENTER.lat], zoom: 15.8 });
 
         // Base area marker
         const baseEl = createBaseMarker();
@@ -126,7 +127,7 @@ export function HeroMap() {
 
       {/* City label — top left */}
       <div className="absolute top-4 left-4 rounded-lg border border-dune bg-white/90 backdrop-blur-sm px-3 py-1.5 pointer-events-none">
-        <p className="text-[10px] font-semibold text-bark leading-none">Santa Teresa</p>
+        <p className="text-[10px] font-semibold text-bark leading-none">Puerto Escondido</p>
         <p className="mt-0.5 text-[9px] text-umber leading-none">live example</p>
       </div>
 

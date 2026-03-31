@@ -78,15 +78,16 @@ const FREE_FEATURES = [
 
 const PASS_FEATURES = [
   "Your full base recommendation — why it fits, what to plan around",
+  "All ranked micro-areas for your destination (not just the top base)",
   "Every work spot, café, and wellbeing option sorted by distance",
   "Hours, ratings, and Maps links for each place",
   "Honest wifi, noise, and work-fit signals per place",
 ];
 
 const BUNDLE_FEATURES = [
-  "Full setup for every area in the city",
-  "Best base recommendation across all neighborhoods",
-  "One payment — arrive prepared for any part of the city",
+  "Launching first in cities with complete micro-area coverage",
+  "Compare every micro-area in the city side by side",
+  "Join waitlist for early access rollout",
 ];
 
 export default async function HomePage() {
@@ -305,13 +306,18 @@ export default async function HomePage() {
 
               {/* Full City Setup */}
               <div className="flex flex-col rounded-2xl border border-[#8FB7B3] bg-[#DCEBE9] p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5F5A54]">
-                  Full City Setup
-                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5F5A54]">
+                    Full City Setup
+                  </p>
+                  <span className="rounded-full border border-[#8FB7B3] bg-white/70 px-2.5 py-0.5 text-xs font-semibold text-[#5F5A54]">
+                    Coming soon
+                  </span>
+                </div>
                 <p className="mt-3 text-3xl font-bold tracking-tight text-bark">
                   ${process.env.NEXT_PUBLIC_CITY_BUNDLE_PRICE ?? "15"}
                 </p>
-                <p className="mt-1 text-xs text-[#5F5A54]">Every area, fully prepared</p>
+                <p className="mt-1 text-xs text-[#5F5A54]">Rolling out city by city</p>
                 <ul className="mt-5 flex-1 space-y-2.5">
                   {BUNDLE_FEATURES.map((f) => (
                     <li
@@ -323,6 +329,9 @@ export default async function HomePage() {
                     </li>
                   ))}
                 </ul>
+                <p className="mt-5 text-xs text-[#5F5A54]">
+                  I&rsquo;m rolling this out as destination coverage reaches quality thresholds.
+                </p>
               </div>
             </div>
 

@@ -24,19 +24,41 @@ function buildCityParams(city: City): URLSearchParams {
   return params;
 }
 
-const PURPOSES: { value: StayPurpose; label: string; emoji: string }[] = [
-  { value: "surf",       label: "Surf",       emoji: "🏄" },
-  { value: "dive",       label: "Dive",       emoji: "🤿" },
-  { value: "hike",       label: "Hike",       emoji: "🥾" },
-  { value: "yoga",       label: "Yoga",       emoji: "🧘" },
-  { value: "kite",       label: "Kite",       emoji: "🪁" },
-  { value: "work_first", label: "Work first", emoji: "💻" },
-  { value: "exploring",  label: "Exploring",  emoji: "🌎" },
+const PURPOSES: { value: StayPurpose; label: string; color: string }[] = [
+  { value: "surf",       label: "Surf",       color: "#E07A5F" },
+  { value: "dive",       label: "Dive",       color: "#5DA9E9" },
+  { value: "hike",       label: "Hike",       color: "#6AA84F" },
+  { value: "yoga",       label: "Yoga",       color: "#9B6AD6" },
+  { value: "kite",       label: "Kite",       color: "#F2A93B" },
+  { value: "work_first", label: "Work first", color: "#8FB7B3" },
+  { value: "exploring",  label: "Exploring",  color: "#2E2A26" },
 ];
 
 const PURPOSE_MAP = Object.fromEntries(PURPOSES.map((p) => [p.value, p])) as unknown as Record<
-  StayPurpose, { label: string; emoji: string }
+  StayPurpose, { label: string; color: string }
 >;
+
+function PurposeGlyph({ purpose }: { purpose: StayPurpose }) {
+  if (purpose === "surf") {
+    return <span className="text-[10px] font-semibold">S</span>;
+  }
+  if (purpose === "dive") {
+    return <span className="text-[10px] font-semibold">D</span>;
+  }
+  if (purpose === "hike") {
+    return <span className="text-[10px] font-semibold">H</span>;
+  }
+  if (purpose === "yoga") {
+    return <span className="text-[10px] font-semibold">Y</span>;
+  }
+  if (purpose === "kite") {
+    return <span className="text-[10px] font-semibold">K</span>;
+  }
+  if (purpose === "work_first") {
+    return <span className="text-[10px] font-semibold">W</span>;
+  }
+  return <span className="text-[10px] font-semibold">E</span>;
+}
 
 const WORK_STYLES: { value: WorkStyle; label: string; hint: string }[] = [
   { value: "light",    label: "Light",    hint: "A few focused hours" },
@@ -113,7 +135,13 @@ function IntentModal({ city, onComplete, onSkip }: IntentModalProps) {
             {step === "workStyle" && (
               <div>
                 <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                  <span className="text-base leading-none" aria-hidden="true">{purposeInfo?.emoji}</span>
+                  <span
+                    className="inline-flex h-4 w-4 items-center justify-center rounded-full text-white"
+                    style={{ background: purposeInfo?.color ?? "#2E2A26" }}
+                    aria-hidden="true"
+                  >
+                    {selPurpose ? <PurposeGlyph purpose={selPurpose} /> : null}
+                  </span>
                   <span className="text-sm font-semibold text-bark">{purposeInfo?.label}</span>
                   <span className="text-umber/40">·</span>
                   <span className="text-sm font-semibold text-bark">How work-heavy is this stay?</span>
@@ -129,7 +157,13 @@ function IntentModal({ city, onComplete, onSkip }: IntentModalProps) {
             {step === "dailyBalance" && (
               <div>
                 <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                  <span className="text-base leading-none" aria-hidden="true">{purposeInfo?.emoji}</span>
+                  <span
+                    className="inline-flex h-4 w-4 items-center justify-center rounded-full text-white"
+                    style={{ background: purposeInfo?.color ?? "#2E2A26" }}
+                    aria-hidden="true"
+                  >
+                    {selPurpose ? <PurposeGlyph purpose={selPurpose} /> : null}
+                  </span>
                   <span className="text-sm font-semibold text-bark">{purposeInfo?.label}</span>
                   <span className="text-umber/40">·</span>
                   <span className="text-sm text-umber">{workInfo?.label}</span>
@@ -162,13 +196,19 @@ function IntentModal({ city, onComplete, onSkip }: IntentModalProps) {
         {step === "purpose" && (
           <>
             <div className="grid grid-cols-4 gap-2">
-              {PURPOSES.map(({ value, label, emoji }) => (
+              {PURPOSES.map(({ value, label, color }) => (
                 <button
                   key={value}
                   onClick={() => handlePurpose(value)}
                   className="flex flex-col items-center gap-1 rounded-xl border border-dune bg-white px-1.5 py-2.5 text-center transition-all hover:border-teal/60 hover:bg-mist active:scale-95"
                 >
-                  <span className="text-xl leading-none">{emoji}</span>
+                  <span
+                    className="inline-flex h-5 w-5 items-center justify-center rounded-full text-white"
+                    style={{ background: color }}
+                    aria-hidden="true"
+                  >
+                    <PurposeGlyph purpose={value} />
+                  </span>
                   <span className="text-[11px] font-medium text-bark leading-tight">{label}</span>
                 </button>
               ))}

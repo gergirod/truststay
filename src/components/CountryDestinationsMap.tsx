@@ -128,6 +128,16 @@ function destinationPinHtml(primaryActivity: ActivityFilter): string {
   </div>`;
 }
 
+function destinationHref(slug: string, activeFilter: ActivityFilter): string {
+  if (activeFilter === "all") return `/city/${slug}`;
+  const params = new URLSearchParams({
+    purpose: activeFilter,
+    workStyle: "balanced",
+    dailyBalance: activeFilter === "work_first" ? "work_first" : "balanced",
+  });
+  return `/city/${slug}?${params.toString()}`;
+}
+
 function fitMapToPoints(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   map: any,
@@ -271,7 +281,11 @@ export function CountryDestinationsMap({ destinations }: Props) {
           el.style.border = "none";
           el.style.padding = "0";
           const activities = getActivitiesForDestination(destination);
-          el.innerHTML = destinationPinHtml(getPrimaryActivity(activities));
+          const markerActivity =
+            activeFilter !== "all" && activities.includes(activeFilter)
+              ? activeFilter
+              : getPrimaryActivity(activities);
+          el.innerHTML = destinationPinHtml(markerActivity);
           el.setAttribute("aria-label", destination.name);
 
           const popup = new mapboxgl.Popup({
@@ -283,7 +297,7 @@ export function CountryDestinationsMap({ destinations }: Props) {
             <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:8px 10px;">
               <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#8A847D;">${destination.country}</p>
               <p style="margin:4px 0 8px 0;font-size:14px;font-weight:600;color:#2E2A26;">${destination.name}</p>
-              <a href="/city/${destination.slug}" style="font-size:12px;color:white;background:#2E2A26;padding:4px 9px;border-radius:9999px;text-decoration:none;">Open destination</a>
+              <a href="${destinationHref(destination.slug, activeFilter)}" style="font-size:12px;color:white;background:#2E2A26;padding:4px 9px;border-radius:9999px;text-decoration:none;">Open destination</a>
             </div>
           `);
 
@@ -294,11 +308,14 @@ export function CountryDestinationsMap({ destinations }: Props) {
             .setLngLat([destination.lon, destination.lat])
             .setPopup(popup)
             .addTo(map);
-          el.addEventListener("click", () => marker.togglePopup());
+          const href = destinationHref(destination.slug, activeFilter);
+          el.addEventListener("click", () => {
+            window.location.href = href;
+          });
         }
 
         // Keep a stable region view; do not zoom into selected activity.
-        fitMapToPoints(map, focusRegionDestinations, 78);
+        fitMapToPoints(map, focusRegionDestinations, 130);
       });
     }
 
