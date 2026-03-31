@@ -831,6 +831,31 @@ export interface EnrichedNarrativeResult {
   microAreaNarratives: MicroAreaNarrative[] | null;
 }
 
+function fallbackNarrativeFromDecision(
+  decisionOutput: FinalOutput,
+): StayFitNarrative {
+  const topArea = decisionOutput.candidate_micro_areas.find(
+    (m) => m.name === decisionOutput.recommendation.top_pick,
+  );
+  return {
+    whyItFits:
+      decisionOutput.recommendation.why_it_wins.join(" ") ||
+      "This base scores highest for your current profile.",
+    dailyRhythm: topArea?.strengths.slice(0, 2).join(". ") || "",
+    walkingOptions:
+      topArea?.strengths.find((s) => /walk|close|near|distance/i.test(s)) || "",
+    planAround:
+      [
+        ...decisionOutput.recommendation.main_tradeoffs,
+        ...decisionOutput.recommendation.warnings,
+      ].join(" ") ||
+      topArea?.weaknesses.slice(0, 2).join(". ") ||
+      "Check logistics before booking.",
+    logistics:
+      decisionOutput.recommendation.warnings.slice(0, 1).join(" ") || "",
+  };
+}
+
 function fallbackMicroAreaNarrativesFromDecision(
   decisionOutput: FinalOutput,
 ): MicroAreaNarrative[] {
@@ -999,8 +1024,43 @@ export async function getOrGenerateEnrichedNarrative(
   );
 
   if (!narrative) {
-    console.warn(`[enrichmentAgent] agent failed for ${citySlug} — no narrative produced`);
-    return null;
+    console.warn(`[enrichmentAgent] agent failed for ${citySlug} — falling back to deterministic narrative`);
+    if (!decisionOutput) return null;
+    let fallbackAreas: MicroAreaNarrative[] | null = null;
+    try {
+      fallbackAreas = await generateAllMicroAreaNarratives(
+        cityName,
+        country,
+        decisionOutput,
+        { purpose, workStyle, dailyBalance: balance },
+      );
+    } catch {
+      fallbackAreas = fallbackMicroAreaNarrativesFromDecision(decisionOutput);
+    }
+    if (!fallbackAreas || fallbackAreas.length === 0) {
+      fallbackAreas = fallbackMicroAreaNarrativesFromDecision(decisionOutput);
+    }
+    const fallbackNarrative = fallbackNarrativeFromDecision(decisionOutput);
+    saveStayFitNarrative({
+      citySlug,
+      purpose,
+      workStyle,
+      dailyBalance: balance,
+      whyItFits: fallbackNarrative.whyItFits,
+      dailyRhythm: fallbackNarrative.dailyRhythm,
+      walkingOptions: fallbackNarrative.walkingOptions,
+      planAround: fallbackNarrative.planAround,
+      logistics: fallbackNarrative.logistics,
+      generatedAt: new Date().toISOString(),
+      enriched: true,
+      microAreaNarratives: toCachedMicroAreaNarratives(fallbackAreas),
+    }).catch((err) =>
+      console.warn("[enrichmentAgent] KV save failed for fallback narrative:", err)
+    );
+    return {
+      narrative: fallbackNarrative,
+      microAreaNarratives: fallbackAreas,
+    };
   }
 
   // 5. Generate per-micro-area narratives for stacked card display
@@ -1015,6 +1075,9 @@ export async function getOrGenerateEnrichedNarrative(
       console.warn("[enrichmentAgent] micro-area narrative generation failed:", err);
       return null;
     });
+    if (!microAreaNarratives || microAreaNarratives.length === 0) {
+      microAreaNarratives = fallbackMicroAreaNarrativesFromDecision(decisionOutput);
+    }
     console.log(`[enrichmentAgent] generated ${microAreaNarratives?.length ?? 0} micro-area narratives`);
   }
 
