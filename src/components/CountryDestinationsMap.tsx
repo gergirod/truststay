@@ -185,11 +185,11 @@ export function CountryDestinationsMap({ destinations }: Props) {
           el.style.background = "transparent";
           el.style.border = "none";
           el.style.padding = "0";
-          const activities =
+          const activities: ActivityBucket[] =
             destination.activities && destination.activities.length > 0
               ? destination.activities
               : destination.activity === "surf"
-                ? ["surf"]
+                ? (["surf"] as ActivityBucket[])
                 : [];
           el.innerHTML = destinationPinHtml(getPrimaryActivity(activities));
           el.setAttribute("aria-label", destination.name);
@@ -248,30 +248,41 @@ export function CountryDestinationsMap({ destinations }: Props) {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-umber">
-        {visibleDestinations.length} destinations in LATAM, Caribbean, and Central America
-      </p>
+      <div className="space-y-3 px-4 sm:px-6">
+        <p className="text-xs text-umber">
+          {visibleDestinations.length} destinations in LATAM, Caribbean, and Central America
+        </p>
 
-      <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {ACTIVITY_PILLS.map((activity) => {
-          const active = activity === activeFilter;
-          const meta = ACTIVITY_META[activity];
-          return (
-            <button
-              key={activity}
-              type="button"
-              onClick={() => setActiveFilter(activity)}
-              className="flex-shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
-              style={{
-                borderColor: active ? meta.color : "#E8E3DC",
-                background: active ? meta.color : "white",
-                color: active ? "white" : "#5F5A54",
-              }}
-            >
-              {meta.emoji} {meta.label}
-            </button>
-          );
-        })}
+        <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {ACTIVITY_PILLS.map((activity) => {
+            const active = activity === activeFilter;
+            const meta = ACTIVITY_META[activity];
+            return (
+              <button
+                key={activity}
+                type="button"
+                onClick={() => setActiveFilter(activity)}
+                className="flex flex-shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
+                style={{
+                  borderColor: active ? meta.color : "#E8E3DC",
+                  background: active ? meta.color : "white",
+                  color: active ? "white" : "#5F5A54",
+                }}
+              >
+                <span
+                  className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[9px]"
+                  style={{
+                    background: active ? "rgba(255,255,255,0.2)" : meta.color,
+                    color: "white",
+                  }}
+                >
+                  {meta.emoji}
+                </span>
+                <span>{meta.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div
