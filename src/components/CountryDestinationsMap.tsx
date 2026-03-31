@@ -14,6 +14,15 @@ interface BrowseDestination {
   activity?: "surf" | "other";
 }
 
+interface RenderDestination extends BrowseDestination {
+  displayLat: number;
+  displayLon: number;
+}
+
+type RenderItem =
+  | { kind: "destination"; destination: RenderDestination }
+  | { kind: "cluster"; lat: number; lon: number; count: number; names: string[] };
+
 interface Props {
   destinations: BrowseDestination[];
 }
@@ -50,6 +59,9 @@ const ACTIVITY_PILL_ORDER: ActivityFilter[] = [
   "work_first",
 ];
 
+const STACK_DISTANCE_KM = 18;
+const STACK_OFFSET_KM = 1.6;
+
 function isWithinFocusRegion(lat: number, lon: number): boolean {
   return (
     lon >= FOCUS_BOUNDS.west &&
@@ -57,6 +69,158 @@ function isWithinFocusRegion(lat: number, lon: number): boolean {
     lat >= FOCUS_BOUNDS.south &&
     lat <= FOCUS_BOUNDS.north
   );
+}
+
+function distanceKm(aLat: number, aLon: number, bLat: number, bLon: number): number {
+  const toRad = (v: number) => (v * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLon = toRad(bLon - aLon);
+  const lat1 = toRad(aLat);
+  const lat2 = toRad(bLat);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return 6371 * (2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)));
+}
+
+function withDisplayOffsets(destinations: BrowseDestination[]): RenderDestination[] {
+  const groups: {
+    anchorLat: number;
+    anchorLon: number;
+    members: BrowseDestination[];
+  }[] = [];
+
+  for (const destination of destinations) {
+    const group = groups.find((candidate) => {
+      return (
+        distanceKm(
+          candidate.anchorLat,
+          candidate.anchorLon,
+          destination.lat,
+          destination.lon,
+        ) <= STACK_DISTANCE_KM
+      );
+    });
+
+    if (group) {
+      group.members.push(destination);
+      continue;
+    }
+
+    groups.push({
+      anchorLat: destination.lat,
+      anchorLon: destination.lon,
+      members: [destination],
+    });
+  }
+
+  const rendered: RenderDestination[] = [];
+  for (const group of groups) {
+    if (group.members.length === 1) {
+      const only = group.members[0];
+      rendered.push({ ...only, displayLat: only.lat, displayLon: only.lon });
+      continue;
+    }
+
+    group.members.forEach((destination, index) => {
+      const ring = Math.floor(index / 8);
+      const ringIndex = index % 8;
+      const ringSize = Math.min(8, group.members.length - ring * 8);
+      const angle = (2 * Math.PI * ringIndex) / ringSize;
+      const radiusKm = STACK_OFFSET_KM * (1 + ring * 0.7);
+      const latOffset = (radiusKm / 111) * Math.sin(angle);
+      const lonScale = Math.max(
+        0.18,
+        Math.cos((group.anchorLat * Math.PI) / 180),
+      );
+      const lonOffset = (radiusKm / (111 * lonScale)) * Math.cos(angle);
+
+      rendered.push({
+        ...destination,
+        displayLat: destination.lat + latOffset,
+        displayLon: destination.lon + lonOffset,
+      });
+    });
+  }
+
+  return rendered;
+}
+
+function clusterRadiusKmForZoom(zoom: number): number {
+  if (zoom < 3.8) return 120;
+  if (zoom < 4.8) return 72;
+  return 0;
+}
+
+function buildRenderItems(
+  destinations: BrowseDestination[],
+  zoom: number,
+): RenderItem[] {
+  const radiusKm = clusterRadiusKmForZoom(zoom);
+  if (radiusKm <= 0) {
+    return withDisplayOffsets(destinations).map((destination) => ({
+      kind: "destination",
+      destination,
+    }));
+  }
+
+  const groups: {
+    centerLat: number;
+    centerLon: number;
+    members: BrowseDestination[];
+  }[] = [];
+
+  for (const destination of destinations) {
+    const group = groups.find((candidate) => {
+      return (
+        distanceKm(
+          candidate.centerLat,
+          candidate.centerLon,
+          destination.lat,
+          destination.lon,
+        ) <= radiusKm
+      );
+    });
+
+    if (!group) {
+      groups.push({
+        centerLat: destination.lat,
+        centerLon: destination.lon,
+        members: [destination],
+      });
+      continue;
+    }
+
+    group.members.push(destination);
+    const latTotal = group.members.reduce((sum, item) => sum + item.lat, 0);
+    const lonTotal = group.members.reduce((sum, item) => sum + item.lon, 0);
+    group.centerLat = latTotal / group.members.length;
+    group.centerLon = lonTotal / group.members.length;
+  }
+
+  const items: RenderItem[] = [];
+  for (const group of groups) {
+    if (group.members.length === 1) {
+      const only = group.members[0];
+      items.push({
+        kind: "destination",
+        destination: {
+          ...only,
+          displayLat: only.lat,
+          displayLon: only.lon,
+        },
+      });
+      continue;
+    }
+    items.push({
+      kind: "cluster",
+      lat: group.centerLat,
+      lon: group.centerLon,
+      count: group.members.length,
+      names: group.members.map((item) => item.name),
+    });
+  }
+  return items;
 }
 
 function getPrimaryActivity(activities: ActivityBucket[]): ActivityFilter {
@@ -120,12 +284,32 @@ function destinationPinHtml(primaryActivity: ActivityFilter): string {
     width:24px;
     height:32px;
     position:relative;
+    filter:drop-shadow(0 3px 6px rgba(46,42,38,0.26));
   ">
     <svg width="24" height="32" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg" style="display:block">
-      <path d="M12 1C5.9 1 1 5.9 1 12c0 8.4 11 18.8 11 18.8S23 20.4 23 12C23 5.9 18.1 1 12 1z" fill="${pinColor}"/>
+      <path d="M12 1C5.9 1 1 5.9 1 12c0 8.4 11 18.8 11 18.8S23 20.4 23 12C23 5.9 18.1 1 12 1z" fill="${pinColor}" stroke="white" stroke-width="1.2"/>
       ${centerIcon}
     </svg>
   </div>`;
+}
+
+function clusterPinHtml(count: number): string {
+  return `<div style="
+    min-width:30px;
+    height:30px;
+    border-radius:9999px;
+    background:#2E2A26;
+    color:white;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    font-size:12px;
+    font-weight:700;
+    padding:0 8px;
+    border:2px solid #FFFFFF;
+    box-shadow:0 4px 10px rgba(46,42,38,0.22);
+  ">${count}</div>`;
 }
 
 function destinationHref(slug: string, activeFilter: ActivityFilter): string {
@@ -213,6 +397,24 @@ export function CountryDestinationsMap({ destinations }: Props) {
     }
     return ACTIVITY_PILL_ORDER.filter((activity) => present.has(activity));
   }, [focusRegionDestinations]);
+  const activityCounts = useMemo(() => {
+    const counts: Record<ActivityFilter, number> = {
+      all: focusRegionDestinations.length,
+      surf: 0,
+      dive: 0,
+      hike: 0,
+      yoga: 0,
+      kite: 0,
+      work_first: 0,
+    };
+    for (const destination of focusRegionDestinations) {
+      const activities = getActivitiesForDestination(destination);
+      for (const activity of activities) {
+        counts[activity] += 1;
+      }
+    }
+    return counts;
+  }, [focusRegionDestinations]);
 
   useEffect(() => {
     if (!availableActivityFilters.includes(activeFilter)) {
@@ -272,8 +474,44 @@ export function CountryDestinationsMap({ destinations }: Props) {
       map.on("load", () => {
         if (!map) return;
         applySandMapTheme(map);
+        const renderItems = buildRenderItems(visibleDestinations, map.getZoom());
 
-        for (const destination of visibleDestinations) {
+        for (const item of renderItems) {
+          if (item.kind === "cluster") {
+            const el = document.createElement("button");
+            el.type = "button";
+            el.style.cursor = "pointer";
+            el.style.background = "transparent";
+            el.style.border = "none";
+            el.style.padding = "0";
+            el.innerHTML = clusterPinHtml(item.count);
+            el.setAttribute("aria-label", `${item.count} destinations clustered`);
+
+            const previewNames = item.names.slice(0, 3).join(", ");
+            const popup = new mapboxgl.Popup({
+              offset: 12,
+              closeButton: false,
+              className: "truststay-popup",
+              maxWidth: "240px",
+            }).setHTML(`
+              <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:8px 10px;">
+                <p style="margin:0;font-size:12px;font-weight:600;color:#2E2A26;">${item.count} destinations here</p>
+                <p style="margin:4px 0 0 0;font-size:11px;color:#8A847D;">${previewNames}${item.count > 3 ? ", ..." : ""}</p>
+              </div>
+            `);
+
+            const clusterMarker = new mapboxgl.Marker({
+              element: el,
+              anchor: "center",
+            })
+              .setLngLat([item.lon, item.lat])
+              .setPopup(popup)
+              .addTo(map);
+            el.addEventListener("click", () => clusterMarker.togglePopup());
+            continue;
+          }
+
+          const destination = item.destination;
           const el = document.createElement("button");
           el.type = "button";
           el.style.cursor = "pointer";
@@ -305,7 +543,7 @@ export function CountryDestinationsMap({ destinations }: Props) {
             element: el,
             anchor: "bottom",
           })
-            .setLngLat([destination.lon, destination.lat])
+            .setLngLat([destination.displayLon, destination.displayLat])
             .setPopup(popup)
             .addTo(map);
           const href = destinationHref(destination.slug, activeFilter);
@@ -368,6 +606,8 @@ export function CountryDestinationsMap({ destinations }: Props) {
                   borderColor: active ? meta.color : "#E8E3DC",
                   background: active ? meta.color : "white",
                   color: active ? "white" : "#5F5A54",
+                  boxShadow: active ? "0 4px 10px rgba(46,42,38,0.18)" : "none",
+                  fontWeight: active ? 700 : 500,
                 }}
               >
                 <span
@@ -377,7 +617,7 @@ export function CountryDestinationsMap({ destinations }: Props) {
                     color: "white",
                   }}
                 />
-                <span>{meta.label}</span>
+                <span>{meta.label} ({activityCounts[activity]})</span>
               </button>
             );
           })}
