@@ -28,8 +28,20 @@ const MIN_NAME_SIMILARITY = 0.35;
 const MIN_OSM_NAME_LENGTH = 3;
 /** Maximum distance from city center for Google-only places to be included */
 const MAX_GOOGLE_ONLY_DISTANCE_KM = 6;
+/** Stricter distance caps by category for Google-only additions */
+const MAX_GOOGLE_ONLY_DISTANCE_BY_CATEGORY_KM = {
+  coworking: 5,
+  cafe: 4,
+  food: 4,
+  gym: 4,
+} as const;
 /** Minimum reviews for a Google-only cafe/food to be included (avoids noise) */
 const MIN_GOOGLE_ONLY_REVIEWS = 8;
+/** Minimum quality gates for Google-only coworkings/gyms */
+const MIN_GOOGLE_ONLY_COWORK_REVIEWS = 5;
+const MIN_GOOGLE_ONLY_GYM_REVIEWS = 8;
+const MIN_GOOGLE_ONLY_COWORK_RATING = 4.0;
+const MIN_GOOGLE_ONLY_GYM_RATING = 3.8;
 /** Skip Google-only place if an existing place is within this distance (dedup) */
 const DEDUP_DISTANCE_KM = 0.15;
 /** Max Google-only places to add per category (caps noise in dense cities) */
@@ -349,6 +361,15 @@ function googlePlaceToPlace(
   };
 }
 
+function getGoogleOnlyDistanceLimitKm(
+  category: "coworking" | "cafe" | "food" | "gym",
+): number {
+  return Math.min(
+    MAX_GOOGLE_ONLY_DISTANCE_KM,
+    MAX_GOOGLE_ONLY_DISTANCE_BY_CATEGORY_KM[category],
+  );
+}
+
 // ── Public API ─────────────────────────────────────────────────────────────
 
 /**
@@ -443,30 +464,55 @@ export async function enrichPlaces(
       enriched.some((p) => haversineKm(p.lat, p.lon, lat, lon) < DEDUP_DISTANCE_KM) ||
       googleOnlyPlaces.some((p) => haversineKm(p.lat, p.lon, lat, lon) < DEDUP_DISTANCE_KM);
 
-    // Always add unmatched gyms — gym is heavily under-tagged in OSM in beach towns
-    for (const g of googleGyms) {
+    const googleOnlyCap = budgetMode ? 2 : MAX_GOOGLE_ONLY_PER_CATEGORY;
+
+    // Add unmatched gyms with quality thresholds (avoid weak/noisy additions)
+    const sortedGyms = [...googleGyms].sort((a, b) => {
+      const aScore = (a.rating ?? 0) * 100 + (a.userRatingCount ?? 0);
+      const bScore = (b.rating ?? 0) * 100 + (b.userRatingCount ?? 0);
+      return bScore - aScore;
+    });
+    let gymOnlyCount = 0;
+    for (const g of sortedGyms) {
+      if (gymOnlyCount >= googleOnlyCap) break;
       if (matchedGoogleIds.has(g.id) || !g.location) continue;
+      if ((g.userRatingCount ?? 0) < MIN_GOOGLE_ONLY_GYM_REVIEWS) continue;
+      if ((g.rating ?? 0) < MIN_GOOGLE_ONLY_GYM_RATING) continue;
       const { latitude, longitude } = g.location;
       const dist = haversineKm(cityLat, cityLon, latitude, longitude);
-      if (dist > MAX_GOOGLE_ONLY_DISTANCE_KM) continue;
+      if (dist > getGoogleOnlyDistanceLimitKm("gym")) continue;
       if (isDuplicate(latitude, longitude)) continue;
       const p = googlePlaceToPlace(g, "gym", cityLat, cityLon);
-      if (p) googleOnlyPlaces.push(p);
+      if (p) {
+        googleOnlyPlaces.push(p);
+        gymOnlyCount++;
+      }
     }
 
-    // Always add unmatched coworkings — coworking_space is heavily under-tagged in OSM
-    for (const g of googleCoworks) {
+    // Add unmatched coworkings with quality thresholds (avoid weak/noisy additions)
+    const sortedCoworks = [...googleCoworks].sort((a, b) => {
+      const aScore = (a.rating ?? 0) * 100 + (a.userRatingCount ?? 0);
+      const bScore = (b.rating ?? 0) * 100 + (b.userRatingCount ?? 0);
+      return bScore - aScore;
+    });
+    let coworkOnlyCount = 0;
+    for (const g of sortedCoworks) {
+      if (coworkOnlyCount >= googleOnlyCap) break;
       if (matchedGoogleIds.has(g.id) || !g.location) continue;
+      if ((g.userRatingCount ?? 0) < MIN_GOOGLE_ONLY_COWORK_REVIEWS) continue;
+      if ((g.rating ?? 0) < MIN_GOOGLE_ONLY_COWORK_RATING) continue;
       const { latitude, longitude } = g.location;
       const dist = haversineKm(cityLat, cityLon, latitude, longitude);
-      if (dist > MAX_GOOGLE_ONLY_DISTANCE_KM) continue;
+      if (dist > getGoogleOnlyDistanceLimitKm("coworking")) continue;
       if (isDuplicate(latitude, longitude)) continue;
       const p = googlePlaceToPlace(g, "coworking", cityLat, cityLon);
-      if (p) googleOnlyPlaces.push(p);
+      if (p) {
+        googleOnlyPlaces.push(p);
+        coworkOnlyCount++;
+      }
     }
 
     // Add unmatched cafes only if well-rated (avoids noisy low-quality results)
-    const googleOnlyCap = budgetMode ? 2 : MAX_GOOGLE_ONLY_PER_CATEGORY;
     let cafeOnlyCount = 0;
     for (const g of googleCafes) {
       if (cafeOnlyCount >= googleOnlyCap) break;
@@ -475,7 +521,7 @@ export async function enrichPlaces(
       if ((g.rating ?? 0) < 3.8) continue;
       const { latitude, longitude } = g.location;
       const dist = haversineKm(cityLat, cityLon, latitude, longitude);
-      if (dist > MAX_GOOGLE_ONLY_DISTANCE_KM) continue;
+      if (dist > getGoogleOnlyDistanceLimitKm("cafe")) continue;
       if (isDuplicate(latitude, longitude)) continue;
       const p = googlePlaceToPlace(g, "cafe", cityLat, cityLon);
       if (p) { googleOnlyPlaces.push(p); cafeOnlyCount++; }
@@ -491,7 +537,7 @@ export async function enrichPlaces(
       if ((g.rating ?? 0) < 4.2) continue;
       const { latitude, longitude } = g.location;
       const dist = haversineKm(cityLat, cityLon, latitude, longitude);
-      if (dist > MAX_GOOGLE_ONLY_DISTANCE_KM) continue;
+      if (dist > getGoogleOnlyDistanceLimitKm("food")) continue;
       if (isDuplicate(latitude, longitude)) continue;
       const p = googlePlaceToPlace(g, "food", cityLat, cityLon);
       if (p) { googleOnlyPlaces.push(p); foodOnlyCount++; }

@@ -236,43 +236,30 @@ function destinationHoverLabelHtml(destination: BrowseDestination): string {
   ">${destination.name}</div>`;
 }
 
-function clusterIconSvg(color: string): string {
-  return `<svg width="12" height="16" viewBox="0 0 12 16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <path d="M6 0.9C3.2 0.9 1 3.1 1 5.9c0 3.7 5 8.8 5 8.8s5-5.1 5-8.8C11 3.1 8.8 0.9 6 0.9z" fill="${color}"/>
-    <circle cx="6" cy="5.7" r="1.7" fill="white" opacity="0.95"/>
-  </svg>`;
-}
-
 function countryClusterPinHtml(count: number, activeFilter: ActivityFilter): string {
   const accent = ACTIVITY_META[activeFilter].color;
-  const shell = activeFilter === "all" ? "#2E2A26" : accent;
+  const isFiltered = activeFilter !== "all";
+  const shell = isFiltered ? "#FFFFFF" : "#FFF7EB";
+  const border = isFiltered ? accent : "#DED6CB";
+  const text = isFiltered ? accent : "#2E2A26";
   return `<div style="
-    min-width:52px;
-    height:36px;
+    width:38px;
+    height:38px;
     border-radius:9999px;
     background:${shell};
-    color:white;
+    color:${text};
     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    font-size:11px;
+    font-size:12px;
     font-weight:700;
     display:flex;
     align-items:center;
-    justify-content:space-between;
-    border:2px solid white;
-    box-shadow:0 6px 14px rgba(46,42,38,0.28);
-    padding:0 7px 0 6px;
-    gap:5px;
-  ">
-    <span style="
-      width:18px;
-      height:18px;
-      border-radius:9999px;
-      background:rgba(255,255,255,0.18);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-    ">${clusterIconSvg(activeFilter === "all" ? "#E07A5F" : "#F8F5F1")}</span>
-    <span style="letter-spacing:.02em;line-height:1;">${count}</span>
+    justify-content:center;
+    border:1.5px solid ${border};
+    box-shadow:${isFiltered ? "0 8px 16px rgba(31,41,55,0.14)" : "0 6px 14px rgba(46,42,38,0.12)"};
+    letter-spacing:.01em;
+    line-height:1;
+  " class="ts-country-cluster-marker">
+    ${count}
   </div>`;
 }
 
@@ -286,12 +273,26 @@ function countryClusterHoverHtml(cluster: CountryCluster): string {
     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     color:#1F2937;
     border-radius:14px;
-    padding:10px 12px;
+    padding:10px 12px 11px;
     min-width:200px;
     max-width:300px;
   ">
-    <p style="margin:0 0 6px 0;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B7280;">${cluster.country}</p>
-    <p style="margin:0 0 8px 0;font-size:13px;font-weight:700;">${cluster.destinations.length} destinations</p>
+    <div style="margin:0 0 8px 0;">
+      <span style="
+        display:inline-flex;
+        align-items:center;
+        border-radius:9999px;
+        border:1px solid #E4DDD2;
+        background:#F8F3EB;
+        color:#5F5A54;
+        font-size:10px;
+        font-weight:600;
+        letter-spacing:.06em;
+        text-transform:uppercase;
+        padding:3px 8px;
+      ">${cluster.country}</span>
+    </div>
+    <p style="margin:0 0 7px 0;font-size:13px;font-weight:700;color:#1F2937;">${cluster.destinations.length} destinations</p>
     <p style="margin:0;font-size:12px;line-height:1.5;color:#374151;">
       ${shown.join(" • ")}
       ${remaining > 0 ? ` · +${remaining} more` : ""}
@@ -509,6 +510,7 @@ export function CountryDestinationsMap({ destinations }: Props) {
           for (const cluster of countryClusters) {
             const el = document.createElement("button");
             el.type = "button";
+            el.className = "ts-country-cluster-hit";
             el.style.cursor = "pointer";
             el.style.background = "transparent";
             el.style.border = "none";
@@ -536,12 +538,15 @@ export function CountryDestinationsMap({ destinations }: Props) {
 
             el.addEventListener("mouseenter", () => {
               if (!map) return;
+              el.classList.add("is-hovered");
               popup.addTo(map);
             });
             el.addEventListener("mouseleave", () => {
+              el.classList.remove("is-hovered");
               popup.remove();
             });
             el.addEventListener("click", () => {
+              el.classList.remove("is-hovered");
               popup.remove();
               track("destination_cluster_opened", {
                 country: cluster.country,

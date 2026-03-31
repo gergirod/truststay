@@ -66,6 +66,18 @@ body {
   border-top-color: #fffaf3;
 }
 
+/* Country clusters: subtle premium interaction */
+.ts-country-cluster-hit .ts-country-cluster-marker {
+  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+  transform: scale(1);
+}
+
+.ts-country-cluster-hit.is-hovered .ts-country-cluster-marker,
+.ts-country-cluster-hit:hover .ts-country-cluster-marker {
+  transform: scale(1.08);
+  box-shadow: 0 10px 20px rgba(31, 28, 25, 0.18) !important;
+}
+
 /* ── TrustStay loading dot animation ────────────────────────────────────── */
 @keyframes ts-dot-pulse {
   0%, 60%, 100% {

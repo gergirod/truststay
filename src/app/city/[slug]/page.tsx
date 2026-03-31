@@ -333,6 +333,9 @@ async function resolveCity(
     "mazunte":                 "Mazunte Oaxaca Mexico",
     "troncones":               "Troncones Guerrero Mexico",
     "zihuatanejo":             "Zihuatanejo Guerrero Mexico",
+    "chapadmalal":             "Chapadmalal Buenos Aires Argentina",
+    "quequen":                 "Quequén Buenos Aires Argentina",
+    "miramar":                 "Miramar Buenos Aires Argentina",
     "huatulco":                "Huatulco Oaxaca Mexico",
     "la-paz":                  "La Paz Baja California Sur Mexico",
     "san-cristobal-de-las-casas": "San Cristóbal de las Casas Chiapas Mexico",
@@ -404,6 +407,12 @@ async function resolveCity(
     "pipa":                    "Pipa Rio Grande do Norte Brazil",
     "paraty":                  "Paraty Rio de Janeiro Brazil",
     "arraial-do-cabo":         "Arraial do Cabo Rio de Janeiro Brazil",
+    "maresias":                "Maresias São Sebastião São Paulo Brazil",
+    "guaruja":                 "Guarujá São Paulo Brazil",
+    "garopaba":                "Garopaba Santa Catarina Brazil",
+    "imbituba":                "Imbituba Santa Catarina Brazil",
+    "torres-rs":               "Torres Rio Grande do Sul Brazil",
+    "bombinhas":               "Bombinhas Santa Catarina Brazil",
 
     // ── Dominican Republic ──────────────────────────────────────────────────
     "cabarete":                "Cabarete Puerto Plata Dominican Republic",
@@ -460,6 +469,11 @@ async function resolveCity(
     "jujuy":                   "San Salvador de Jujuy Jujuy Argentina",
     "puerto-madryn":           "Puerto Madryn Chubut Argentina",
     "ushuaia":                 "Ushuaia Tierra del Fuego Argentina",
+    "necochea":                "Necochea Buenos Aires Argentina",
+    "pinamar":                 "Pinamar Buenos Aires Argentina",
+    "villa-gesell":            "Villa Gesell Buenos Aires Argentina",
+    "santa-clara-del-mar":     "Santa Clara del Mar Buenos Aires Argentina",
+    "mar-de-ajo":              "Mar de Ajó Buenos Aires Argentina",
 
     // ── Argentina — NW highlands (Quebrada de Humahuaca & pre-Puna) ──────────
     "tilcara":                 "Tilcara Jujuy Argentina",
@@ -551,6 +565,13 @@ async function resolveCity(
     "los-barriles":            "Los Barriles Baja California Sur Mexico",
     "paracas":                 "Paracas Ica Peru",
     "la-paloma":               "La Paloma Rocha Uruguay",
+    "la-pedrera":              "La Pedrera Rocha Uruguay",
+    "jose-ignacio":            "José Ignacio Maldonado Uruguay",
+    "piriapolis":              "Piriápolis Maldonado Uruguay",
+    "aguas-dulces":            "Aguas Dulces Rocha Uruguay",
+    "cabo-polonio":            "Cabo Polonio Rocha Uruguay",
+    "punta-colorada":          "Punta Colorada Maldonado Uruguay",
+    "punta-negra-uruguay":     "Punta Negra Maldonado Uruguay",
 
     // ── New remote work hubs ──────────────────────────────────────────────────
     "guadalajara":             "Guadalajara Jalisco Mexico",

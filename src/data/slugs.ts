@@ -78,7 +78,8 @@ export const KNOWN_CITY_SLUGS: string[] = [
   "tilcara", "purmamarca", "humahuaca", "iruya", "cafayate",
   "uspallata", "potrerillos",
   "el-bolson", "san-martin-de-los-andes", "villa-la-angostura", "esquel",
-  "cordoba", "rosario", "mar-del-plata",
+  "cordoba", "rosario", "mar-del-plata", "chapadmalal", "quequen", "miramar",
+  "necochea", "pinamar", "villa-gesell", "santa-clara-del-mar", "mar-de-ajo",
 
   // ── Brazil ───────────────────────────────────────────────────────────────
   "florianopolis", "itacare", "jericoacoara",
@@ -86,11 +87,14 @@ export const KNOWN_CITY_SLUGS: string[] = [
   "fernando-de-noronha", "abrolhos",
   "cumbuco", "sao-miguel-do-gostoso", "lencois", "bonito",
   "praia-do-rosa", "trancoso", "alto-paraiso", "ubatuba", "saquarema",
+  "maresias", "guaruja", "garopaba", "imbituba", "torres-rs", "bombinhas",
   "sao-paulo", "rio-de-janeiro", "fortaleza",
   "curitiba", "porto-alegre", "recife", "salvador",
 
   // ── Uruguay ──────────────────────────────────────────────────────────────
   "punta-del-este", "punta-del-diablo", "montevideo", "la-paloma",
+  "la-pedrera", "jose-ignacio", "piriapolis", "aguas-dulces",
+  "cabo-polonio", "punta-colorada", "punta-negra-uruguay",
 
   // ── Paraguay ─────────────────────────────────────────────────────────────
   "asuncion",

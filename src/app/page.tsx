@@ -9,8 +9,10 @@ import { cookies } from "next/headers";
 import { BUNDLE_COOKIE, UNLOCK_COOKIE, parseSlugs } from "@/lib/unlock";
 import {
   ACTIVITY_DESTINATIONS_BY_COUNTRY,
+  getCanonicalDestinationMeta,
   type ActivityBucket,
 } from "@/data/activityDestinations";
+import { DESTINATION_PINS } from "@/data/destinationCoords";
 
 const ACTIVITY_BUCKETS: ActivityBucket[] = [
   "surf",
@@ -20,6 +22,12 @@ const ACTIVITY_BUCKETS: ActivityBucket[] = [
   "kite",
   "work_first",
 ];
+
+const DESTINATION_COORDS_BY_SLUG = new Map(
+  DESTINATION_PINS.map((pin) => [pin.slug, { lat: pin.lat, lon: pin.lon }]),
+);
+
+const DB_COORD_DRIFT_THRESHOLD_KM = 450;
 
 const SLUG_ACTIVITIES = (() => {
   const map = new Map<string, ActivityBucket[]>();
@@ -99,6 +107,21 @@ function slugToDisplayName(slug: string): string {
     .join(" ");
 }
 
+function haversineKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const toRad = (v: number) => (v * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 6371 * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
 export default async function HomePage() {
   const cookieStore = await cookies();
   const unlockedRaw = cookieStore.get(UNLOCK_COOKIE)?.value ?? "";
@@ -125,17 +148,34 @@ export default async function HomePage() {
           .orderBy(asc(destinations.name))
       )
         .filter((d) => d.lat != null && d.lon != null)
-        .map((d) => ({
-          slug: d.slug,
-          name: d.name,
-          country: d.country,
-          lat: d.lat as number,
-          lon: d.lon as number,
-          activities: SLUG_ACTIVITIES.get(d.slug) ?? [],
-          activity: (SLUG_ACTIVITIES.get(d.slug) ?? []).includes("surf")
-            ? ("surf" as const)
-            : ("other" as const),
-        }))
+        .map((d) => {
+          const canonical = getCanonicalDestinationMeta(d.slug);
+          const fallback = DESTINATION_COORDS_BY_SLUG.get(d.slug);
+          const dbLat = d.lat as number;
+          const dbLon = d.lon as number;
+          const driftKm = fallback
+            ? haversineKm(dbLat, dbLon, fallback.lat, fallback.lon)
+            : 0;
+          const useFallback = Boolean(fallback && driftKm > DB_COORD_DRIFT_THRESHOLD_KM);
+
+          if (useFallback) {
+            console.warn(
+              `[home-map] coordinate drift detected for ${d.slug}: db=(${dbLat.toFixed(4)},${dbLon.toFixed(4)}) fallback=(${fallback?.lat.toFixed(4)},${fallback?.lon.toFixed(4)}) driftKm=${driftKm.toFixed(0)}`,
+            );
+          }
+
+          return {
+            slug: d.slug,
+            name: canonical?.name ?? d.name,
+            country: canonical?.country ?? d.country,
+            lat: useFallback && fallback ? fallback.lat : dbLat,
+            lon: useFallback && fallback ? fallback.lon : dbLon,
+            activities: SLUG_ACTIVITIES.get(d.slug) ?? [],
+            activity: (SLUG_ACTIVITIES.get(d.slug) ?? []).includes("surf")
+              ? ("surf" as const)
+              : ("other" as const),
+          };
+        })
     : [];
   const destinationNameBySlug = new Map(
     browseDestinations.map((d) => [d.slug, d.name]),
