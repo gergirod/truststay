@@ -9,6 +9,15 @@ interface Props {
   isWinner: boolean;
   intent: string; // e.g. "surf + heavy work"
   citySlug: string;
+  internetSummary?: {
+    score: number;
+    bucket: "excellent" | "good" | "okay" | "risky";
+    median_download_mbps: number | null;
+    median_upload_mbps: number | null;
+    median_latency_ms: number | null;
+    confidence: "low" | "medium" | "high";
+    freshness_days: number | null;
+  } | null;
 }
 
 function readinessChip(
@@ -28,7 +37,13 @@ function readinessChip(
   );
 }
 
-export function MicroAreaBaseCard({ microArea, isWinner, intent, citySlug }: Props) {
+export function MicroAreaBaseCard({
+  microArea,
+  isWinner,
+  intent,
+  citySlug,
+  internetSummary = null,
+}: Props) {
   const { narrativeText, hasConstraintBreakers, score, rank } = microArea;
   const isBroken = hasConstraintBreakers;
   const logisticsRef = useRef<HTMLDivElement | null>(null);
@@ -136,6 +151,24 @@ export function MicroAreaBaseCard({ microArea, isWinner, intent, citySlug }: Pro
                 {readinessChip("Daily routine", microArea.readiness.dailyRoutine)}
                 {readinessChip("Activity access", microArea.readiness.activityAccess)}
                 {readinessChip("Movement", microArea.readiness.movement)}
+              </div>
+            </div>
+          )}
+
+          {internetSummary && (
+            <div className="rounded-xl border border-dune bg-cream px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-umber">
+                Internet signal
+              </p>
+              <p className="mt-1 text-sm font-medium text-bark">
+                {internetSummary.score}/100 · {internetSummary.bucket}
+              </p>
+              <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-umber">
+                <span>Download</span><span>{internetSummary.median_download_mbps ?? "—"} Mbps</span>
+                <span>Upload</span><span>{internetSummary.median_upload_mbps ?? "—"} Mbps</span>
+                <span>Latency</span><span>{internetSummary.median_latency_ms ?? "—"} ms</span>
+                <span>Confidence</span><span>{internetSummary.confidence}</span>
+                <span>Data age</span><span>{internetSummary.freshness_days ?? "—"} days</span>
               </div>
             </div>
           )}

@@ -12,8 +12,19 @@ interface Props {
   citySlug: string;
 }
 
+type InternetSummary = {
+  score: number;
+  bucket: "excellent" | "good" | "okay" | "risky";
+  median_download_mbps: number | null;
+  median_upload_mbps: number | null;
+  median_latency_ms: number | null;
+  confidence: "low" | "medium" | "high";
+  freshness_days: number | null;
+};
+
 export function MicroAreaStack({ microAreaNarratives, intent, cityName, citySlug }: Props) {
   const [showAll, setShowAll] = useState(false);
+  const [internetByAreaId, setInternetByAreaId] = useState<Record<string, InternetSummary>>({});
 
   // Always show winner + first 2; rest collapsed unless showAll
   const sorted = [...microAreaNarratives].sort((a, b) => a.rank - b.rank);
@@ -40,6 +51,74 @@ export function MicroAreaStack({ microAreaNarratives, intent, cityName, citySlug
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const withCenter = microAreaNarratives.filter((m) => m.center);
+    if (withCenter.length === 0) {
+      setInternetByAreaId({});
+      return;
+    }
+
+    Promise.all(
+      withCenter.map(async (area) => {
+        const res = await fetch(
+          `/api/connectivity/summary?citySlug=${encodeURIComponent(citySlug)}&lat=${encodeURIComponent(String(area.center!.lat))}&lng=${encodeURIComponent(String(area.center!.lon))}`,
+        );
+        if (!res.ok) return null;
+        const json = await res.json();
+        const summary = json?.summary;
+        if (!summary || typeof summary.score !== "number" || typeof summary.bucket !== "string") {
+          return null;
+        }
+        const bucketRaw = summary.bucket as string;
+        if (
+          bucketRaw !== "excellent" &&
+          bucketRaw !== "good" &&
+          bucketRaw !== "okay" &&
+          bucketRaw !== "risky"
+        ) {
+          return null;
+        }
+        const confidenceRaw = String(summary.confidence ?? "low");
+        const confidence: InternetSummary["confidence"] =
+          confidenceRaw === "high" || confidenceRaw === "medium" || confidenceRaw === "low"
+            ? confidenceRaw
+            : "low";
+        const parsed: InternetSummary = {
+          score: Number(summary.score),
+          bucket: bucketRaw,
+          median_download_mbps:
+            typeof summary.median_download_mbps === "number" ? summary.median_download_mbps : null,
+          median_upload_mbps:
+            typeof summary.median_upload_mbps === "number" ? summary.median_upload_mbps : null,
+          median_latency_ms:
+            typeof summary.median_latency_ms === "number" ? summary.median_latency_ms : null,
+          confidence,
+          freshness_days:
+            typeof summary.freshness_days === "number" ? summary.freshness_days : null,
+        };
+        return [area.microAreaId, parsed] as const;
+      }),
+    )
+      .then((rows) => {
+        if (cancelled) return;
+        const next: Record<string, InternetSummary> = {};
+        for (const row of rows) {
+          if (!row) continue;
+          next[row[0]] = row[1];
+        }
+        setInternetByAreaId(next);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setInternetByAreaId({});
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [citySlug, microAreaNarratives]);
 
   return (
     <div>
@@ -107,6 +186,7 @@ export function MicroAreaStack({ microAreaNarratives, intent, cityName, citySlug
             isWinner={true}
             intent={intent}
             citySlug={citySlug}
+            internetSummary={internetByAreaId[winnerArea.microAreaId] ?? null}
           />
         )}
 
@@ -118,6 +198,7 @@ export function MicroAreaStack({ microAreaNarratives, intent, cityName, citySlug
             isWinner={false}
             intent={intent}
             citySlug={citySlug}
+            internetSummary={internetByAreaId[area.microAreaId] ?? null}
           />
         ))}
 
