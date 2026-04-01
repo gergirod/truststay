@@ -276,68 +276,10 @@ interface ConnectivityCoverageBounds {
   centerLon: number;
 }
 
-function buildConnectivityMockCells(
-  bounds: ConnectivityCoverageBounds,
-): GeoJSON.FeatureCollection<GeoJSON.Polygon> {
-  const latSpan = Math.max(0.012, bounds.maxLat - bounds.minLat);
-  const lonSpan = Math.max(0.012, bounds.maxLon - bounds.minLon);
-  const rowsCount = Math.max(3, Math.min(8, Math.round(latSpan / 0.01)));
-  const colsCount = Math.max(3, Math.min(8, Math.round(lonSpan / 0.01)));
-  const latStep = latSpan / rowsCount;
-  const lonStep = lonSpan / colsCount;
-  const features: GeoJSON.Feature<GeoJSON.Polygon>[] = [];
-  let idx = 0;
-
-  for (let y = 0; y < rowsCount; y += 1) {
-    for (let x = 0; x < colsCount; x += 1) {
-      const cLat = bounds.minLat + latStep * (y + 0.5);
-      const cLon = bounds.minLon + lonStep * (x + 0.5);
-      const halfLat = latStep * 0.45;
-      const halfLon = lonStep * 0.45;
-      const xDist = Math.abs(cLon - bounds.centerLon) / Math.max(lonSpan * 0.5, 0.0001);
-      const yDist = Math.abs(cLat - bounds.centerLat) / Math.max(latSpan * 0.5, 0.0001);
-      const scoreBase = 90 - xDist * 16 - yDist * 14 - (idx % 3) * 4;
-      const score = Math.max(34, Math.min(96, scoreBase));
-      const bucket = scoreToBucket(score);
-      const confidence: ConfidenceBucket =
-        score > 80 ? "high" : score > 60 ? "medium" : "low";
-      const download = Math.max(8, Math.round(score * 1.8));
-      const upload = Math.max(3, Math.round(score * 0.55));
-      const latency = Math.max(22, Math.round(130 - score));
-
-      features.push({
-        type: "Feature",
-        geometry: {
-          type: "Polygon",
-          coordinates: [[
-            [cLon - halfLon, cLat - halfLat],
-            [cLon + halfLon, cLat - halfLat],
-            [cLon + halfLon, cLat + halfLat],
-            [cLon - halfLon, cLat + halfLat],
-            [cLon - halfLon, cLat - halfLat],
-          ]],
-        },
-        properties: {
-          id: `cell-${idx}`,
-          score,
-          bucket,
-          median_download_mbps: download,
-          median_upload_mbps: upload,
-          median_latency_ms: latency,
-          confidence,
-          freshness_days: 4 + (idx % 8),
-          summary_short: recommendationForBucket(bucket),
-        },
-      });
-      idx += 1;
-    }
-  }
-
-  return {
-    type: "FeatureCollection",
-    features,
-  };
-}
+const EMPTY_CONNECTIVITY_GEOJSON: GeoJSON.FeatureCollection<GeoJSON.Polygon> = {
+  type: "FeatureCollection",
+  features: [],
+};
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -368,6 +310,7 @@ export function CityMap({
   const [showConnectivity, setShowConnectivity] = useState(false);
   const [hoveredConnectivity, setHoveredConnectivity] = useState<ConnectivityCellData | null>(null);
   const [selectedConnectivity, setSelectedConnectivity] = useState<ConnectivityCellData | null>(null);
+  const [mobileConnectivitySheetExpanded, setMobileConnectivitySheetExpanded] = useState(false);
   const [connectivityGeojson, setConnectivityGeojson] = useState<GeoJSON.FeatureCollection<GeoJSON.Polygon> | null>(null);
   const [zoneConnectivity, setZoneConnectivity] = useState<Record<string, ConnectivityCellData>>({});
   const [zoneConnectivityLoadState, setZoneConnectivityLoadState] = useState<"idle" | "loading" | "ready" | "empty">("idle");
@@ -451,11 +394,11 @@ export function CityMap({
           setConnectivityGeojson(json as GeoJSON.FeatureCollection<GeoJSON.Polygon>);
           return;
         }
-        setConnectivityGeojson(buildConnectivityMockCells(connectivityBounds));
+        setConnectivityGeojson(EMPTY_CONNECTIVITY_GEOJSON);
       })
       .catch(() => {
         if (cancelled) return;
-        setConnectivityGeojson(buildConnectivityMockCells(connectivityBounds));
+        setConnectivityGeojson(EMPTY_CONNECTIVITY_GEOJSON);
       });
     return () => {
       cancelled = true;
@@ -569,7 +512,16 @@ export function CityMap({
     if (showConnectivity) return;
     setZoneConnectivityLoadState("idle");
     setZoneConnectivityCoveredCount(0);
+    setHoveredConnectivity(null);
+    setSelectedConnectivity(null);
+    setMobileConnectivitySheetExpanded(false);
   }, [showConnectivity]);
+
+  useEffect(() => {
+    if (!selectedConnectivity) {
+      setMobileConnectivitySheetExpanded(false);
+    }
+  }, [selectedConnectivity]);
 
   const connectivitySourceLabel = useMemo(() => {
     const zoneSources = Object.values(zoneConnectivity)
@@ -812,6 +764,7 @@ export function CityMap({
               map.on("click", fillId, () => {
                 if (showConnectivity && zoneInternet) {
                   setSelectedConnectivity(zoneInternet);
+                  setMobileConnectivitySheetExpanded(false);
                 }
                 onZoneClickRef.current?.(zone);
               });
@@ -868,9 +821,7 @@ export function CityMap({
 
         // ── Connectivity layer (grid cells) ─────────────────────────────────
         if (showConnectivity) {
-          const connectivityLayerData =
-            connectivityGeojson ??
-            buildConnectivityMockCells(connectivityBounds);
+          const connectivityLayerData = connectivityGeojson ?? EMPTY_CONNECTIVITY_GEOJSON;
 
           map.addSource(CONNECTIVITY_SOURCE_ID, {
             type: "geojson",
@@ -978,6 +929,7 @@ export function CityMap({
             const parsed = parseFeature(event.features?.[0]);
             if (parsed) {
               setSelectedConnectivity(parsed);
+              setMobileConnectivitySheetExpanded(false);
               track("connectivity_cell_opened", {
                 city_slug: citySlug,
                 cell_id: parsed.id,
@@ -1164,8 +1116,7 @@ export function CityMap({
       <div className="relative rounded-2xl overflow-hidden border border-dune">
         <div
           ref={containerRef}
-          className="w-full"
-          style={{ height: "clamp(300px, 48vw, 460px)" }}
+          className="h-[56vh] max-h-[620px] min-h-[360px] w-full sm:h-[clamp(300px,48vw,460px)] sm:min-h-0 sm:max-h-none"
         />
 
         {/* ── Back button (Layer 2 only) ──────────────────────────────────── */}
@@ -1206,7 +1157,7 @@ export function CityMap({
 
         {/* ── Zone detail legend (Layer 2) ────────────────────────────────── */}
         {activeZone && (
-          <div className="absolute bottom-3 left-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-dune bg-white/90 backdrop-blur-sm px-3 py-2 max-w-[calc(100%-24px)]">
+          <div className="absolute bottom-3 left-3 hidden max-w-[calc(100%-24px)] flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-dune bg-white/90 px-3 py-2 backdrop-blur-sm sm:flex">
             <LegendDot color={MAP_COLORS.work} label="Work" />
             <LegendDot color={MAP_COLORS.coffee} label="Coffee & meals" />
             <LegendDot color={MAP_COLORS.wellbeing} label="Wellbeing" />
@@ -1222,7 +1173,7 @@ export function CityMap({
 
         {/* ── Zone overview legend (Layer 1) ──────────────────────────────── */}
         {!activeZone && (
-          <div className="absolute bottom-3 left-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-dune bg-white/90 backdrop-blur-sm px-3 py-2 max-w-[calc(100%-24px)]">
+          <div className="absolute bottom-3 left-3 hidden max-w-[calc(100%-24px)] flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-dune bg-white/90 px-3 py-2 backdrop-blur-sm sm:flex">
             {hasZones ? (
               <>
                 {hasScores ? (
@@ -1257,7 +1208,7 @@ export function CityMap({
 
         {/* Connectivity legend */}
         {showConnectivity && (
-          <div className="absolute bottom-3 right-3 z-10 rounded-xl border border-dune bg-white/90 px-3 py-2 backdrop-blur-sm">
+          <div className="absolute bottom-3 right-3 z-10 hidden rounded-xl border border-dune bg-white/90 px-3 py-2 backdrop-blur-sm sm:block">
             <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-umber">
               Internet quality
             </p>
@@ -1274,9 +1225,66 @@ export function CityMap({
           </div>
         )}
 
+        {showConnectivity && (
+          <div className="absolute right-3 top-14 z-10 rounded-full border border-dune bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-bark shadow-sm sm:hidden">
+            Internet layer
+          </div>
+        )}
+
+        {showConnectivity && selectedConnectivity && (
+          <div className="pointer-events-none absolute inset-x-2 bottom-2 z-20 sm:hidden">
+            <div className="pointer-events-auto rounded-2xl border border-dune bg-white/95 shadow-lg backdrop-blur-sm">
+              <div className="flex items-center justify-between px-3 pt-2">
+                <span className="mx-auto h-1 w-10 rounded-full bg-dune" />
+                <button
+                  type="button"
+                  onClick={() => setSelectedConnectivity(null)}
+                  className="text-[10px] font-semibold text-umber"
+                >
+                  Close
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setMobileConnectivitySheetExpanded((v) => !v)}
+                className="w-full px-3 pb-2 pt-1 text-left"
+              >
+                <p className="text-sm font-semibold text-bark">
+                  Internet quality {selectedConnectivity.score}/100
+                </p>
+                <p className="mt-0.5 text-[11px] text-umber">
+                  {CONNECTIVITY_BUCKET_META[selectedConnectivity.bucket].label}
+                </p>
+                <p className="mt-1 text-[11px] text-umber">
+                  {selectedConnectivity.median_download_mbps ?? "—"}↓ / {selectedConnectivity.median_upload_mbps ?? "—"}↑ Mbps · {selectedConnectivity.median_latency_ms ?? "—"} ms
+                </p>
+                <p className="mt-1 text-[10px] font-medium text-bark">
+                  {mobileConnectivitySheetExpanded ? "Tap to collapse" : "Tap to expand"}
+                </p>
+              </button>
+
+              {mobileConnectivitySheetExpanded && (
+                <div className="border-t border-dune px-3 py-2">
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-bark">
+                    <span>Typical download</span><span>{selectedConnectivity.median_download_mbps ?? "—"} Mbps</span>
+                    <span>Typical upload</span><span>{selectedConnectivity.median_upload_mbps ?? "—"} Mbps</span>
+                    <span>Typical latency</span><span>{selectedConnectivity.median_latency_ms ?? "—"} ms</span>
+                    <span>Estimate confidence</span><span>{confidenceLabel(selectedConnectivity.confidence)}</span>
+                    <span>Data age</span><span>{selectedConnectivity.freshness_days ?? "—"} days</span>
+                  </div>
+                  <p className="mt-2 text-[11px] text-umber">
+                    {selectedConnectivity.summary_short}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
       </div>
       {showConnectivity && selectedConnectivity && (
-        <div className="mt-2 w-full rounded-xl border border-dune bg-white p-3">
+        <div className="mt-2 hidden w-full rounded-xl border border-dune bg-white p-3 sm:block">
           <div className="flex items-start justify-between gap-2">
             <p className="text-sm font-semibold text-bark">
               Internet quality score {selectedConnectivity.score}/100
