@@ -36,6 +36,7 @@ import { getOrGenerateStayFitNarrative } from "@/lib/narrativeAI";
 import type { StayFitNarrative } from "@/lib/narrativeAI";
 import { getOrGenerateEnrichedNarrative } from "@/lib/placeEnrichmentAgent";
 import type { MicroAreaNarrative } from "@/lib/placeEnrichmentAgent";
+import { buildFinalResponse } from "@/application/use-cases/buildFinalResponse";
 import { MicroAreaStack } from "@/components/MicroAreaStack";
 import type { City, StayIntent, StayPurpose, WorkStyle, VibePreference, DailyBalance } from "@/types";
 
@@ -1152,6 +1153,67 @@ async function CityContent({
       stayFitNarrative = await getOrGenerateStayFitNarrative(
         stayFit, city.slug, city.name, city.country
       ).catch(() => null);
+    }
+
+    // Hard fallback: even if narrative generation/caching fails, keep map zones visible.
+    // This avoids the "empty map / no areas" experience when upstream LLM calls are rate-limited.
+    if (!microAreaNarratives?.length) {
+      try {
+        const decisionFallback = await buildFinalResponse({
+          citySlug: city.slug,
+          cityName: city.name,
+          country: city.country,
+          userProfile: {
+            destination: `${city.name}, ${city.country}`,
+            duration_days: null,
+            main_activity: stayFit.narrativeInputs.purpose as
+              | "surf"
+              | "dive"
+              | "hike"
+              | "yoga"
+              | "kite"
+              | "work_first"
+              | "exploring",
+            work_mode: stayFit.narrativeInputs.workStyle as "light" | "balanced" | "heavy",
+            daily_balance: (stayFit.narrativeInputs.dailyBalance ?? "balanced") as
+              | "purpose_first"
+              | "balanced"
+              | "work_first",
+            routine_needs: [],
+            budget_level: null,
+            preferred_vibe: null,
+            transport_assumption: "unknown",
+            hard_constraints: [],
+          },
+        });
+        microAreaNarratives = decisionFallback.ranking.map((rankEntry) => {
+          const zone = decisionFallback.candidate_micro_areas.find(
+            (m) => m.name === rankEntry.micro_area,
+          );
+          return {
+            microAreaId: rankEntry.micro_area.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+            name: rankEntry.micro_area,
+            rank: rankEntry.rank,
+            score: rankEntry.final_score,
+            hasConstraintBreakers: rankEntry.has_constraint_breakers ?? false,
+            center: zone?.center,
+            radius_km: zone?.radius_km,
+            readiness: undefined,
+            narrativeText: {
+              whyItFits: zone?.summary ?? "",
+              dailyRhythm: "",
+              walkingOptions: "",
+              planAround: zone?.weaknesses?.join(". ") ?? "",
+              logistics: "",
+            },
+          };
+        });
+        console.log(
+          `[stay-fit] map-zones-fallback city=${city.slug} microAreas=${microAreaNarratives.length}`,
+        );
+      } catch (err) {
+        console.warn(`[stay-fit] map-zones-fallback-failed city=${city.slug}`, err);
+      }
     }
   }
 

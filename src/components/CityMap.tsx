@@ -373,6 +373,7 @@ export function CityMap({
   const [hoveredConnectivity, setHoveredConnectivity] = useState<ConnectivityCellData | null>(null);
   const [selectedConnectivity, setSelectedConnectivity] = useState<ConnectivityCellData | null>(null);
   const [connectivityGeojson, setConnectivityGeojson] = useState<GeoJSON.FeatureCollection<GeoJSON.Polygon> | null>(null);
+  const [zoneConnectivity, setZoneConnectivity] = useState<Record<string, ConnectivityCellData>>({});
   const [starlinkLabelText, setStarlinkLabelText] = useState<string | null>(null);
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   const freeSet = new Set(freePlaceIds);
@@ -439,7 +440,7 @@ export function CityMap({
   }, [activeZone, hasZones, microAreas, mapFocusCenter.lat, mapFocusCenter.lon]);
 
   useEffect(() => {
-    if (!showConnectivity) return;
+    if (!showConnectivity || hasZones) return;
     let cancelled = false;
     const bbox = [
       connectivityBounds.minLon,
@@ -466,7 +467,60 @@ export function CityMap({
     return () => {
       cancelled = true;
     };
-  }, [citySlug, showConnectivity, connectivityBounds]);
+  }, [citySlug, showConnectivity, connectivityBounds, hasZones]);
+
+  useEffect(() => {
+    if (!showConnectivity || !hasZones || !microAreas?.length) return;
+    let cancelled = false;
+    Promise.all(
+      microAreas.map(async (zone) => {
+        const res = await fetch(
+          `/api/connectivity/summary?citySlug=${encodeURIComponent(citySlug)}&lat=${encodeURIComponent(String(zone.center.lat))}&lng=${encodeURIComponent(String(zone.center.lon))}`,
+        );
+        const json = await res.json();
+        const summary = json?.summary;
+        if (!summary || typeof summary.score !== "number" || typeof summary.bucket !== "string") {
+          return null;
+        }
+        const bucket = summary.bucket as ConnectivityBucket;
+        if (!CONNECTIVITY_BUCKET_META[bucket]) return null;
+        const confidenceRaw = String(summary.confidence ?? "low");
+        const confidence: ConfidenceBucket =
+          confidenceRaw === "high" || confidenceRaw === "medium" || confidenceRaw === "low"
+            ? confidenceRaw
+            : "low";
+        const data: ConnectivityCellData = {
+          id: zone.id,
+          score: Number(summary.score),
+          bucket,
+          median_download_mbps: typeof summary.median_download_mbps === "number" ? summary.median_download_mbps : null,
+          median_upload_mbps: typeof summary.median_upload_mbps === "number" ? summary.median_upload_mbps : null,
+          median_latency_ms: typeof summary.median_latency_ms === "number" ? summary.median_latency_ms : null,
+          confidence,
+          freshness_days: typeof summary.freshness_days === "number" ? summary.freshness_days : null,
+          summary_short: String(summary.summary_short ?? recommendationForBucket(bucket)),
+          source_name: typeof json?.source?.name === "string" ? json.source.name : null,
+        };
+        return [zone.id, data] as const;
+      }),
+    )
+      .then((rows) => {
+        if (cancelled) return;
+        const next: Record<string, ConnectivityCellData> = {};
+        for (const row of rows) {
+          if (!row) continue;
+          next[row[0]] = row[1];
+        }
+        setZoneConnectivity(next);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setZoneConnectivity({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showConnectivity, hasZones, microAreas, citySlug]);
 
   useEffect(() => {
     if (!showStarlink) return;
@@ -667,6 +721,15 @@ export function CityMap({
         if (hasZones) {
           microAreas!.forEach((zone, idx) => {
             const style = getZoneStyle(zone);
+            const zoneInternet = showConnectivity ? zoneConnectivity[zone.id] : undefined;
+            const zoneFillColor = zoneInternet
+              ? CONNECTIVITY_BUCKET_META[zoneInternet.bucket].fill
+              : style.fill;
+            const zoneLineColor = zoneInternet
+              ? CONNECTIVITY_BUCKET_META[zoneInternet.bucket].line
+              : style.border;
+            const zoneFillOpacity = zoneInternet ? 0.16 : style.fillOpacity;
+            const zoneLineOpacity = zoneInternet ? 0.5 : style.borderOpacity;
             const sourceId = `zone-${zone.id}`;
             const fillId = `zone-fill-${zone.id}`;
             const lineId = `zone-line-${zone.id}`;
@@ -674,10 +737,10 @@ export function CityMap({
 
             map.addSource(sourceId, { type: "geojson", data: geojson });
             map.addLayer({ id: fillId, type: "fill", source: sourceId,
-              paint: { "fill-color": style.fill, "fill-opacity": style.fillOpacity } });
+              paint: { "fill-color": zoneFillColor, "fill-opacity": zoneFillOpacity } });
             map.addLayer({ id: lineId, type: "line", source: sourceId,
               paint: {
-                "line-color": style.border, "line-opacity": style.borderOpacity,
+                "line-color": zoneLineColor, "line-opacity": zoneLineOpacity,
                 "line-width": zone.rank === 1 && !zone.hasConstraintBreakers ? 2.5 : 1.5,
                 "line-dasharray": zone.hasConstraintBreakers ? [3, 2] : [1],
               }
@@ -686,10 +749,21 @@ export function CityMap({
             // Click on zone fill → drill into zone
             if (!zone.hasConstraintBreakers) {
               map.on("click", fillId, () => {
+                if (showConnectivity && zoneInternet) {
+                  setSelectedConnectivity(zoneInternet);
+                }
                 onZoneClickRef.current?.(zone);
               });
+              map.on("mousemove", fillId, () => {
+                if (showConnectivity && zoneInternet) {
+                  setHoveredConnectivity(zoneInternet);
+                }
+              });
               map.on("mouseenter", fillId, () => { map.getCanvas().style.cursor = "pointer"; });
-              map.on("mouseleave", fillId, () => { map.getCanvas().style.cursor = ""; });
+              map.on("mouseleave", fillId, () => {
+                map.getCanvas().style.cursor = "";
+                if (showConnectivity) setHoveredConnectivity(null);
+              });
             }
 
             // Badge marker (interactive — also triggers drill-in)
@@ -732,7 +806,7 @@ export function CityMap({
         }
 
         // ── Connectivity layer (v1 scaffold) ────────────────────────────────
-        if (showConnectivity) {
+        if (showConnectivity && !hasZones) {
           const connectivityLayerData =
             connectivityGeojson ??
             buildConnectivityMockCells(connectivityBounds);
@@ -944,6 +1018,8 @@ export function CityMap({
     isUnlocked,
     microAreas,
     showConnectivity,
+    hasZones,
+    zoneConnectivity,
     mapFocusCenter,
     connectivityBounds,
     connectivityGeojson,
