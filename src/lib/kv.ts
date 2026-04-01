@@ -489,13 +489,18 @@ export async function getStayFitNarrative(
   workStyle: string,
   dailyBalance?: string
 ): Promise<CachedStayFitNarrative | null> {
+  const key = STAY_FIT_KEY(citySlug, purpose, workStyle, dailyBalance);
   if (redis) {
     try {
-      const data = await redis.get(STAY_FIT_KEY(citySlug, purpose, workStyle, dailyBalance));
+      const data = await redis.get(key);
       if (data) {
-        return typeof data === "string"
+        const parsed = typeof data === "string"
           ? JSON.parse(data)
           : (data as CachedStayFitNarrative);
+        console.log(
+          `[kv] stay-fit redis hit key=${key} microAreas=${parsed.microAreaNarratives?.length ?? 0}`,
+        );
+        return parsed;
       }
     } catch {
       // Continue to DB fallback below.
@@ -509,9 +514,12 @@ export async function getStayFitNarrative(
     dailyBalance,
   );
   if (dbCached && redis) {
+    console.log(
+      `[kv] stay-fit db hit key=${key} microAreas=${dbCached.microAreaNarratives?.length ?? 0}`,
+    );
     try {
       await redis.set(
-        STAY_FIT_KEY(citySlug, purpose, workStyle, dailyBalance),
+        key,
         JSON.stringify(dbCached),
         { ex: STAY_FIT_TTL_SECONDS },
       );
@@ -526,15 +534,15 @@ export async function saveStayFitNarrative(
   narrative: CachedStayFitNarrative
 ): Promise<boolean> {
   let saved = false;
+  const key = STAY_FIT_KEY(
+    narrative.citySlug,
+    narrative.purpose,
+    narrative.workStyle,
+    narrative.dailyBalance
+  );
 
   if (redis) {
     try {
-      const key = STAY_FIT_KEY(
-        narrative.citySlug,
-        narrative.purpose,
-        narrative.workStyle,
-        narrative.dailyBalance
-      );
       await redis.set(key, JSON.stringify(narrative), {
         ex: STAY_FIT_TTL_SECONDS,
       });
@@ -545,6 +553,9 @@ export async function saveStayFitNarrative(
   }
 
   const dbSaved = await saveStayFitNarrativeToDb(narrative);
+  console.log(
+    `[kv] stay-fit save key=${key} redisSaved=${saved} dbSaved=${dbSaved} microAreas=${narrative.microAreaNarratives?.length ?? 0}`,
+  );
   return saved || dbSaved;
 }
 

@@ -1080,6 +1080,9 @@ export async function getOrGenerateEnrichedNarrative(
   const { purpose, workStyle, dailyBalance } = stayFit.narrativeInputs;
   const balance = dailyBalance ?? "balanced";
   const setupCacheKey = buildSetupCacheKey(citySlug, purpose, workStyle, balance);
+  console.log(
+    `[microAreas] start city=${citySlug} key=${setupCacheKey} forceRefresh=${forceRefresh}`,
+  );
 
   // Fast local fallback cache, especially useful when Redis is not configured.
   if (!forceRefresh) {
@@ -1106,6 +1109,9 @@ export async function getOrGenerateEnrichedNarrative(
     };
     const cachedMicroAreas = cached.microAreaNarratives as MicroAreaNarrative[] | undefined;
     if (cachedMicroAreas && cachedMicroAreas.length > 0) {
+      console.log(
+        `[microAreas] cache-hit city=${citySlug} count=${cachedMicroAreas.length}`,
+      );
       const result = {
         narrative: cachedNarrative,
         microAreaNarratives: cachedMicroAreas,
@@ -1116,6 +1122,9 @@ export async function getOrGenerateEnrichedNarrative(
 
     // Backfill behavior for old cache entries: recover zone stack from decision output
     // without regenerating the main narrative.
+    console.warn(
+      `[microAreas] cache-hit-missing city=${citySlug} key=${setupCacheKey} — attempting backfill`,
+    );
     try {
       const decisionOutput = await buildFinalResponse({
         citySlug,
@@ -1136,7 +1145,7 @@ export async function getOrGenerateEnrichedNarrative(
       });
       const recoveredMicroAreas = fallbackMicroAreaNarrativesFromDecision(decisionOutput);
       try {
-        await saveStayFitNarrative({
+        const saved = await saveStayFitNarrative({
           citySlug,
           purpose,
           workStyle,
@@ -1150,6 +1159,15 @@ export async function getOrGenerateEnrichedNarrative(
           enriched: true,
           microAreaNarratives: toCachedMicroAreaNarratives(recoveredMicroAreas),
         });
+        if (!saved) {
+          console.warn(
+            `[microAreas] backfill-save-failed city=${citySlug} count=${recoveredMicroAreas.length}`,
+          );
+        } else {
+          console.log(
+            `[microAreas] backfill-save-ok city=${citySlug} count=${recoveredMicroAreas.length}`,
+          );
+        }
       } catch (err) {
         console.warn("[enrichmentAgent] KV save failed while backfilling micro-area narratives:", err);
       }
@@ -1232,7 +1250,7 @@ export async function getOrGenerateEnrichedNarrative(
     }
     const fallbackNarrative = fallbackNarrativeFromDecision(decisionOutput);
     try {
-      await saveStayFitNarrative({
+      const saved = await saveStayFitNarrative({
         citySlug,
         purpose,
         workStyle,
@@ -1246,6 +1264,15 @@ export async function getOrGenerateEnrichedNarrative(
         enriched: true,
         microAreaNarratives: toCachedMicroAreaNarratives(fallbackAreas),
       });
+      if (!saved) {
+        console.warn(
+          `[microAreas] fallback-save-failed city=${citySlug} count=${fallbackAreas?.length ?? 0}`,
+        );
+      } else {
+        console.log(
+          `[microAreas] fallback-save-ok city=${citySlug} count=${fallbackAreas?.length ?? 0}`,
+        );
+      }
     } catch (err) {
       console.warn("[enrichmentAgent] KV save failed for fallback narrative:", err);
     }
@@ -1274,11 +1301,14 @@ export async function getOrGenerateEnrichedNarrative(
       microAreaNarratives = fallbackMicroAreaNarrativesFromDecision(decisionOutput);
     }
     console.log(`[enrichmentAgent] generated ${microAreaNarratives?.length ?? 0} micro-area narratives`);
+    if (!microAreaNarratives || microAreaNarratives.length === 0) {
+      console.warn(`[microAreas] generation-empty city=${citySlug} after decision output`);
+    }
   }
 
   // 6. Store narrative in KV
   try {
-    await saveStayFitNarrative({
+    const saved = await saveStayFitNarrative({
       citySlug,
       purpose,
       workStyle,
@@ -1292,11 +1322,25 @@ export async function getOrGenerateEnrichedNarrative(
       enriched:       true,
       microAreaNarratives: toCachedMicroAreaNarratives(microAreaNarratives),
     });
+    if (!saved) {
+      console.warn(
+        `[microAreas] final-save-failed city=${citySlug} count=${microAreaNarratives?.length ?? 0}`,
+      );
+    } else {
+      console.log(
+        `[microAreas] final-save-ok city=${citySlug} count=${microAreaNarratives?.length ?? 0}`,
+      );
+    }
   } catch (err) {
     console.warn("[enrichmentAgent] KV save failed for enriched narrative:", err);
   }
 
   const result = { narrative, microAreaNarratives };
+  if (!microAreaNarratives || microAreaNarratives.length === 0) {
+    console.warn(
+      `[microAreas] returning-empty city=${citySlug} key=${setupCacheKey} (narrative exists)`,
+    );
+  }
   writeLocalSetupCache(setupCacheKey, result);
   return result;
 }

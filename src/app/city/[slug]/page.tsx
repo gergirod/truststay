@@ -1130,6 +1130,14 @@ async function CityContent({
       if (enrichedResult) {
         stayFitNarrative = enrichedResult.narrative;
         microAreaNarratives = enrichedResult.microAreaNarratives;
+        console.log(
+          `[stay-fit] enriched-result city=${city.slug} microAreas=${microAreaNarratives?.length ?? 0}`,
+        );
+      }
+      if (!microAreaNarratives?.length) {
+        console.warn(
+          `[stay-fit] still-missing-micro-areas city=${city.slug} after forced regeneration`,
+        );
       }
     } else {
       // Locked users get the light narrative path only; full enriched stack is

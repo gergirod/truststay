@@ -127,8 +127,9 @@ export function computeConnectivityCells(
 
     const centroidLat = rows.reduce((sum, r) => sum + r.lat, 0) / rows.length;
     const centroidLon = rows.reduce((sum, r) => sum + r.lon, 0) / rows.length;
-    const latHalf = 0.005;
-    const lonHalf = 0.005 / Math.max(0.35, Math.cos((centroidLat * Math.PI) / 180));
+    // Smaller cell footprint reduces coastline spill and visual blockiness.
+    const latHalf = 0.003;
+    const lonHalf = 0.003 / Math.max(0.35, Math.cos((centroidLat * Math.PI) / 180));
 
     const downloadScore = medianDownload == null ? 0 : clamp((medianDownload / 120) * 100, 0, 100);
     const uploadScore = medianUpload == null ? 0 : clamp((medianUpload / 35) * 100, 0, 100);

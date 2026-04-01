@@ -23,6 +23,9 @@ function haversineKm(aLat: number, aLon: number, bLat: number, bLon: number): nu
   return R * 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
 }
 
+const INTERNET_CELL_ANCHOR_MAX_KM = 1.6;
+const INTERNET_CELL_AREA_RADIUS_FACTOR = 1.05;
+
 export async function GET(req: NextRequest) {
   const citySlug = req.nextUrl.searchParams.get("citySlug")?.trim();
   const force = req.nextUrl.searchParams.get("force") === "1";
@@ -47,12 +50,14 @@ export async function GET(req: NextRequest) {
       areas.length === 0 ||
       areas.some((a) =>
         haversineKm(row.centroidLat, row.centroidLon, a.centerLat, a.centerLon) <=
-        Math.max(0.4, a.radiusKm * 1.15),
+        Math.max(0.35, a.radiusKm * INTERNET_CELL_AREA_RADIUS_FACTOR),
       );
     if (!insideArea) return false;
     if (placeAnchors.length === 0) return true;
     return placeAnchors.some(
-      (p) => haversineKm(row.centroidLat, row.centroidLon, p.lat, p.lon) <= 2.8,
+      (p) =>
+        haversineKm(row.centroidLat, row.centroidLon, p.lat, p.lon) <=
+        INTERNET_CELL_ANCHOR_MAX_KM,
     );
   });
 

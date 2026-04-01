@@ -137,6 +137,9 @@ function distanceSq(aLat: number, aLon: number, bLat: number, bLon: number): num
   return (aLat - bLat) ** 2 + (aLon - bLon) ** 2;
 }
 
+const INTERNET_CELL_ANCHOR_MAX_KM = 1.6;
+const INTERNET_CELL_AREA_RADIUS_FACTOR = 1.05;
+
 function haversineKm(aLat: number, aLon: number, bLat: number, bLon: number): number {
   const R = 6371;
   const dLat = ((bLat - aLat) * Math.PI) / 180;
@@ -156,7 +159,7 @@ function isInsideAnyMicroArea(
 ): boolean {
   if (areas.length === 0) return true;
   return areas.some((a) =>
-    haversineKm(lat, lon, a.centerLat, a.centerLon) <= Math.max(0.4, a.radiusKm * 1.15),
+    haversineKm(lat, lon, a.centerLat, a.centerLon) <= Math.max(0.35, a.radiusKm * INTERNET_CELL_AREA_RADIUS_FACTOR),
   );
 }
 
@@ -239,7 +242,12 @@ export async function ensureConnectivityPrecomputedForCitySlug(
   );
   const computed = computedRaw.filter((cell) =>
     isInsideAnyMicroArea(cell.centroid.lat, cell.centroid.lon, areas) &&
-    isNearAnyPlaceAnchor(cell.centroid.lat, cell.centroid.lon, placeAnchors, 2.8),
+    isNearAnyPlaceAnchor(
+      cell.centroid.lat,
+      cell.centroid.lon,
+      placeAnchors,
+      INTERNET_CELL_ANCHOR_MAX_KM,
+    ),
   );
 
   const savedCells = [];
