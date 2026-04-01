@@ -47,13 +47,11 @@ const ZONE_STYLES = {
   winner:   { fill: "#16a34a", border: "#16a34a", fillOpacity: 0.12, borderOpacity: 0.75 },
   runnerUp: { fill: "#d97706", border: "#d97706", fillOpacity: 0.09, borderOpacity: 0.65 },
   third:    { fill: "#6b7280", border: "#6b7280", fillOpacity: 0.07, borderOpacity: 0.50 },
-  broken:   { fill: "#9ca3af", border: "#9ca3af", fillOpacity: 0.04, borderOpacity: 0.30 },
   unscored: { fill: "#6366f1", border: "#6366f1", fillOpacity: 0.09, borderOpacity: 0.55 },
 } as const;
 
 function getZoneStyle(zone: MicroAreaZone) {
   if (zone.rank === undefined) return ZONE_STYLES.unscored;
-  if (zone.hasConstraintBreakers) return ZONE_STYLES.broken;
   if (zone.rank === 1) return ZONE_STYLES.winner;
   if (zone.rank === 2) return ZONE_STYLES.runnerUp;
   return ZONE_STYLES.third;
@@ -144,7 +142,8 @@ function createZoneBadge(zone: MicroAreaZone, interactive = false): HTMLElement 
     pill.appendChild(nameSpan);
     pill.appendChild(scoreSpan);
   } else if (isBroken) {
-    pill.innerHTML = `<span style="font-size:10px">🚫</span> ${zone.name}`;
+    // Keep warning semantics in copy/labels, but avoid alarmist iconography.
+    pill.textContent = zone.name;
   } else {
     pill.textContent = zone.name;
   }
@@ -319,10 +318,9 @@ export function CityMap({
   const freeSet = new Set(freePlaceIds);
   const hasZones = microAreas && microAreas.length > 0;
   const hasScores = hasZones && microAreas.some((z) => z.score !== undefined);
-  const interactiveZones = hasZones
-    ? microAreas.filter((z) => !z.hasConstraintBreakers)
-    : [];
+  const interactiveZones = hasZones ? microAreas : [];
   const canDrillIntoZones = interactiveZones.length > 0;
+  const hasZoneComparisonUi = hasZones;
   // Avoid an "empty-looking" map in zone mode by entering the top viable area on first load.
   const shouldAutoDrillOnLoad =
     canDrillIntoZones && !showConnectivity && places.length > 0;
@@ -751,7 +749,7 @@ export function CityMap({
         markersRef.current = { place: [], dl: [], badge: [], detailBadge: null };
 
         // ── Layer 1: Zone circles ────────────────────────────────────────────
-        if (hasZones) {
+        if (hasZoneComparisonUi) {
           microAreas!.forEach((zone, idx) => {
             const style = getZoneStyle(zone);
             const zoneInternet = showConnectivity ? zoneConnectivity[zone.id] : undefined;
@@ -770,40 +768,36 @@ export function CityMap({
             map.addLayer({ id: lineId, type: "line", source: sourceId,
               paint: {
                 "line-color": zoneLineColor, "line-opacity": zoneLineOpacity,
-                "line-width": zone.rank === 1 && !zone.hasConstraintBreakers ? 2.5 : 1.5,
-                "line-dasharray": zone.hasConstraintBreakers ? [3, 2] : [1],
+                "line-width": zone.rank === 1 ? 2.5 : 1.5,
+                "line-dasharray": [1],
               }
             });
 
             // Click on zone fill → drill into zone
-            if (!zone.hasConstraintBreakers) {
-              map.on("click", fillId, () => {
-                if (showConnectivity && zoneInternet) {
-                  setSelectedConnectivity(zoneInternet);
-                  setMobileConnectivitySheetExpanded(false);
-                }
-                onZoneClickRef.current?.(zone);
-              });
-              map.on("mousemove", fillId, () => {
-                if (showConnectivity && zoneInternet) {
-                  setHoveredConnectivity(zoneInternet);
-                }
-              });
-              map.on("mouseenter", fillId, () => { map.getCanvas().style.cursor = "pointer"; });
-              map.on("mouseleave", fillId, () => {
-                map.getCanvas().style.cursor = "";
-                if (showConnectivity) setHoveredConnectivity(null);
-              });
-            }
+            map.on("click", fillId, () => {
+              if (showConnectivity && zoneInternet) {
+                setSelectedConnectivity(zoneInternet);
+                setMobileConnectivitySheetExpanded(false);
+              }
+              onZoneClickRef.current?.(zone);
+            });
+            map.on("mousemove", fillId, () => {
+              if (showConnectivity && zoneInternet) {
+                setHoveredConnectivity(zoneInternet);
+              }
+            });
+            map.on("mouseenter", fillId, () => { map.getCanvas().style.cursor = "pointer"; });
+            map.on("mouseleave", fillId, () => {
+              map.getCanvas().style.cursor = "";
+              if (showConnectivity) setHoveredConnectivity(null);
+            });
 
             // Badge marker (interactive — also triggers drill-in)
-            const badgeEl = createZoneBadge(zone, !zone.hasConstraintBreakers);
-            if (!zone.hasConstraintBreakers) {
-              badgeEl.addEventListener("click", (e) => {
-                e.stopPropagation();
-                onZoneClickRef.current?.(zone);
-              });
-            }
+            const badgeEl = createZoneBadge(zone, true);
+            badgeEl.addEventListener("click", (e) => {
+              e.stopPropagation();
+              onZoneClickRef.current?.(zone);
+            });
             const badgeMarker = new mapboxgl.Marker({ element: badgeEl, anchor: "center" })
               .setLngLat([zone.center.lon, zone.center.lat])
               .addTo(map);
@@ -817,14 +811,14 @@ export function CityMap({
             coreBounds.extend([zone.center.lon + lonR, zone.center.lat + latR]);
             coreCount++;
 
-            if (idx > 0 && !zone.hasConstraintBreakers) {
+            if (idx > 0) {
               try { map.moveLayer(fillId); map.moveLayer(lineId); } catch { /* ignore */ }
             }
           });
         }
 
-        // ── Base area marker (no zones) ─────────────────────────────────────
-        if (!hasZones && baseLat !== undefined && baseLon !== undefined) {
+        // ── Base area marker (no zone comparison UI) ────────────────────────
+        if (!hasZoneComparisonUi && baseLat !== undefined && baseLon !== undefined) {
           const el = createBaseMarker();
           const areaLabel = baseAreaName ?? cityName;
           const markerLabel = intent ? `Your base for ${intentLabel(intent)} — ${areaLabel}` : `Suggested base — ${areaLabel}`;
@@ -982,7 +976,7 @@ export function CityMap({
             el.addEventListener("click", () => {
               document.getElementById(`place-${place.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
             });
-            if (!hasZones) { coreBounds.extend([place.lon, place.lat]); coreCount++; }
+            if (!hasZoneComparisonUi) { coreBounds.extend([place.lon, place.lat]); coreCount++; }
           }
 
           markersRef.current.place.push(marker);
@@ -1048,6 +1042,7 @@ export function CityMap({
     microAreas,
     showConnectivity,
     hasZones,
+    hasZoneComparisonUi,
     zoneConnectivity,
     mapFocusCenter,
     connectivityBounds,
@@ -1068,7 +1063,7 @@ export function CityMap({
         <p className="text-sm font-semibold text-bark">
           {activeZone
             ? `Inside ${activeZone.name}`
-            : hasZones ? "Area comparison" : intent ? "Your base map" : "Routine map"}
+            : hasZoneComparisonUi ? "Area comparison" : intent ? "Your base map" : "Routine map"}
         </p>
         <div className="flex items-center gap-2">
           <button
@@ -1089,11 +1084,6 @@ export function CityMap({
           >
             {showConnectivity ? "Internet on" : "Internet"}
           </button>
-          {!activeZone && hasScores && (
-            <span className="hidden rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 sm:inline-flex">
-              {microAreas!.filter((z) => !z.hasConstraintBreakers).length} viable
-            </span>
-          )}
           {placeCount > 0 && (
             <span className="hidden rounded-full border border-dune bg-white px-2.5 py-0.5 text-xs text-umber sm:inline-flex">
               {placeCount} place{placeCount !== 1 ? "s" : ""}
@@ -1103,7 +1093,7 @@ export function CityMap({
         </div>
       </div>
 
-      {sortedMicroAreas.length > 0 && (
+      {hasZoneComparisonUi && sortedMicroAreas.length > 0 && (
         <div className="mb-2 flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 pr-2 [scrollbar-width:none] [-ms-overflow-style:none]">
           {sortedMicroAreas.map((zone) => {
             const zoneInternet = zoneConnectivity[zone.id];
@@ -1189,13 +1179,6 @@ export function CityMap({
             </p>
           </div>
         )}
-        {!activeZone && hasZones && !canDrillIntoZones && places.length > 0 && (
-          <div className="absolute top-3 left-3 rounded-lg bg-white/90 backdrop-blur-sm border border-dune px-2.5 py-1.5">
-            <p className="text-[10px] text-umber">
-              No viable zones yet - showing all places in this area.
-            </p>
-          </div>
-        )}
 
         {/* Connectivity hover chip */}
         {showConnectivity && hoveredConnectivity && (
@@ -1228,13 +1211,13 @@ export function CityMap({
         {/* ── Zone overview legend (Layer 1) ──────────────────────────────── */}
         {!activeZone && (
           <div className="absolute bottom-3 left-3 hidden max-w-[calc(100%-24px)] flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-dune bg-white/90 px-3 py-2 backdrop-blur-sm sm:flex">
-            {hasZones ? (
+            {hasZoneComparisonUi ? (
               <>
                 {hasScores ? (
                   <>
                     <ZoneLegendDot color="#16a34a" label="Top pick" />
                     <ZoneLegendDot color="#d97706" label="Runner-up" />
-                    <ZoneLegendDot color="#9ca3af" label="Not viable" dashed />
+                    <ZoneLegendDot color="#6b7280" label="Other area" />
                   </>
                 ) : (
                   <>

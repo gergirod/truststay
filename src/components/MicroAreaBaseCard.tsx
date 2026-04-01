@@ -45,7 +45,7 @@ export function MicroAreaBaseCard({
   internetSummary = null,
 }: Props) {
   const { narrativeText, hasConstraintBreakers, score, rank } = microArea;
-  const isBroken = hasConstraintBreakers;
+  const hasTradeoffs = hasConstraintBreakers;
   const logisticsRef = useRef<HTMLDivElement | null>(null);
   const didTrackLogistics = useRef(false);
   // Smooth the displayed score so destination-chosen users see guidance,
@@ -57,13 +57,9 @@ export function MicroAreaBaseCard({
       : displayedScore >= 5.5
       ? "workable"
       : "needs_planning";
-  const recommendationBadge = isBroken
-    ? isWinner
-      ? "Top pick with tradeoffs"
-      : "Needs planning"
-    : isWinner
-    ? "Top pick"
-    : null;
+  const recommendationBadge = isWinner
+    ? (hasTradeoffs ? "Top pick with tradeoffs" : "Top pick")
+    : (hasTradeoffs ? "Tradeoffs to plan" : null);
 
   useEffect(() => {
     if (!narrativeText.logistics || !logisticsRef.current || didTrackLogistics.current) return;
@@ -91,15 +87,11 @@ export function MicroAreaBaseCard({
     <div
       id={`micro-area-card-${microArea.microAreaId}`}
       className={`overflow-hidden rounded-2xl border shadow-sm transition-all ${
-        isWinner
-          ? "border-bark bg-white"
-          : isBroken
-          ? "border-dune/60 bg-cream/60 opacity-80"
-          : "border-dune bg-white"
+        isWinner ? "border-bark bg-white" : "border-dune bg-white"
       }`}
     >
       {/* Top accent — winner is bark, others are dune */}
-      <div className={`h-[3px] ${isWinner ? "bg-bark" : isBroken ? "bg-dune/50" : "bg-dune"}`} />
+      <div className={`h-[3px] ${isWinner ? "bg-bark" : "bg-dune"}`} />
 
       <div className="p-6">
         {/* Header */}
@@ -111,8 +103,6 @@ export function MicroAreaBaseCard({
                 className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${
                   isWinner
                     ? "bg-bark text-white"
-                    : isBroken
-                    ? "bg-dune/60 text-umber"
                     : "bg-cream border border-dune text-umber"
                 }`}
               >
@@ -121,7 +111,7 @@ export function MicroAreaBaseCard({
               {recommendationBadge && (
                 <span
                   className={`text-[10px] font-semibold uppercase tracking-widest ${
-                    isBroken ? "text-amber-600" : "text-bark"
+                    hasTradeoffs ? "text-amber-600" : "text-bark"
                   }`}
                 >
                   {recommendationBadge}
@@ -129,7 +119,7 @@ export function MicroAreaBaseCard({
               )}
             </div>
 
-            <h3 className={`text-xl font-semibold tracking-tight ${isBroken ? "text-umber/70" : "text-bark"}`}>
+            <h3 className="text-xl font-semibold tracking-tight text-bark">
               {microArea.name}
             </h3>
             <p className="mt-0.5 text-xs text-umber">For {intent}</p>
@@ -196,23 +186,23 @@ export function MicroAreaBaseCard({
 
           {/* Why it fits */}
           {narrativeText.whyItFits && (
-            <p className={`text-sm leading-6 ${isBroken ? "text-umber/70" : "text-umber"}`}>
+            <p className="text-sm leading-6 text-umber">
               {narrativeText.whyItFits}
             </p>
           )}
 
-          {/* Constraint breaker warning */}
-          {isBroken && (
+          {/* Tradeoffs note */}
+          {hasTradeoffs && (
             <div className="flex items-start gap-2.5 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
               <span className="mt-px text-sm text-amber-500" aria-hidden="true">⚠</span>
               <p className="text-sm leading-5 text-amber-800">
-                {narrativeText.planAround || "This zone has constraints that break requirements for this profile."}
+                {narrativeText.planAround || "This area has tradeoffs worth planning for before arrival."}
               </p>
             </div>
           )}
 
-          {/* Daily rhythm — only for non-broken zones */}
-          {!isBroken && narrativeText.dailyRhythm && (
+          {/* Daily rhythm */}
+          {narrativeText.dailyRhythm && (
             <div>
               <p className="mb-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-umber">
                 Your typical day
@@ -222,7 +212,7 @@ export function MicroAreaBaseCard({
           )}
 
           {/* Walking options */}
-          {!isBroken && narrativeText.walkingOptions && (
+          {narrativeText.walkingOptions && (
             <div>
               <p className="mb-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-umber">
                 Walking from here
@@ -231,8 +221,8 @@ export function MicroAreaBaseCard({
             </div>
           )}
 
-          {/* Plan around — non-broken zones */}
-          {!isBroken && narrativeText.planAround && (
+          {/* Plan around */}
+          {narrativeText.planAround && (
             <div>
               <p className="mb-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-umber">
                 Plan around
