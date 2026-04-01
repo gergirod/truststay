@@ -77,6 +77,23 @@ function isWithinZone(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) <= radiusKm * 1.5; // 1.5x buffer
 }
 
+function haversineKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 // ── Circle polygon helper ─────────────────────────────────────────────────────
 
 function circlePolygon(
@@ -255,6 +272,13 @@ function confidenceLabel(confidence: ConfidenceBucket): string {
   return "Low";
 }
 
+function sourceLabelForUi(source: string | null): string {
+  if (!source) return "cargando";
+  if (source === "seeded_v1") return "estimacion interna";
+  if (source === "fallback_unknown") return "datos incompletos";
+  return source;
+}
+
 function intentLabel(intent: StayIntent): string {
   if (intent.purpose === "work_first") return "focused remote work";
   return `${PURPOSE_LABELS[intent.purpose] ?? intent.purpose} + ${WORK_LABELS[intent.workStyle] ?? intent.workStyle}`;
@@ -366,8 +390,8 @@ function buildDiamondConnectivityGeojson(
     const centerLat = sumLat / count;
     const lonSpan = Math.max(0.0011, maxLon - minLon);
     const latSpan = Math.max(0.0011, maxLat - minLat);
-    const lonHalf = lonSpan * 0.34;
-    const latHalf = latSpan * 0.34;
+    const lonHalf = lonSpan * 0.22;
+    const latHalf = latSpan * 0.22;
 
     features.push({
       type: "Feature",
@@ -389,6 +413,52 @@ function buildDiamondConnectivityGeojson(
     type: "FeatureCollection",
     features,
   };
+}
+
+function centroidFromPolygon(
+  feature: GeoJSON.Feature<GeoJSON.Polygon>,
+): { lat: number; lon: number } | null {
+  const ring = feature.geometry.coordinates?.[0];
+  if (!ring || ring.length === 0) return null;
+  let sumLon = 0;
+  let sumLat = 0;
+  for (const [lon, lat] of ring) {
+    sumLon += lon;
+    sumLat += lat;
+  }
+  return { lon: sumLon / ring.length, lat: sumLat / ring.length };
+}
+
+function filterConnectivityFeaturesForDisplay(
+  base: GeoJSON.FeatureCollection<GeoJSON.Polygon>,
+  anchors: Array<{ lat: number; lon: number }>,
+  activeZone: MicroAreaZone | null,
+): GeoJSON.FeatureCollection<GeoJSON.Polygon> {
+  const ANCHOR_MAX_KM = 1.2;
+  const ZONE_MAX_FACTOR = 1.08;
+
+  const features = base.features.filter((feature) => {
+    const center = centroidFromPolygon(feature);
+    if (!center) return false;
+
+    if (activeZone) {
+      const inZone = isWithinZone(
+        center.lat,
+        center.lon,
+        activeZone.center.lat,
+        activeZone.center.lon,
+        Math.max(0.35, activeZone.radius_km * ZONE_MAX_FACTOR),
+      );
+      if (!inZone) return false;
+    }
+
+    if (anchors.length === 0) return true;
+    return anchors.some(
+      (a) => haversineKm(center.lat, center.lon, a.lat, a.lon) <= ANCHOR_MAX_KM,
+    );
+  });
+
+  return { type: "FeatureCollection", features };
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -623,6 +693,25 @@ export function CityMap({
     setZoneConnectivityCoveredCount(0);
   }, [showConnectivity]);
 
+  const connectivitySourceLabel = useMemo(() => {
+    const zoneSources = Object.values(zoneConnectivity)
+      .map((z) => z.source_name)
+      .filter((s): s is string => Boolean(s));
+    if (zoneSources.length > 0) {
+      const unique = [...new Set(zoneSources)];
+      return unique.length === 1 ? unique[0] : `${unique.length} sources`;
+    }
+    const firstFeatureSource = connectivityGeojson?.features?.find(
+      (f) =>
+        f?.properties &&
+        typeof (f.properties as Record<string, unknown>).source_name === "string",
+    );
+    if (firstFeatureSource?.properties) {
+      return (firstFeatureSource.properties as Record<string, unknown>).source_name as string;
+    }
+    return null;
+  }, [zoneConnectivity, connectivityGeojson]);
+
   // ── Fly back to zone overview ───────────────────────────────────────────────
   const flyToOverview = useCallback(() => {
     const map = mapRef.current as (import("mapbox-gl").Map | null);
@@ -651,32 +740,20 @@ export function CityMap({
     if (microAreas && hasZones) {
       microAreas.forEach((zone) => {
         const style = getZoneStyle(zone);
-        const zoneInternet = showConnectivity ? zoneConnectivity[zone.id] : undefined;
         try {
           map.setPaintProperty(
             `zone-fill-${zone.id}`,
             "fill-opacity",
-            showConnectivity ? 0.3 : style.fillOpacity,
+            showConnectivity ? 0.08 : style.fillOpacity,
           );
           map.setPaintProperty(
             `zone-line-${zone.id}`,
             "line-opacity",
-            showConnectivity ? 0.78 : style.borderOpacity,
+            showConnectivity ? 0.38 : style.borderOpacity,
           );
-          if (showConnectivity && zoneInternet) {
-            map.setPaintProperty(
-              `zone-fill-${zone.id}`,
-              "fill-color",
-              CONNECTIVITY_BUCKET_META[zoneInternet.bucket].fill,
-            );
-            map.setPaintProperty(
-              `zone-line-${zone.id}`,
-              "line-color",
-              CONNECTIVITY_BUCKET_META[zoneInternet.bucket].line,
-            );
-          } else if (showConnectivity) {
-            map.setPaintProperty(`zone-fill-${zone.id}`, "fill-color", CONNECTIVITY_UNKNOWN_META.fill);
-            map.setPaintProperty(`zone-line-${zone.id}`, "line-color", CONNECTIVITY_UNKNOWN_META.line);
+          if (showConnectivity) {
+            map.setPaintProperty(`zone-fill-${zone.id}`, "fill-color", "#E8EFEE");
+            map.setPaintProperty(`zone-line-${zone.id}`, "line-color", "#7F9C97");
           } else {
             map.setPaintProperty(`zone-fill-${zone.id}`, "fill-color", style.fill);
             map.setPaintProperty(`zone-line-${zone.id}`, "line-color", style.border);
@@ -714,8 +791,8 @@ export function CityMap({
         const isSelected = z.id === zone.id;
         try {
           if (showConnectivity) {
-            map.setPaintProperty(`zone-fill-${z.id}`, "fill-opacity", isSelected ? 0.34 : 0.14);
-            map.setPaintProperty(`zone-line-${z.id}`, "line-opacity", isSelected ? 0.9 : 0.5);
+            map.setPaintProperty(`zone-fill-${z.id}`, "fill-opacity", isSelected ? 0.12 : 0.05);
+            map.setPaintProperty(`zone-line-${z.id}`, "line-opacity", isSelected ? 0.5 : 0.24);
           } else {
             map.setPaintProperty(`zone-fill-${z.id}`, "fill-opacity", isSelected ? 0.08 : 0.02);
             map.setPaintProperty(`zone-line-${z.id}`, "line-opacity", isSelected ? 0.6 : 0.15);
@@ -832,18 +909,10 @@ export function CityMap({
           microAreas!.forEach((zone, idx) => {
             const style = getZoneStyle(zone);
             const zoneInternet = showConnectivity ? zoneConnectivity[zone.id] : undefined;
-            const zoneFillColor = showConnectivity
-              ? (zoneInternet
-                  ? CONNECTIVITY_BUCKET_META[zoneInternet.bucket].fill
-                  : CONNECTIVITY_UNKNOWN_META.fill)
-              : style.fill;
-            const zoneLineColor = showConnectivity
-              ? (zoneInternet
-                  ? CONNECTIVITY_BUCKET_META[zoneInternet.bucket].line
-                  : CONNECTIVITY_UNKNOWN_META.line)
-              : style.border;
-            const zoneFillOpacity = showConnectivity ? 0.3 : style.fillOpacity;
-            const zoneLineOpacity = showConnectivity ? 0.78 : style.borderOpacity;
+            const zoneFillColor = showConnectivity ? "#E8EFEE" : style.fill;
+            const zoneLineColor = showConnectivity ? "#7F9C97" : style.border;
+            const zoneFillOpacity = showConnectivity ? 0.08 : style.fillOpacity;
+            const zoneLineOpacity = showConnectivity ? 0.38 : style.borderOpacity;
             const sourceId = `zone-${zone.id}`;
             const fillId = `zone-fill-${zone.id}`;
             const lineId = `zone-line-${zone.id}`;
@@ -924,7 +993,15 @@ export function CityMap({
           const baseConnectivityData =
             connectivityGeojson ??
             buildConnectivityMockCells(connectivityBounds);
-          const connectivityLayerData = buildDiamondConnectivityGeojson(baseConnectivityData);
+          const filteredConnectivityData = filterConnectivityFeaturesForDisplay(
+            baseConnectivityData,
+            [
+              ...places.map((p) => ({ lat: p.lat, lon: p.lon })),
+              ...dailyLifePlaces.map((p) => ({ lat: p.lat, lon: p.lon })),
+            ],
+            activeZone,
+          );
+          const connectivityLayerData = buildDiamondConnectivityGeojson(filteredConnectivityData);
 
           map.addSource(CONNECTIVITY_SOURCE_ID, {
             type: "geojson",
@@ -944,8 +1021,9 @@ export function CityMap({
                 "okay", CONNECTIVITY_BUCKET_META.okay.fill,
                 CONNECTIVITY_BUCKET_META.risky.fill,
               ],
-              "fill-opacity": 0.2,
+              "fill-opacity": 0.34,
             },
+            minzoom: 11.8,
           });
 
           map.addLayer({
@@ -961,9 +1039,10 @@ export function CityMap({
                 "okay", CONNECTIVITY_BUCKET_META.okay.line,
                 CONNECTIVITY_BUCKET_META.risky.line,
               ],
-              "line-width": 1.0,
-              "line-opacity": 0.62,
+              "line-width": 0.9,
+              "line-opacity": 0.75,
             },
+            minzoom: 11.8,
           });
 
           const parseFeature = (
@@ -1138,6 +1217,9 @@ export function CityMap({
     mapFocusCenter,
     connectivityBounds,
     connectivityGeojson,
+    activeZone,
+    dailyLifePlaces,
+    places,
   ]);
 
   if (!token) return null;
@@ -1319,7 +1401,9 @@ export function CityMap({
               <ConnectivityLegendDot bucket="risky" />
               <ConnectivityLegendUnknownDot />
             </div>
-            <p className="mt-1 text-[10px] text-umber">Cellular layer: coming soon</p>
+            <p className="mt-1 text-[10px] text-umber">
+              Data provista por {sourceLabelForUi(connectivitySourceLabel)} · Cellular layer: coming soon
+            </p>
           </div>
         )}
 
