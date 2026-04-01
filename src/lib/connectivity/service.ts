@@ -23,23 +23,79 @@ function allowSeededConnectivityData(): boolean {
   return process.env.NODE_ENV !== "production";
 }
 
+interface SeedCoverageBounds {
+  minLat: number;
+  maxLat: number;
+  minLon: number;
+  maxLon: number;
+  centerLat: number;
+  centerLon: number;
+}
+
+function deriveSeedCoverageBounds(params: {
+  centerLat: number;
+  centerLon: number;
+  microAreas: Array<{ centerLat: number; centerLon: number; radiusKm: number }>;
+}): SeedCoverageBounds {
+  const { centerLat, centerLon, microAreas } = params;
+  if (!microAreas.length) {
+    return {
+      minLat: centerLat - 0.02,
+      maxLat: centerLat + 0.02,
+      minLon: centerLon - 0.02,
+      maxLon: centerLon + 0.02,
+      centerLat,
+      centerLon,
+    };
+  }
+
+  let minLat = Number.POSITIVE_INFINITY;
+  let maxLat = Number.NEGATIVE_INFINITY;
+  let minLon = Number.POSITIVE_INFINITY;
+  let maxLon = Number.NEGATIVE_INFINITY;
+
+  for (const area of microAreas) {
+    const latR = area.radiusKm / 110.57;
+    const lonR = area.radiusKm / (111.32 * Math.max(0.35, Math.cos((area.centerLat * Math.PI) / 180)));
+    minLat = Math.min(minLat, area.centerLat - latR);
+    maxLat = Math.max(maxLat, area.centerLat + latR);
+    minLon = Math.min(minLon, area.centerLon - lonR);
+    maxLon = Math.max(maxLon, area.centerLon + lonR);
+  }
+
+  return {
+    minLat: minLat - 0.004,
+    maxLat: maxLat + 0.004,
+    minLon: minLon - 0.004,
+    maxLon: maxLon + 0.004,
+    centerLat: (minLat + maxLat) / 2,
+    centerLon: (minLon + maxLon) / 2,
+  };
+}
+
 function generateSeededObservations(params: {
   destinationId: string;
   destinationSlug: string;
-  centerLat: number;
-  centerLon: number;
+  bounds: SeedCoverageBounds;
 }): NormalizedConnectivityObservation[] {
-  const { destinationId, destinationSlug, centerLat, centerLon } = params;
+  const { destinationId, destinationSlug, bounds } = params;
   const seed = hashNumber(destinationSlug);
   const rows: NormalizedConnectivityObservation[] = [];
-  const latStep = 0.0095;
-  const lonStep = 0.0095 / Math.max(0.35, Math.cos((centerLat * Math.PI) / 180));
-
+  const latSpan = Math.max(0.015, bounds.maxLat - bounds.minLat);
+  const lonSpan = Math.max(0.015, bounds.maxLon - bounds.minLon);
+  const rowCount = Math.max(3, Math.min(8, Math.round(latSpan / 0.01)));
+  const colCount = Math.max(3, Math.min(8, Math.round(lonSpan / 0.01)));
+  const latStep = latSpan / rowCount;
+  const lonStep = lonSpan / colCount;
   let idx = 0;
-  for (const y of [-1, 0, 1]) {
-    for (const x of [-1, 0, 1]) {
+  for (let y = 0; y < rowCount; y += 1) {
+    for (let x = 0; x < colCount; x += 1) {
       const cellKey = `${destinationSlug}:c${idx}`;
-      const base = 72 - Math.abs(x) * 12 - Math.abs(y) * 8 + (seed % 7);
+      const cLat = bounds.minLat + latStep * (y + 0.5);
+      const cLon = bounds.minLon + lonStep * (x + 0.5);
+      const xDist = Math.abs(cLon - bounds.centerLon) / Math.max(lonSpan * 0.5, 0.0001);
+      const yDist = Math.abs(cLat - bounds.centerLat) / Math.max(latSpan * 0.5, 0.0001);
+      const base = 76 - xDist * 13 - yDist * 11 + (seed % 6);
       for (let s = 0; s < 8; s += 1) {
         const jitter = ((seed + idx * 17 + s * 13) % 9) - 4;
         const quality = Math.max(28, Math.min(94, base + jitter));
@@ -49,8 +105,8 @@ function generateSeededObservations(params: {
         rows.push({
           destinationId,
           cellKey,
-          lat: centerLat + y * latStep + (jitter * 0.00015),
-          lon: centerLon + x * lonStep + (jitter * 0.00013),
+          lat: cLat + (jitter * 0.00015),
+          lon: cLon + (jitter * 0.00013),
           downloadMbps: Math.max(6, Math.round(quality * 1.65)),
           uploadMbps: Math.max(2, Math.round(quality * 0.52)),
           latencyMs: Math.max(22, Math.round(136 - quality)),
@@ -86,6 +142,7 @@ export async function ensureConnectivityPrecomputedForCitySlug(
 ): Promise<{ ok: boolean; cellCount: number }> {
   const destination = await canonicalRepository.getDestinationBySlug(citySlug);
   if (!destination) return { ok: false, cellCount: 0 };
+  const areas = await canonicalRepository.listMicroAreasForDestination(destination.id);
 
   const existingCount = await connectivityRepository.countCellsForDestination(destination.id);
   if (existingCount > 0) return { ok: true, cellCount: existingCount };
@@ -97,11 +154,19 @@ export async function ensureConnectivityPrecomputedForCitySlug(
     }
     const centerLat = destination.anchorLat ?? 0;
     const centerLon = destination.anchorLon ?? 0;
+    const bounds = deriveSeedCoverageBounds({
+      centerLat,
+      centerLon,
+      microAreas: areas.map((a) => ({
+        centerLat: a.centerLat,
+        centerLon: a.centerLon,
+        radiusKm: a.radiusKm,
+      })),
+    });
     const seeded = generateSeededObservations({
       destinationId: destination.id,
       destinationSlug: destination.slug,
-      centerLat,
-      centerLon,
+      bounds,
     });
     for (const row of seeded) {
       await connectivityRepository.insertObservation({
@@ -182,7 +247,6 @@ export async function ensureConnectivityPrecomputedForCitySlug(
     });
   }
 
-  const areas = await canonicalRepository.listMicroAreasForDestination(destination.id);
   for (const area of areas) {
     const nearest = computed
       .slice()

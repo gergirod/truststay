@@ -211,10 +211,10 @@ const CONNECTIVITY_BUCKET_META: Record<
   ConnectivityBucket,
   { label: string; fill: string; line: string }
 > = {
-  excellent: { label: "Excellent", fill: "#22c55e", line: "#15803d" },
-  good: { label: "Good", fill: "#84cc16", line: "#4d7c0f" },
-  okay: { label: "Okay", fill: "#f59e0b", line: "#b45309" },
-  risky: { label: "Risky", fill: "#ef4444", line: "#b91c1c" },
+  excellent: { label: "Excellent", fill: "#0F766E", line: "#0A5A54" },
+  good: { label: "Good", fill: "#14B8A6", line: "#0F766E" },
+  okay: { label: "Okay", fill: "#D4956A", line: "#B6784F" },
+  risky: { label: "Risky", fill: "#F97360", line: "#D95A48" },
 };
 
 const CONNECTIVITY_SOURCE_ID = "connectivity-cells";
@@ -254,22 +254,36 @@ function intentLabel(intent: StayIntent): string {
   return `${PURPOSE_LABELS[intent.purpose] ?? intent.purpose} + ${WORK_LABELS[intent.workStyle] ?? intent.workStyle}`;
 }
 
+interface ConnectivityCoverageBounds {
+  minLat: number;
+  maxLat: number;
+  minLon: number;
+  maxLon: number;
+  centerLat: number;
+  centerLon: number;
+}
+
 function buildConnectivityMockCells(
-  centerLat: number,
-  centerLon: number,
+  bounds: ConnectivityCoverageBounds,
 ): GeoJSON.FeatureCollection<GeoJSON.Polygon> {
-  const latStep = 0.012;
-  const lonStep = 0.012 / Math.max(0.4, Math.cos((centerLat * Math.PI) / 180));
+  const latSpan = Math.max(0.012, bounds.maxLat - bounds.minLat);
+  const lonSpan = Math.max(0.012, bounds.maxLon - bounds.minLon);
+  const rowsCount = Math.max(3, Math.min(8, Math.round(latSpan / 0.01)));
+  const colsCount = Math.max(3, Math.min(8, Math.round(lonSpan / 0.01)));
+  const latStep = latSpan / rowsCount;
+  const lonStep = lonSpan / colsCount;
   const features: GeoJSON.Feature<GeoJSON.Polygon>[] = [];
   let idx = 0;
 
-  for (const y of [-1, 0, 1]) {
-    for (const x of [-1, 0, 1]) {
-      const cLat = centerLat + y * latStep;
-      const cLon = centerLon + x * lonStep;
+  for (let y = 0; y < rowsCount; y += 1) {
+    for (let x = 0; x < colsCount; x += 1) {
+      const cLat = bounds.minLat + latStep * (y + 0.5);
+      const cLon = bounds.minLon + lonStep * (x + 0.5);
       const halfLat = latStep * 0.45;
       const halfLon = lonStep * 0.45;
-      const scoreBase = 88 - Math.abs(x) * 11 - Math.abs(y) * 9 - (idx % 3) * 5;
+      const xDist = Math.abs(cLon - bounds.centerLon) / Math.max(lonSpan * 0.5, 0.0001);
+      const yDist = Math.abs(cLat - bounds.centerLat) / Math.max(latSpan * 0.5, 0.0001);
+      const scoreBase = 90 - xDist * 16 - yDist * 14 - (idx % 3) * 4;
       const score = Math.max(34, Math.min(96, scoreBase));
       const bucket = scoreToBucket(score);
       const confidence: ConfidenceBucket =
@@ -363,11 +377,63 @@ export function CityMap({
     () => estimatedStarlinkStatus(mapFocusCenter.lat),
     [mapFocusCenter.lat],
   );
+  const connectivityBounds = useMemo<ConnectivityCoverageBounds>(() => {
+    if (activeZone) {
+      const latR = activeZone.radius_km / 110.57;
+      const lonR = activeZone.radius_km / (111.32 * Math.max(0.35, Math.cos((activeZone.center.lat * Math.PI) / 180)));
+      return {
+        minLat: activeZone.center.lat - latR * 1.2,
+        maxLat: activeZone.center.lat + latR * 1.2,
+        minLon: activeZone.center.lon - lonR * 1.2,
+        maxLon: activeZone.center.lon + lonR * 1.2,
+        centerLat: activeZone.center.lat,
+        centerLon: activeZone.center.lon,
+      };
+    }
+    if (hasZones && microAreas && microAreas.length > 0) {
+      let minLat = Number.POSITIVE_INFINITY;
+      let maxLat = Number.NEGATIVE_INFINITY;
+      let minLon = Number.POSITIVE_INFINITY;
+      let maxLon = Number.NEGATIVE_INFINITY;
+      for (const zone of microAreas) {
+        const latR = zone.radius_km / 110.57;
+        const lonR = zone.radius_km / (111.32 * Math.max(0.35, Math.cos((zone.center.lat * Math.PI) / 180)));
+        minLat = Math.min(minLat, zone.center.lat - latR);
+        maxLat = Math.max(maxLat, zone.center.lat + latR);
+        minLon = Math.min(minLon, zone.center.lon - lonR);
+        maxLon = Math.max(maxLon, zone.center.lon + lonR);
+      }
+      return {
+        minLat: minLat - 0.004,
+        maxLat: maxLat + 0.004,
+        minLon: minLon - 0.004,
+        maxLon: maxLon + 0.004,
+        centerLat: (minLat + maxLat) / 2,
+        centerLon: (minLon + maxLon) / 2,
+      };
+    }
+    return {
+      minLat: mapFocusCenter.lat - 0.02,
+      maxLat: mapFocusCenter.lat + 0.02,
+      minLon: mapFocusCenter.lon - 0.02,
+      maxLon: mapFocusCenter.lon + 0.02,
+      centerLat: mapFocusCenter.lat,
+      centerLon: mapFocusCenter.lon,
+    };
+  }, [activeZone, hasZones, microAreas, mapFocusCenter.lat, mapFocusCenter.lon]);
 
   useEffect(() => {
     if (!showConnectivity) return;
     let cancelled = false;
-    fetch(`/api/connectivity/cells?citySlug=${encodeURIComponent(citySlug)}`)
+    const bbox = [
+      connectivityBounds.minLon,
+      connectivityBounds.minLat,
+      connectivityBounds.maxLon,
+      connectivityBounds.maxLat,
+    ].join(",");
+    fetch(
+      `/api/connectivity/cells?citySlug=${encodeURIComponent(citySlug)}&bbox=${encodeURIComponent(bbox)}`,
+    )
       .then((r) => r.json())
       .then((json) => {
         if (cancelled) return;
@@ -375,20 +441,16 @@ export function CityMap({
           setConnectivityGeojson(json as GeoJSON.FeatureCollection<GeoJSON.Polygon>);
           return;
         }
-        setConnectivityGeojson(
-          buildConnectivityMockCells(mapFocusCenter.lat, mapFocusCenter.lon),
-        );
+        setConnectivityGeojson(buildConnectivityMockCells(connectivityBounds));
       })
       .catch(() => {
         if (cancelled) return;
-        setConnectivityGeojson(
-          buildConnectivityMockCells(mapFocusCenter.lat, mapFocusCenter.lon),
-        );
+        setConnectivityGeojson(buildConnectivityMockCells(connectivityBounds));
       });
     return () => {
       cancelled = true;
     };
-  }, [citySlug, mapFocusCenter.lat, mapFocusCenter.lon, showConnectivity]);
+  }, [citySlug, showConnectivity, connectivityBounds]);
 
   useEffect(() => {
     if (!showStarlink) return;
@@ -657,7 +719,7 @@ export function CityMap({
         if (showConnectivity) {
           const connectivityLayerData =
             connectivityGeojson ??
-            buildConnectivityMockCells(mapFocusCenter.lat, mapFocusCenter.lon);
+            buildConnectivityMockCells(connectivityBounds);
 
           map.addSource(CONNECTIVITY_SOURCE_ID, {
             type: "geojson",
@@ -850,6 +912,7 @@ export function CityMap({
     microAreas,
     showConnectivity,
     mapFocusCenter,
+    connectivityBounds,
     connectivityGeojson,
   ]);
 
