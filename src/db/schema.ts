@@ -457,6 +457,33 @@ export const unlockRestoreTokens = pgTable(
   }),
 );
 
+export const stayFitNarrativeCache = pgTable(
+  "stay_fit_narrative_cache",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    citySlug: text("city_slug").notNull(),
+    purpose: text("purpose").notNull(),
+    workStyle: text("work_style").notNull(),
+    dailyBalance: text("daily_balance").notNull().default("balanced"),
+    payload: jsonb("payload").notNull(),
+    generatedAt: timestamp("generated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    cityIntentUnique: uniqueIndex("stay_fit_narrative_cache_city_intent_unique").on(
+      table.citySlug,
+      table.purpose,
+      table.workStyle,
+      table.dailyBalance,
+    ),
+    cityIdx: index("stay_fit_narrative_cache_city_idx").on(table.citySlug),
+  }),
+);
+
 export const destinationsRelations = relations(destinations, ({ many }) => ({
   microAreas: many(microAreas),
   places: many(places),
@@ -584,4 +611,6 @@ export type UnlockEntitlement = typeof unlockEntitlements.$inferSelect;
 export type NewUnlockEntitlement = typeof unlockEntitlements.$inferInsert;
 export type UnlockRestoreToken = typeof unlockRestoreTokens.$inferSelect;
 export type NewUnlockRestoreToken = typeof unlockRestoreTokens.$inferInsert;
+export type StayFitNarrativeCache = typeof stayFitNarrativeCache.$inferSelect;
+export type NewStayFitNarrativeCache = typeof stayFitNarrativeCache.$inferInsert;
 

@@ -1,4 +1,7 @@
 import { Redis } from "@upstash/redis";
+import { and, eq } from "drizzle-orm";
+import { getDb } from "@/db/client";
+import { stayFitNarrativeCache } from "@/db/schema";
 import type { Place, DailyLifePlace } from "@/types";
 import type { PlaceReview } from "@/lib/googlePlaces";
 
@@ -409,42 +412,140 @@ const STAY_FIT_KEY = (
 /** 30 days — place data + LLM output is stable; refresh when forced by admin */
 const STAY_FIT_TTL_SECONDS = 30 * 24 * 60 * 60;
 
+function normalizedBalance(dailyBalance?: string): string {
+  return dailyBalance ?? "balanced";
+}
+
+async function getStayFitNarrativeFromDb(
+  citySlug: string,
+  purpose: string,
+  workStyle: string,
+  dailyBalance?: string,
+): Promise<CachedStayFitNarrative | null> {
+  const db = getDb();
+  if (!db) return null;
+  try {
+    const rows = await db
+      .select({ payload: stayFitNarrativeCache.payload })
+      .from(stayFitNarrativeCache)
+      .where(
+        and(
+          eq(stayFitNarrativeCache.citySlug, citySlug),
+          eq(stayFitNarrativeCache.purpose, purpose),
+          eq(stayFitNarrativeCache.workStyle, workStyle),
+          eq(stayFitNarrativeCache.dailyBalance, normalizedBalance(dailyBalance)),
+        ),
+      )
+      .limit(1);
+    const payload = rows[0]?.payload;
+    if (!payload || typeof payload !== "object") return null;
+    return payload as CachedStayFitNarrative;
+  } catch (err) {
+    console.warn("[kv] DB read failed for stay-fit narrative cache:", err);
+    return null;
+  }
+}
+
+async function saveStayFitNarrativeToDb(
+  narrative: CachedStayFitNarrative,
+): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false;
+  try {
+    await db
+      .insert(stayFitNarrativeCache)
+      .values({
+        citySlug: narrative.citySlug,
+        purpose: narrative.purpose,
+        workStyle: narrative.workStyle,
+        dailyBalance: normalizedBalance(narrative.dailyBalance),
+        payload: narrative,
+        generatedAt: new Date(narrative.generatedAt),
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: [
+          stayFitNarrativeCache.citySlug,
+          stayFitNarrativeCache.purpose,
+          stayFitNarrativeCache.workStyle,
+          stayFitNarrativeCache.dailyBalance,
+        ],
+        set: {
+          payload: narrative,
+          generatedAt: new Date(narrative.generatedAt),
+          updatedAt: new Date(),
+        },
+      });
+    return true;
+  } catch (err) {
+    console.warn("[kv] DB write failed for stay-fit narrative cache:", err);
+    return false;
+  }
+}
+
 export async function getStayFitNarrative(
   citySlug: string,
   purpose: string,
   workStyle: string,
   dailyBalance?: string
 ): Promise<CachedStayFitNarrative | null> {
-  if (!redis) return null;
-  try {
-    const data = await redis.get(STAY_FIT_KEY(citySlug, purpose, workStyle, dailyBalance));
-    if (!data) return null;
-    return typeof data === "string"
-      ? JSON.parse(data)
-      : (data as CachedStayFitNarrative);
-  } catch {
-    return null;
+  if (redis) {
+    try {
+      const data = await redis.get(STAY_FIT_KEY(citySlug, purpose, workStyle, dailyBalance));
+      if (data) {
+        return typeof data === "string"
+          ? JSON.parse(data)
+          : (data as CachedStayFitNarrative);
+      }
+    } catch {
+      // Continue to DB fallback below.
+    }
   }
+
+  const dbCached = await getStayFitNarrativeFromDb(
+    citySlug,
+    purpose,
+    workStyle,
+    dailyBalance,
+  );
+  if (dbCached && redis) {
+    try {
+      await redis.set(
+        STAY_FIT_KEY(citySlug, purpose, workStyle, dailyBalance),
+        JSON.stringify(dbCached),
+        { ex: STAY_FIT_TTL_SECONDS },
+      );
+    } catch {
+      // Ignore Redis backfill failures.
+    }
+  }
+  return dbCached;
 }
 
 export async function saveStayFitNarrative(
   narrative: CachedStayFitNarrative
 ): Promise<boolean> {
-  if (!redis) return false;
-  try {
-    const key = STAY_FIT_KEY(
-      narrative.citySlug,
-      narrative.purpose,
-      narrative.workStyle,
-      narrative.dailyBalance
-    );
-    await redis.set(key, JSON.stringify(narrative), {
-      ex: STAY_FIT_TTL_SECONDS,
-    });
-    return true;
-  } catch {
-    return false;
+  let saved = false;
+
+  if (redis) {
+    try {
+      const key = STAY_FIT_KEY(
+        narrative.citySlug,
+        narrative.purpose,
+        narrative.workStyle,
+        narrative.dailyBalance
+      );
+      await redis.set(key, JSON.stringify(narrative), {
+        ex: STAY_FIT_TTL_SECONDS,
+      });
+      saved = true;
+    } catch {
+      // Continue to DB fallback below.
+    }
   }
+
+  const dbSaved = await saveStayFitNarrativeToDb(narrative);
+  return saved || dbSaved;
 }
 
 export async function deleteStayFitNarrative(
@@ -453,12 +554,30 @@ export async function deleteStayFitNarrative(
   workStyle: string,
   dailyBalance?: string
 ): Promise<boolean> {
-  if (!redis) return false;
+  let deleted = false;
+  if (redis) {
+    try {
+      await redis.del(STAY_FIT_KEY(citySlug, purpose, workStyle, dailyBalance));
+      deleted = true;
+    } catch {
+      // Continue to DB delete below.
+    }
+  }
+
+  const db = getDb();
+  if (!db) return deleted;
   try {
-    await redis.del(STAY_FIT_KEY(citySlug, purpose, workStyle, dailyBalance));
+    await db.delete(stayFitNarrativeCache).where(
+      and(
+        eq(stayFitNarrativeCache.citySlug, citySlug),
+        eq(stayFitNarrativeCache.purpose, purpose),
+        eq(stayFitNarrativeCache.workStyle, workStyle),
+        eq(stayFitNarrativeCache.dailyBalance, normalizedBalance(dailyBalance)),
+      ),
+    );
     return true;
   } catch {
-    return false;
+    return deleted;
   }
 }
 
@@ -469,14 +588,35 @@ export async function deleteStayFitNarrative(
 export async function deleteStayFitNarrativesForCity(
   citySlug: string
 ): Promise<number> {
-  if (!redis) return 0;
+  let deleted = 0;
+  if (redis) {
+    try {
+      const keys = await redis.keys(`stay-fit-narrative:${citySlug}:*`);
+      if (keys.length > 0) {
+        await redis.del(...keys);
+        deleted += keys.length;
+      }
+    } catch {
+      // Continue to DB delete below.
+    }
+  }
+
+  const db = getDb();
+  if (!db) return deleted;
   try {
-    const keys = await redis.keys(`stay-fit-narrative:${citySlug}:*`);
-    if (!keys.length) return 0;
-    await redis.del(...keys);
-    return keys.length;
+    const rows = await db
+      .select({ id: stayFitNarrativeCache.id })
+      .from(stayFitNarrativeCache)
+      .where(eq(stayFitNarrativeCache.citySlug, citySlug));
+    if (rows.length > 0) {
+      await db
+        .delete(stayFitNarrativeCache)
+        .where(eq(stayFitNarrativeCache.citySlug, citySlug));
+      deleted = Math.max(deleted, rows.length);
+    }
+    return deleted;
   } catch {
-    return 0;
+    return deleted;
   }
 }
 

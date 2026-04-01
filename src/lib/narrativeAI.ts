@@ -396,7 +396,7 @@ export async function getOrGenerateStayFitNarrative(
   );
   if (!narrative) return null;
 
-  // 3. Store in KV (fire-and-forget — don't block on save failure)
+  // 3. Persist cache before returning to avoid repeated regeneration on refresh.
   const payload: CachedStayFitNarrative = {
     citySlug,
     purpose,
@@ -409,9 +409,11 @@ export async function getOrGenerateStayFitNarrative(
     logistics:      narrative.logistics,
     generatedAt: new Date().toISOString(),
   };
-  saveStayFitNarrative(payload).catch((err) =>
-    console.warn("[narrativeAI] KV save failed:", err)
-  );
+  try {
+    await saveStayFitNarrative(payload);
+  } catch (err) {
+    console.warn("[narrativeAI] KV save failed:", err);
+  }
 
   return narrative;
 }

@@ -1120,22 +1120,24 @@ export async function getOrGenerateEnrichedNarrative(
         },
       });
       const recoveredMicroAreas = fallbackMicroAreaNarrativesFromDecision(decisionOutput);
-      saveStayFitNarrative({
-        citySlug,
-        purpose,
-        workStyle,
-        dailyBalance: balance,
-        whyItFits: cachedNarrative.whyItFits,
-        dailyRhythm: cachedNarrative.dailyRhythm,
-        walkingOptions: cachedNarrative.walkingOptions,
-        planAround: cachedNarrative.planAround,
-        logistics: cachedNarrative.logistics,
-        generatedAt: cached.generatedAt,
-        enriched: true,
-        microAreaNarratives: toCachedMicroAreaNarratives(recoveredMicroAreas),
-      }).catch((err) =>
-        console.warn("[enrichmentAgent] KV save failed while backfilling micro-area narratives:", err)
-      );
+      try {
+        await saveStayFitNarrative({
+          citySlug,
+          purpose,
+          workStyle,
+          dailyBalance: balance,
+          whyItFits: cachedNarrative.whyItFits,
+          dailyRhythm: cachedNarrative.dailyRhythm,
+          walkingOptions: cachedNarrative.walkingOptions,
+          planAround: cachedNarrative.planAround,
+          logistics: cachedNarrative.logistics,
+          generatedAt: cached.generatedAt,
+          enriched: true,
+          microAreaNarratives: toCachedMicroAreaNarratives(recoveredMicroAreas),
+        });
+      } catch (err) {
+        console.warn("[enrichmentAgent] KV save failed while backfilling micro-area narratives:", err);
+      }
       const result = {
         narrative: cachedNarrative,
         microAreaNarratives: recoveredMicroAreas,
@@ -1218,22 +1220,24 @@ export async function getOrGenerateEnrichedNarrative(
       fallbackAreas = fallbackMicroAreaNarrativesFromDecision(decisionOutput);
     }
     const fallbackNarrative = fallbackNarrativeFromDecision(decisionOutput);
-    saveStayFitNarrative({
-      citySlug,
-      purpose,
-      workStyle,
-      dailyBalance: balance,
-      whyItFits: fallbackNarrative.whyItFits,
-      dailyRhythm: fallbackNarrative.dailyRhythm,
-      walkingOptions: fallbackNarrative.walkingOptions,
-      planAround: fallbackNarrative.planAround,
-      logistics: fallbackNarrative.logistics,
-      generatedAt: new Date().toISOString(),
-      enriched: true,
-      microAreaNarratives: toCachedMicroAreaNarratives(fallbackAreas),
-    }).catch((err) =>
-      console.warn("[enrichmentAgent] KV save failed for fallback narrative:", err)
-    );
+    try {
+      await saveStayFitNarrative({
+        citySlug,
+        purpose,
+        workStyle,
+        dailyBalance: balance,
+        whyItFits: fallbackNarrative.whyItFits,
+        dailyRhythm: fallbackNarrative.dailyRhythm,
+        walkingOptions: fallbackNarrative.walkingOptions,
+        planAround: fallbackNarrative.planAround,
+        logistics: fallbackNarrative.logistics,
+        generatedAt: new Date().toISOString(),
+        enriched: true,
+        microAreaNarratives: toCachedMicroAreaNarratives(fallbackAreas),
+      });
+    } catch (err) {
+      console.warn("[enrichmentAgent] KV save failed for fallback narrative:", err);
+    }
     const result = {
       narrative: fallbackNarrative,
       microAreaNarratives: fallbackAreas,
@@ -1262,22 +1266,24 @@ export async function getOrGenerateEnrichedNarrative(
   }
 
   // 6. Store narrative in KV
-  saveStayFitNarrative({
-    citySlug,
-    purpose,
-    workStyle,
-    dailyBalance: balance,
-    whyItFits:      narrative.whyItFits,
-    dailyRhythm:    narrative.dailyRhythm,
-    walkingOptions: narrative.walkingOptions,
-    planAround:     narrative.planAround,
-    logistics:      narrative.logistics,
-    generatedAt:    new Date().toISOString(),
-    enriched:       true,
-    microAreaNarratives: toCachedMicroAreaNarratives(microAreaNarratives),
-  }).catch((err) =>
-    console.warn("[enrichmentAgent] KV save failed for enriched narrative:", err)
-  );
+  try {
+    await saveStayFitNarrative({
+      citySlug,
+      purpose,
+      workStyle,
+      dailyBalance: balance,
+      whyItFits:      narrative.whyItFits,
+      dailyRhythm:    narrative.dailyRhythm,
+      walkingOptions: narrative.walkingOptions,
+      planAround:     narrative.planAround,
+      logistics:      narrative.logistics,
+      generatedAt:    new Date().toISOString(),
+      enriched:       true,
+      microAreaNarratives: toCachedMicroAreaNarratives(microAreaNarratives),
+    });
+  } catch (err) {
+    console.warn("[enrichmentAgent] KV save failed for enriched narrative:", err);
+  }
 
   const result = { narrative, microAreaNarratives };
   writeLocalSetupCache(setupCacheKey, result);
