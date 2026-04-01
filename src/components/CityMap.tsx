@@ -217,6 +217,11 @@ const CONNECTIVITY_BUCKET_META: Record<
   okay: { label: "Mixed quality", fill: "#D4956A", line: "#B6784F" },
   risky: { label: "Can be unstable", fill: "#F97360", line: "#D95A48" },
 };
+const CONNECTIVITY_UNKNOWN_META = {
+  label: "Unknown",
+  fill: "#94A3B8",
+  line: "#64748B",
+} as const;
 
 const CONNECTIVITY_SOURCE_ID = "connectivity-cells";
 const CONNECTIVITY_FILL_ID = "connectivity-cells-fill";
@@ -455,36 +460,63 @@ export function CityMap({
     let cancelled = false;
     setZoneConnectivityLoadState("loading");
     setZoneConnectivityCoveredCount(0);
+    console.log(
+      `[internet-map] loading city=${citySlug} zones=${microAreas.length}`,
+      microAreas.map((z) => z.id),
+    );
     Promise.all(
       microAreas.map(async (zone) => {
-        const res = await fetch(
-          `/api/connectivity/summary?citySlug=${encodeURIComponent(citySlug)}&lat=${encodeURIComponent(String(zone.center.lat))}&lng=${encodeURIComponent(String(zone.center.lon))}`,
-        );
-        const json = await res.json();
-        const summary = json?.summary;
-        if (!summary || typeof summary.score !== "number" || typeof summary.bucket !== "string") {
+        try {
+          const res = await fetch(
+            `/api/connectivity/summary?citySlug=${encodeURIComponent(citySlug)}&lat=${encodeURIComponent(String(zone.center.lat))}&lng=${encodeURIComponent(String(zone.center.lon))}`,
+          );
+          if (!res.ok) {
+            console.warn(
+              `[internet-map] summary request failed city=${citySlug} zone=${zone.id} status=${res.status}`,
+            );
+            return null;
+          }
+          const json = await res.json();
+          const summary = json?.summary;
+          if (!summary || typeof summary.score !== "number" || typeof summary.bucket !== "string") {
+            console.warn(
+              `[internet-map] summary missing city=${citySlug} zone=${zone.id}`,
+              json,
+            );
+            return null;
+          }
+          const bucket = summary.bucket as ConnectivityBucket;
+          if (!CONNECTIVITY_BUCKET_META[bucket]) {
+            console.warn(
+              `[internet-map] invalid bucket city=${citySlug} zone=${zone.id} bucket=${String(summary.bucket)}`,
+            );
+            return null;
+          }
+          const confidenceRaw = String(summary.confidence ?? "low");
+          const confidence: ConfidenceBucket =
+            confidenceRaw === "high" || confidenceRaw === "medium" || confidenceRaw === "low"
+              ? confidenceRaw
+              : "low";
+          const data: ConnectivityCellData = {
+            id: zone.id,
+            score: Number(summary.score),
+            bucket,
+            median_download_mbps: typeof summary.median_download_mbps === "number" ? summary.median_download_mbps : null,
+            median_upload_mbps: typeof summary.median_upload_mbps === "number" ? summary.median_upload_mbps : null,
+            median_latency_ms: typeof summary.median_latency_ms === "number" ? summary.median_latency_ms : null,
+            confidence,
+            freshness_days: typeof summary.freshness_days === "number" ? summary.freshness_days : null,
+            summary_short: String(summary.summary_short ?? recommendationForBucket(bucket)),
+            source_name: typeof json?.source?.name === "string" ? json.source.name : null,
+          };
+          return [zone.id, data] as const;
+        } catch (err) {
+          console.warn(
+            `[internet-map] summary fetch error city=${citySlug} zone=${zone.id}`,
+            err,
+          );
           return null;
         }
-        const bucket = summary.bucket as ConnectivityBucket;
-        if (!CONNECTIVITY_BUCKET_META[bucket]) return null;
-        const confidenceRaw = String(summary.confidence ?? "low");
-        const confidence: ConfidenceBucket =
-          confidenceRaw === "high" || confidenceRaw === "medium" || confidenceRaw === "low"
-            ? confidenceRaw
-            : "low";
-        const data: ConnectivityCellData = {
-          id: zone.id,
-          score: Number(summary.score),
-          bucket,
-          median_download_mbps: typeof summary.median_download_mbps === "number" ? summary.median_download_mbps : null,
-          median_upload_mbps: typeof summary.median_upload_mbps === "number" ? summary.median_upload_mbps : null,
-          median_latency_ms: typeof summary.median_latency_ms === "number" ? summary.median_latency_ms : null,
-          confidence,
-          freshness_days: typeof summary.freshness_days === "number" ? summary.freshness_days : null,
-          summary_short: String(summary.summary_short ?? recommendationForBucket(bucket)),
-          source_name: typeof json?.source?.name === "string" ? json.source.name : null,
-        };
-        return [zone.id, data] as const;
       }),
     )
       .then((rows) => {
@@ -498,12 +530,22 @@ export function CityMap({
         const covered = Object.keys(next).length;
         setZoneConnectivityCoveredCount(covered);
         setZoneConnectivityLoadState(covered > 0 ? "ready" : "empty");
+        const missing = microAreas
+          .map((z) => z.id)
+          .filter((id) => !next[id]);
+        console.log(
+          `[internet-map] loaded city=${citySlug} covered=${covered}/${microAreas.length} missing=${missing.length}`,
+          missing,
+        );
       })
       .catch(() => {
         if (cancelled) return;
         setZoneConnectivity({});
         setZoneConnectivityCoveredCount(0);
         setZoneConnectivityLoadState("empty");
+        console.warn(
+          `[internet-map] load failed city=${citySlug} zones=${microAreas.length}`,
+        );
       });
     return () => {
       cancelled = true;
@@ -549,14 +591,14 @@ export function CityMap({
           map.setPaintProperty(
             `zone-fill-${zone.id}`,
             "fill-opacity",
-            zoneInternet ? 0.26 : style.fillOpacity,
+            showConnectivity ? 0.3 : style.fillOpacity,
           );
           map.setPaintProperty(
             `zone-line-${zone.id}`,
             "line-opacity",
-            zoneInternet ? 0.72 : style.borderOpacity,
+            showConnectivity ? 0.78 : style.borderOpacity,
           );
-          if (zoneInternet) {
+          if (showConnectivity && zoneInternet) {
             map.setPaintProperty(
               `zone-fill-${zone.id}`,
               "fill-color",
@@ -567,6 +609,9 @@ export function CityMap({
               "line-color",
               CONNECTIVITY_BUCKET_META[zoneInternet.bucket].line,
             );
+          } else if (showConnectivity) {
+            map.setPaintProperty(`zone-fill-${zone.id}`, "fill-color", CONNECTIVITY_UNKNOWN_META.fill);
+            map.setPaintProperty(`zone-line-${zone.id}`, "line-color", CONNECTIVITY_UNKNOWN_META.line);
           } else {
             map.setPaintProperty(`zone-fill-${zone.id}`, "fill-color", style.fill);
             map.setPaintProperty(`zone-line-${zone.id}`, "line-color", style.border);
@@ -604,8 +649,8 @@ export function CityMap({
         const isSelected = z.id === zone.id;
         try {
           if (showConnectivity) {
-            map.setPaintProperty(`zone-fill-${z.id}`, "fill-opacity", isSelected ? 0.24 : 0.08);
-            map.setPaintProperty(`zone-line-${z.id}`, "line-opacity", isSelected ? 0.8 : 0.35);
+            map.setPaintProperty(`zone-fill-${z.id}`, "fill-opacity", isSelected ? 0.34 : 0.14);
+            map.setPaintProperty(`zone-line-${z.id}`, "line-opacity", isSelected ? 0.9 : 0.5);
           } else {
             map.setPaintProperty(`zone-fill-${z.id}`, "fill-opacity", isSelected ? 0.08 : 0.02);
             map.setPaintProperty(`zone-line-${z.id}`, "line-opacity", isSelected ? 0.6 : 0.15);
@@ -722,14 +767,18 @@ export function CityMap({
           microAreas!.forEach((zone, idx) => {
             const style = getZoneStyle(zone);
             const zoneInternet = showConnectivity ? zoneConnectivity[zone.id] : undefined;
-            const zoneFillColor = zoneInternet
-              ? CONNECTIVITY_BUCKET_META[zoneInternet.bucket].fill
+            const zoneFillColor = showConnectivity
+              ? (zoneInternet
+                  ? CONNECTIVITY_BUCKET_META[zoneInternet.bucket].fill
+                  : CONNECTIVITY_UNKNOWN_META.fill)
               : style.fill;
-            const zoneLineColor = zoneInternet
-              ? CONNECTIVITY_BUCKET_META[zoneInternet.bucket].line
+            const zoneLineColor = showConnectivity
+              ? (zoneInternet
+                  ? CONNECTIVITY_BUCKET_META[zoneInternet.bucket].line
+                  : CONNECTIVITY_UNKNOWN_META.line)
               : style.border;
-            const zoneFillOpacity = zoneInternet ? 0.26 : style.fillOpacity;
-            const zoneLineOpacity = zoneInternet ? 0.72 : style.borderOpacity;
+            const zoneFillOpacity = showConnectivity ? 0.3 : style.fillOpacity;
+            const zoneLineOpacity = showConnectivity ? 0.78 : style.borderOpacity;
             const sourceId = `zone-${zone.id}`;
             const fillId = `zone-fill-${zone.id}`;
             const lineId = `zone-line-${zone.id}`;
@@ -1202,6 +1251,7 @@ export function CityMap({
               <ConnectivityLegendDot bucket="good" />
               <ConnectivityLegendDot bucket="okay" />
               <ConnectivityLegendDot bucket="risky" />
+              <ConnectivityLegendUnknownDot />
             </div>
             <p className="mt-1 text-[10px] text-umber">Cellular layer: coming soon</p>
           </div>
@@ -1281,6 +1331,18 @@ function ConnectivityLegendDot({ bucket }: { bucket: ConnectivityBucket }) {
         style={{ background: meta.fill }}
       />
       <span className="text-[10px] text-umber">{meta.label}</span>
+    </div>
+  );
+}
+
+function ConnectivityLegendUnknownDot() {
+  return (
+    <div className="flex items-center gap-1">
+      <span
+        className="inline-block h-2.5 w-2.5 rounded-[3px]"
+        style={{ background: CONNECTIVITY_UNKNOWN_META.fill }}
+      />
+      <span className="text-[10px] text-umber">{CONNECTIVITY_UNKNOWN_META.label}</span>
     </div>
   );
 }
