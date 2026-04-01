@@ -307,7 +307,6 @@ export function CityMap({
   const onZoneClickRef = useRef<((zone: MicroAreaZone) => void) | null>(null);
 
   const [activeZone, setActiveZone] = useState<MicroAreaZone | null>(null);
-  const [viewMode, setViewMode] = useState<"map" | "list">("map");
   const [showConnectivity, setShowConnectivity] = useState(false);
   const [hoveredConnectivity, setHoveredConnectivity] = useState<ConnectivityCellData | null>(null);
   const [selectedConnectivity, setSelectedConnectivity] = useState<ConnectivityCellData | null>(null);
@@ -334,7 +333,6 @@ export function CityMap({
     [microAreas],
   );
   const openZoneFromUi = useCallback((zone: MicroAreaZone) => {
-    setViewMode("map");
     setActiveZone(zone);
     onZoneClickRef.current?.(zone);
   }, []);
@@ -537,20 +535,6 @@ export function CityMap({
       setMobileConnectivitySheetExpanded(false);
     }
   }, [selectedConnectivity]);
-
-  useEffect(() => {
-    if (viewMode !== "map") return;
-    const map = mapRef.current as (import("mapbox-gl").Map | null);
-    if (!map) return;
-    const t = window.setTimeout(() => {
-      try {
-        map.resize();
-      } catch {
-        // Ignore map resize race conditions.
-      }
-    }, 0);
-    return () => window.clearTimeout(t);
-  }, [viewMode]);
 
   const connectivitySourceLabel = useMemo(() => {
     const zoneSources = Object.values(zoneConnectivity)
@@ -1084,29 +1068,8 @@ export function CityMap({
             : hasZones ? "Area comparison" : intent ? "Your base map" : "Routine map"}
         </p>
         <div className="flex items-center gap-2">
-          <div className="inline-flex items-center rounded-full border border-dune bg-white p-0.5">
-            <button
-              type="button"
-              onClick={() => setViewMode("map")}
-              className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                viewMode === "map" ? "bg-bark text-white" : "text-umber"
-              }`}
-            >
-              Map
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("list")}
-              className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                viewMode === "list" ? "bg-bark text-white" : "text-umber"
-              }`}
-            >
-              List
-            </button>
-          </div>
           <button
             type="button"
-            disabled={viewMode !== "map"}
             onClick={() => {
               const next = !showConnectivity;
               setShowConnectivity(next);
@@ -1119,7 +1082,7 @@ export function CityMap({
               showConnectivity
                 ? "border-bark bg-bark text-white"
                 : "border-dune bg-white text-umber"
-            } ${viewMode !== "map" ? "cursor-not-allowed opacity-50" : ""}`}
+            }`}
           >
             {showConnectivity ? "Internet on" : "Internet"}
           </button>
@@ -1137,7 +1100,7 @@ export function CityMap({
         </div>
       </div>
 
-      {viewMode === "map" && sortedMicroAreas.length > 0 && (
+      {sortedMicroAreas.length > 0 && (
         <div className="mb-2 flex gap-2 overflow-x-auto pb-1">
           {sortedMicroAreas.map((zone) => {
             const zoneInternet = zoneConnectivity[zone.id];
@@ -1167,23 +1130,22 @@ export function CityMap({
           })}
         </div>
       )}
-      {viewMode === "map" && showConnectivity && (
+      {showConnectivity && (
         <p className="mb-2 text-xs text-umber">
           Color map for likely internet quality in each area. Green is usually more reliable for calls.
         </p>
       )}
-      {viewMode === "map" && showConnectivity && hasZones && zoneConnectivityLoadState === "loading" && (
+      {showConnectivity && hasZones && zoneConnectivityLoadState === "loading" && (
         <p className="mb-2 text-xs text-umber">
           Loading internet layer for this area...
         </p>
       )}
-      {viewMode === "map" && showConnectivity && hasZones && zoneConnectivityLoadState === "empty" && (
+      {showConnectivity && hasZones && zoneConnectivityLoadState === "empty" && (
         <p className="mb-2 text-xs text-umber">
           Internet layer data is not available yet for these micro-areas.
         </p>
       )}
-      {viewMode === "map" &&
-        showConnectivity &&
+      {showConnectivity &&
         hasZones &&
         zoneConnectivityLoadState === "ready" &&
         microAreas &&
@@ -1195,7 +1157,7 @@ export function CityMap({
         )}
 
       {/* Map container */}
-      <div className={`relative overflow-hidden rounded-2xl border border-dune ${viewMode === "map" ? "block" : "hidden"}`}>
+      <div className="relative overflow-hidden rounded-2xl border border-dune">
         <div
           ref={containerRef}
           className="h-[56vh] max-h-[620px] min-h-[360px] w-full sm:h-[clamp(300px,48vw,460px)] sm:min-h-0 sm:max-h-none"
@@ -1365,7 +1327,7 @@ export function CityMap({
         )}
 
       </div>
-      {viewMode === "map" && showConnectivity && selectedConnectivity && (
+      {showConnectivity && selectedConnectivity && (
         <div className="mt-2 hidden w-full rounded-xl border border-dune bg-white p-3 sm:block">
           <div className="flex items-start justify-between gap-2">
             <p className="text-sm font-semibold text-bark">
@@ -1395,49 +1357,6 @@ export function CityMap({
           <p className="mt-1 text-[11px] text-umber">
             {sourceExplanation(selectedConnectivity.source_name)}
           </p>
-        </div>
-      )}
-
-      {viewMode === "list" && (
-        <div className="space-y-2">
-          {sortedMicroAreas.length > 0 ? (
-            sortedMicroAreas.map((zone) => {
-              const zoneInternet = zoneConnectivity[zone.id];
-              return (
-                <div
-                  key={zone.id}
-                  className="rounded-xl border border-dune bg-white px-3 py-2"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-semibold text-bark">
-                        #{zone.rank ?? "?"} {zone.name}
-                      </p>
-                      <p className="text-xs text-umber">
-                        Fit score {zone.score != null ? `${zone.score.toFixed(1)}/10` : "pending"}
-                      </p>
-                      {zoneInternet && (
-                        <p className="mt-1 text-xs text-umber">
-                          Internet {zoneInternet.score}/100 · {CONNECTIVITY_BUCKET_META[zoneInternet.bucket].label}
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => openZoneFromUi(zone)}
-                      className="rounded-lg border border-dune px-2.5 py-1 text-xs font-semibold text-bark"
-                    >
-                      View on map
-                    </button>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <div className="rounded-xl border border-dune bg-white px-3 py-2 text-sm text-umber">
-              No micro-areas available yet for this destination.
-            </div>
-          )}
         </div>
       )}
     </div>

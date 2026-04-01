@@ -43,6 +43,7 @@ import { getOrGenerateEnrichedNarrative } from "@/lib/placeEnrichmentAgent";
 import type { MicroAreaNarrative } from "@/lib/placeEnrichmentAgent";
 import { buildFinalResponse } from "@/application/use-cases/buildFinalResponse";
 import { MicroAreaStack } from "@/components/MicroAreaStack";
+import { CityTopTabs } from "@/components/CityTopTabs";
 import type { City, StayIntent, StayPurpose, WorkStyle, VibePreference, DailyBalance } from "@/types";
 
 // ── Stay intent parsing ───────────────────────────────────────────────────────
@@ -1452,6 +1453,26 @@ async function CityContent({
     }
   }
 
+  const mapMicroAreas = microAreaNarratives
+    ?.filter((m) => m.center !== undefined)
+    .map((m) => ({
+      id: m.microAreaId,
+      name: m.name,
+      center: m.center!,
+      radius_km: m.radius_km ?? 1.0,
+      rank: m.rank,
+      score: m.score,
+      hasConstraintBreakers: m.hasConstraintBreakers,
+    }));
+
+  const enableTopTabs = Boolean(
+    isUnlocked &&
+    intent &&
+    stayFit &&
+    microAreaNarratives &&
+    microAreaNarratives.length > 0,
+  );
+
   return (
     <div className="mt-10 space-y-8">
       {/* Fires when place data resolves successfully (after Suspense) */}
@@ -1494,7 +1515,7 @@ async function CityContent({
       )}
 
       {/* Routine map — first thing the user sees; locked places as grey dots */}
-      {(baseCentroid || places.length > 0) && (
+      {(baseCentroid || places.length > 0) && !enableTopTabs && (
         <CityMap
           citySlug={city.slug}
           places={[...workPlaces, ...coffeeMealsPlaces, ...wellbeingPlaces]}
@@ -1511,19 +1532,40 @@ async function CityContent({
           dailyLifePlaces={dailyLifePlaces}
           intent={intent}
           baseAreaName={stayFit?.baseArea ?? summary.recommendedArea ?? null}
-          microAreas={
-            microAreaNarratives
-              ?.filter((m) => m.center !== undefined)
-              .map((m) => ({
-                id: m.microAreaId,
-                name: m.name,
-                center: m.center!,
-                radius_km: m.radius_km ?? 1.0,
-                rank: m.rank,
-                score: m.score,
-                hasConstraintBreakers: m.hasConstraintBreakers,
-              })) ?? undefined
-          }
+          microAreas={mapMicroAreas ?? undefined}
+        />
+      )}
+
+      {enableTopTabs && (
+        <CityTopTabs
+          mapContent={(
+            <CityMap
+              citySlug={city.slug}
+              places={[...workPlaces, ...coffeeMealsPlaces, ...wellbeingPlaces]}
+              baseLat={baseCentroid?.lat}
+              baseLon={baseCentroid?.lon}
+              isUnlocked={isUnlocked}
+              freePlaceIds={[
+                workPlaces[0]?.id,
+                coffeeMealsPlaces[0]?.id,
+                wellbeingPlaces[0]?.id,
+              ].filter((id): id is string => Boolean(id))}
+              cityName={city.name}
+              totalPlaces={workPlaces.length + coffeeMealsPlaces.length + wellbeingPlaces.length}
+              dailyLifePlaces={dailyLifePlaces}
+              intent={intent}
+              baseAreaName={stayFit?.baseArea ?? summary.recommendedArea ?? null}
+              microAreas={mapMicroAreas ?? undefined}
+            />
+          )}
+          listContent={(
+            <MicroAreaStack
+              microAreaNarratives={microAreaNarratives!}
+              intent={`${intent!.purpose} + ${intent!.workStyle} work`}
+              cityName={city.name}
+              citySlug={city.slug}
+            />
+          )}
         />
       )}
 
@@ -1556,12 +1598,14 @@ async function CityContent({
         {intent && stayFit ? (
           microAreaNarratives && microAreaNarratives.length > 0 ? (
             isUnlocked ? (
-              <MicroAreaStack
-                microAreaNarratives={microAreaNarratives}
-                intent={`${intent.purpose} + ${intent.workStyle} work`}
-                cityName={city.name}
-              citySlug={city.slug}
-              />
+              enableTopTabs ? null : (
+                <MicroAreaStack
+                  microAreaNarratives={microAreaNarratives}
+                  intent={`${intent.purpose} + ${intent.workStyle} work`}
+                  cityName={city.name}
+                  citySlug={city.slug}
+                />
+              )
             ) : (
               <BestBaseCard
                 isUnlocked={false}
