@@ -322,9 +322,10 @@ export function CityMap({
   const interactiveZones = hasZones
     ? microAreas.filter((z) => !z.hasConstraintBreakers)
     : [];
+  const canDrillIntoZones = interactiveZones.length > 0;
   // Avoid an "empty-looking" map in zone mode by entering the top viable area on first load.
   const shouldAutoDrillOnLoad =
-    interactiveZones.length > 0 && !showConnectivity && places.length > 0;
+    canDrillIntoZones && !showConnectivity && places.length > 0;
   const sortedMicroAreas = useMemo(
     () =>
       (microAreas ? [...microAreas] : []).sort((a, b) => {
@@ -963,7 +964,7 @@ export function CityMap({
             : createLockedMarker();
 
           // Hidden by default in zone mode (shown per-zone on drill-in)
-          if (hasZones) el.style.display = "none";
+          if (hasZones && canDrillIntoZones) el.style.display = "none";
 
           const marker = new mapboxgl.Marker({
             element: el,
@@ -992,7 +993,7 @@ export function CityMap({
           for (const dl of dailyLifePlaces) {
             if (dl.type !== "grocery" && dl.type !== "pharmacy") continue;
             const el = createDailyLifeMarker(dl.type);
-            if (hasZones) el.style.display = "none";
+            if (hasZones && canDrillIntoZones) el.style.display = "none";
             const label = dl.type === "grocery" ? "Grocery" : "Pharmacy";
             const marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
               .setLngLat([dl.lon, dl.lat])
@@ -1179,12 +1180,19 @@ export function CityMap({
         )}
 
         {/* ── "Tap zone" hint (Layer 1, zones exist) ─────────────────────── */}
-        {!activeZone && hasZones && !shouldAutoDrillOnLoad && (
+        {!activeZone && hasZones && canDrillIntoZones && !shouldAutoDrillOnLoad && (
           <div className="absolute top-3 left-3 rounded-lg bg-white/90 backdrop-blur-sm border border-dune px-2.5 py-1.5">
             <p className="text-[10px] text-umber">
               <span className="hidden sm:inline">Click</span>
               <span className="sm:hidden">Tap</span>
               {" "}a zone to explore places inside it
+            </p>
+          </div>
+        )}
+        {!activeZone && hasZones && !canDrillIntoZones && places.length > 0 && (
+          <div className="absolute top-3 left-3 rounded-lg bg-white/90 backdrop-blur-sm border border-dune px-2.5 py-1.5">
+            <p className="text-[10px] text-umber">
+              No viable zones yet - showing all places in this area.
             </p>
           </div>
         )}

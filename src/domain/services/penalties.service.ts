@@ -60,6 +60,7 @@ export function evaluatePenalties(
     const activityFirstIntent =
       profile.main_activity === "surf" ||
       profile.main_activity === "dive" ||
+      profile.main_activity === "hike" ||
       profile.main_activity === "kite" ||
       profile.daily_balance === "purpose_first";
     if (activityFirstIntent) {
