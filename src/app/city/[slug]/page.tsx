@@ -1496,7 +1496,7 @@ async function CityContent({
               lowConfidence={dataCoverage === "limited"}
             />
           )
-        ) : !intent ? (
+        ) : !intent && !isUnlocked ? (
           <div id="intent-prompt-section">
             <IntentPrompt
               citySlug={city.slug}
@@ -1620,6 +1620,10 @@ function DecisionNextStepCard({
   isUnlocked: boolean;
   hasIntent: boolean;
 }) {
+  if (isUnlocked && !hasIntent) {
+    return null;
+  }
+
   if (!hasIntent) {
     return (
       <div className="rounded-2xl border border-dune bg-white px-5 py-4">

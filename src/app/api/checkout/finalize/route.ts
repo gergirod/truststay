@@ -9,6 +9,7 @@ import {
 import { env } from "@/lib/env";
 import { persistUnlockEntitlementFromStripeSession } from "@/lib/unlockEntitlements";
 import { sendUnlockConfirmationEmail } from "@/lib/transactionalEmails";
+import { saveUserStaySetup, TRUSTSTAY_USER_COOKIE } from "@/lib/kv";
 
 // Route Handler — the only correct place to set cookies while also redirecting.
 // cookies().set() is forbidden in Server Component render context, so the
@@ -70,6 +71,7 @@ export async function GET(req: NextRequest) {
     maxAge: 60 * 60 * 24 * 365,
     path: "/",
   };
+  const userId = req.cookies.get(TRUSTSTAY_USER_COOKIE)?.value ?? crypto.randomUUID();
 
   const intentParams = new URLSearchParams();
   intentParams.set("justUnlocked", "1");
@@ -96,6 +98,7 @@ export async function GET(req: NextRequest) {
     const response = NextResponse.redirect(
       new URL(`/city/${bundleCitySlug}?${intentParams.toString()}`, origin)
     );
+    response.cookies.set(TRUSTSTAY_USER_COOKIE, userId, cookieOpts);
     response.cookies.set(BUNDLE_COOKIE, serializeSlugs(current), cookieOpts);
     return response;
   }
@@ -111,6 +114,18 @@ export async function GET(req: NextRequest) {
   const response = NextResponse.redirect(
     new URL(`/city/${citySlug}?${intentParams.toString()}`, origin)
   );
+  response.cookies.set(TRUSTSTAY_USER_COOKIE, userId, cookieOpts);
   response.cookies.set(UNLOCK_COOKIE, serializeSlugs(current), cookieOpts);
+  if (hasFullIntent) {
+    saveUserStaySetup({
+      userId,
+      citySlug,
+      purpose: purpose!,
+      workStyle: workStyle!,
+      ...(dailyBalance ? { dailyBalance } : {}),
+    }).catch((err) => {
+      console.warn("[finalize] failed to save user stay setup:", err);
+    });
+  }
   return response;
 }

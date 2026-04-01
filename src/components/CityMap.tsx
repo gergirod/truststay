@@ -77,23 +77,6 @@ function isWithinZone(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) <= radiusKm * 1.5; // 1.5x buffer
 }
 
-function haversineKm(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number,
-): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
 // ── Circle polygon helper ─────────────────────────────────────────────────────
 
 function circlePolygon(
@@ -354,111 +337,6 @@ function buildConnectivityMockCells(
     type: "FeatureCollection",
     features,
   };
-}
-
-function buildDiamondConnectivityGeojson(
-  base: GeoJSON.FeatureCollection<GeoJSON.Polygon>,
-): GeoJSON.FeatureCollection<GeoJSON.Polygon> {
-  const features: GeoJSON.Feature<GeoJSON.Polygon>[] = [];
-
-  for (const feature of base.features) {
-    if (feature.geometry.type !== "Polygon") continue;
-    const ring = feature.geometry.coordinates?.[0];
-    if (!ring || ring.length < 4) continue;
-
-    let minLon = Number.POSITIVE_INFINITY;
-    let maxLon = Number.NEGATIVE_INFINITY;
-    let minLat = Number.POSITIVE_INFINITY;
-    let maxLat = Number.NEGATIVE_INFINITY;
-    let sumLon = 0;
-    let sumLat = 0;
-    let count = 0;
-
-    for (const [lon, lat] of ring) {
-      minLon = Math.min(minLon, lon);
-      maxLon = Math.max(maxLon, lon);
-      minLat = Math.min(minLat, lat);
-      maxLat = Math.max(maxLat, lat);
-      sumLon += lon;
-      sumLat += lat;
-      count += 1;
-    }
-
-    if (!Number.isFinite(minLon) || !Number.isFinite(minLat) || count === 0) continue;
-
-    const centerLon = sumLon / count;
-    const centerLat = sumLat / count;
-    const lonSpan = Math.max(0.0011, maxLon - minLon);
-    const latSpan = Math.max(0.0011, maxLat - minLat);
-    const lonHalf = lonSpan * 0.22;
-    const latHalf = latSpan * 0.22;
-
-    features.push({
-      type: "Feature",
-      geometry: {
-        type: "Polygon",
-        coordinates: [[
-          [centerLon, centerLat + latHalf],
-          [centerLon + lonHalf, centerLat],
-          [centerLon, centerLat - latHalf],
-          [centerLon - lonHalf, centerLat],
-          [centerLon, centerLat + latHalf],
-        ]],
-      },
-      properties: feature.properties,
-    });
-  }
-
-  return {
-    type: "FeatureCollection",
-    features,
-  };
-}
-
-function centroidFromPolygon(
-  feature: GeoJSON.Feature<GeoJSON.Polygon>,
-): { lat: number; lon: number } | null {
-  const ring = feature.geometry.coordinates?.[0];
-  if (!ring || ring.length === 0) return null;
-  let sumLon = 0;
-  let sumLat = 0;
-  for (const [lon, lat] of ring) {
-    sumLon += lon;
-    sumLat += lat;
-  }
-  return { lon: sumLon / ring.length, lat: sumLat / ring.length };
-}
-
-function filterConnectivityFeaturesForDisplay(
-  base: GeoJSON.FeatureCollection<GeoJSON.Polygon>,
-  anchors: Array<{ lat: number; lon: number }>,
-  activeZone: MicroAreaZone | null,
-): GeoJSON.FeatureCollection<GeoJSON.Polygon> {
-  const ANCHOR_MAX_KM = 1.2;
-  const ZONE_MAX_FACTOR = 1.08;
-
-  const features = base.features.filter((feature) => {
-    const center = centroidFromPolygon(feature);
-    if (!center) return false;
-
-    if (activeZone) {
-      const inZone = isWithinZone(
-        center.lat,
-        center.lon,
-        activeZone.center.lat,
-        activeZone.center.lon,
-        Math.max(0.35, activeZone.radius_km * ZONE_MAX_FACTOR),
-      );
-      if (!inZone) return false;
-    }
-
-    if (anchors.length === 0) return true;
-    return anchors.some(
-      (a) => haversineKm(center.lat, center.lon, a.lat, a.lon) <= ANCHOR_MAX_KM,
-    );
-  });
-
-  return { type: "FeatureCollection", features };
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -988,20 +866,11 @@ export function CityMap({
           coreCount++;
         }
 
-        // ── Connectivity layer (diamond cells) ──────────────────────────────
+        // ── Connectivity layer (grid cells) ─────────────────────────────────
         if (showConnectivity) {
-          const baseConnectivityData =
+          const connectivityLayerData =
             connectivityGeojson ??
             buildConnectivityMockCells(connectivityBounds);
-          const filteredConnectivityData = filterConnectivityFeaturesForDisplay(
-            baseConnectivityData,
-            [
-              ...places.map((p) => ({ lat: p.lat, lon: p.lon })),
-              ...dailyLifePlaces.map((p) => ({ lat: p.lat, lon: p.lon })),
-            ],
-            activeZone,
-          );
-          const connectivityLayerData = buildDiamondConnectivityGeojson(filteredConnectivityData);
 
           map.addSource(CONNECTIVITY_SOURCE_ID, {
             type: "geojson",
@@ -1021,9 +890,8 @@ export function CityMap({
                 "okay", CONNECTIVITY_BUCKET_META.okay.fill,
                 CONNECTIVITY_BUCKET_META.risky.fill,
               ],
-              "fill-opacity": 0.34,
+              "fill-opacity": 0.14,
             },
-            minzoom: 11.8,
           });
 
           map.addLayer({
@@ -1039,10 +907,9 @@ export function CityMap({
                 "okay", CONNECTIVITY_BUCKET_META.okay.line,
                 CONNECTIVITY_BUCKET_META.risky.line,
               ],
-              "line-width": 0.9,
-              "line-opacity": 0.75,
+              "line-width": 1.1,
+              "line-opacity": 0.42,
             },
-            minzoom: 11.8,
           });
 
           const parseFeature = (
