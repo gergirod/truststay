@@ -23,8 +23,10 @@ import { getPlaceConfirmations } from "@/lib/confirmations";
 import { CITY_INTROS } from "@/data/cityIntros";
 import { CityIntro } from "@/components/CityIntro";
 import {
+  getLastEnrichedSetupForCity,
   getNarrative,
   getUserStaySetup,
+  saveLastEnrichedSetupForCity,
   saveUserStaySetup,
   TRUSTSTAY_USER_COOKIE,
 } from "@/lib/kv";
@@ -639,26 +641,6 @@ export default async function CityPage({ params, searchParams }: Props) {
     typeof sp.purpose === "string" ||
     typeof sp.workStyle === "string" ||
     typeof sp.dailyBalance === "string";
-  const shouldUseSavedSetup = !urlIntent && !hasAnyIntentParam && Boolean(userId);
-  const savedSetup = shouldUseSavedSetup && userId
-    ? await getUserStaySetup(userId, slug).catch(() => null)
-    : null;
-  const intent: StayIntent | null = urlIntent ?? parseSavedSetupIntent(savedSetup);
-
-  if (urlIntent && userId) {
-    saveUserStaySetup({
-      userId,
-      citySlug: slug,
-      purpose: urlIntent.purpose,
-      workStyle: urlIntent.workStyle,
-      dailyBalance: urlIntent.dailyBalance,
-    }).catch((err) => {
-      console.warn("[intent] failed to save user setup:", err);
-    });
-  }
-  // Extracted even when intent is null — lets IntentPrompt pre-select purpose
-  // when the user arrived from Browse (purpose in URL but workStyle missing).
-  const prefillPurpose = intent ? null : parsePrefillPurpose(sp);
 
   const parentCitySlug = (() => {
     // Prefer URL param (set by autocomplete/grid), fall back to geocoded parentCity
@@ -673,6 +655,62 @@ export default async function CityPage({ params, searchParams }: Props) {
     isUnlocked(slug, parentCitySlug),
     getNarrative(slug).catch(() => null),
   ]);
+
+  const shouldUseSavedSetup = !urlIntent && !hasAnyIntentParam && Boolean(userId);
+  const [savedSetup, cityLastEnrichedSetup] = await Promise.all([
+    shouldUseSavedSetup && userId
+      ? getUserStaySetup(userId, slug).catch(() => null)
+      : Promise.resolve(null),
+    !urlIntent && !hasAnyIntentParam && unlocked
+      ? getLastEnrichedSetupForCity(slug).catch(() => null)
+      : Promise.resolve(null),
+  ]);
+  const savedIntent = parseSavedSetupIntent(savedSetup);
+  const cityLastEnrichedIntent = parseSavedSetupIntent(
+    cityLastEnrichedSetup
+      ? {
+          purpose: cityLastEnrichedSetup.purpose,
+          workStyle: cityLastEnrichedSetup.workStyle,
+          dailyBalance: cityLastEnrichedSetup.dailyBalance,
+        }
+      : null,
+  );
+  const intent: StayIntent | null = urlIntent ?? savedIntent ?? cityLastEnrichedIntent;
+  const intentSource =
+    urlIntent ? "url" :
+    savedIntent ? "user_saved" :
+    cityLastEnrichedIntent ? "city_last_enriched" :
+    "none";
+  console.log(
+    `[intent] city=${slug} source=${intentSource} unlocked=${unlocked} hasParams=${hasAnyIntentParam}`,
+  );
+
+  if (urlIntent && userId) {
+    saveUserStaySetup({
+      userId,
+      citySlug: slug,
+      purpose: urlIntent.purpose,
+      workStyle: urlIntent.workStyle,
+      dailyBalance: urlIntent.dailyBalance,
+    }).catch((err) => {
+      console.warn("[intent] failed to save user setup:", err);
+    });
+  }
+
+  if (!urlIntent && intent && userId && intentSource === "city_last_enriched") {
+    saveUserStaySetup({
+      userId,
+      citySlug: slug,
+      purpose: intent.purpose,
+      workStyle: intent.workStyle,
+      dailyBalance: intent.dailyBalance,
+    }).catch((err) => {
+      console.warn("[intent] failed to backfill user setup from city fallback:", err);
+    });
+  }
+  // Extracted even when intent is null — lets IntentPrompt pre-select purpose
+  // when the user arrived from Browse (purpose in URL but workStyle missing).
+  const prefillPurpose = intent ? null : parsePrefillPurpose(sp);
 
   if (!city) {
     const cityLabel = slug.replace(/-/g, " ");
@@ -1214,6 +1252,17 @@ async function CityContent({
       } catch (err) {
         console.warn(`[stay-fit] map-zones-fallback-failed city=${city.slug}`, err);
       }
+    }
+
+    if (isUnlocked && intent && microAreaNarratives?.length) {
+      saveLastEnrichedSetupForCity({
+        citySlug: city.slug,
+        purpose: intent.purpose,
+        workStyle: intent.workStyle,
+        dailyBalance: intent.dailyBalance,
+      }).catch((err) => {
+        console.warn("[intent] failed to save city last enriched setup:", err);
+      });
     }
   }
 

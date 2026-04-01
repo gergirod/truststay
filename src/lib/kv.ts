@@ -398,10 +398,21 @@ export interface SavedUserStaySetup {
   updatedAt: string;
 }
 
+export interface CityLastEnrichedSetup {
+  citySlug: string;
+  purpose: string;
+  workStyle: string;
+  dailyBalance?: string;
+  updatedAt: string;
+}
+
 const USER_STAY_SETUP_KEY = (userId: string, citySlug: string) =>
   `user-stay-setup:${userId}:${citySlug}`;
+const CITY_LAST_ENRICHED_SETUP_KEY = (citySlug: string) =>
+  `city-last-enriched-setup:${citySlug}`;
 /** 180 days — keeps each user's city setup sticky across visits. */
 const USER_STAY_SETUP_TTL_SECONDS = 180 * 24 * 60 * 60;
+const CITY_LAST_ENRICHED_SETUP_TTL_SECONDS = 180 * 24 * 60 * 60;
 
 const STAY_FIT_KEY = (
   slug: string,
@@ -660,6 +671,41 @@ export async function saveUserStaySetup(
       USER_STAY_SETUP_KEY(setup.userId, setup.citySlug),
       JSON.stringify(payload),
       { ex: USER_STAY_SETUP_TTL_SECONDS },
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function getLastEnrichedSetupForCity(
+  citySlug: string,
+): Promise<CityLastEnrichedSetup | null> {
+  if (!redis) return null;
+  try {
+    const data = await redis.get(CITY_LAST_ENRICHED_SETUP_KEY(citySlug));
+    if (!data) return null;
+    return typeof data === "string"
+      ? JSON.parse(data)
+      : (data as CityLastEnrichedSetup);
+  } catch {
+    return null;
+  }
+}
+
+export async function saveLastEnrichedSetupForCity(
+  setup: Omit<CityLastEnrichedSetup, "updatedAt">,
+): Promise<boolean> {
+  if (!redis) return false;
+  try {
+    const payload: CityLastEnrichedSetup = {
+      ...setup,
+      updatedAt: new Date().toISOString(),
+    };
+    await redis.set(
+      CITY_LAST_ENRICHED_SETUP_KEY(setup.citySlug),
+      JSON.stringify(payload),
+      { ex: CITY_LAST_ENRICHED_SETUP_TTL_SECONDS },
     );
     return true;
   } catch {
