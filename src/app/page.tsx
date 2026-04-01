@@ -27,7 +27,7 @@ const DESTINATION_COORDS_BY_SLUG = new Map(
   DESTINATION_PINS.map((pin) => [pin.slug, { lat: pin.lat, lon: pin.lon }]),
 );
 
-const DB_COORD_DRIFT_THRESHOLD_KM = 450;
+const HOME_MAP_COORD_WARN_THRESHOLD_KM = 60;
 
 const SLUG_ACTIVITIES = (() => {
   const map = new Map<string, ActivityBucket[]>();
@@ -212,35 +212,42 @@ export default async function HomePage() {
           )
           .orderBy(asc(destinations.name))
       )
-        .filter((d) => d.lat != null && d.lon != null)
         .map((d) => {
           const canonical = getCanonicalDestinationMeta(d.slug);
           const fallback = DESTINATION_COORDS_BY_SLUG.get(d.slug);
-          const dbLat = d.lat as number;
-          const dbLon = d.lon as number;
-          const driftKm = fallback
-            ? haversineKm(dbLat, dbLon, fallback.lat, fallback.lon)
-            : 0;
-          const useFallback = Boolean(fallback && driftKm > DB_COORD_DRIFT_THRESHOLD_KM);
+          const hasDbCoords = d.lat != null && d.lon != null;
+          if (!hasDbCoords && !fallback) return null;
 
-          if (useFallback) {
-            console.warn(
-              `[home-map] coordinate drift detected for ${d.slug}: db=(${dbLat.toFixed(4)},${dbLon.toFixed(4)}) fallback=(${fallback?.lat.toFixed(4)},${fallback?.lon.toFixed(4)}) driftKm=${driftKm.toFixed(0)}`,
-            );
+          const dbLat = hasDbCoords ? (d.lat as number) : null;
+          const dbLon = hasDbCoords ? (d.lon as number) : null;
+
+          // Landing map should favor curated destination pins, while destination pages
+          // can still use dynamic geocoded anchors for deeper calculations.
+          const resolvedLat = fallback?.lat ?? dbLat ?? 0;
+          const resolvedLon = fallback?.lon ?? dbLon ?? 0;
+
+          if (fallback && dbLat != null && dbLon != null) {
+            const driftKm = haversineKm(dbLat, dbLon, fallback.lat, fallback.lon);
+            if (driftKm > HOME_MAP_COORD_WARN_THRESHOLD_KM) {
+              console.warn(
+                `[home-map] large coord drift for ${d.slug}: db=(${dbLat.toFixed(4)},${dbLon.toFixed(4)}) fallback=(${fallback.lat.toFixed(4)},${fallback.lon.toFixed(4)}) driftKm=${driftKm.toFixed(0)}; using curated fallback`,
+              );
+            }
           }
 
           return {
             slug: d.slug,
             name: canonical?.name ?? d.name,
             country: canonical?.country ?? d.country,
-            lat: useFallback && fallback ? fallback.lat : dbLat,
-            lon: useFallback && fallback ? fallback.lon : dbLon,
+            lat: resolvedLat,
+            lon: resolvedLon,
             activities: SLUG_ACTIVITIES.get(d.slug) ?? [],
             activity: (SLUG_ACTIVITIES.get(d.slug) ?? []).includes("surf")
               ? ("surf" as const)
               : ("other" as const),
           };
         })
+        .filter((d): d is NonNullable<typeof d> => Boolean(d))
     : [];
   const destinationNameBySlug = new Map(
     browseDestinations.map((d) => [d.slug, d.name]),
