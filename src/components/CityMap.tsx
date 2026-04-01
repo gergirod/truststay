@@ -982,64 +982,6 @@ export function CityMap({
           </button>
         )}
 
-        {/* Connectivity controls */}
-        <div className="absolute top-3 right-3 z-10 flex flex-col gap-2">
-          <div className="rounded-xl border border-dune bg-white/95 px-2.5 py-2 shadow-sm backdrop-blur-sm">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  setShowConnectivity((v) => {
-                    const next = !v;
-                    track("connectivity_layer_toggled", {
-                      city_slug: citySlug,
-                      enabled: next,
-                    });
-                    return next;
-                  })
-                }
-                className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${
-                  showConnectivity
-                    ? "bg-bark text-white"
-                    : "bg-white text-umber border border-dune"
-                }`}
-              >
-                Connectivity
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setShowStarlink((v) => {
-                    const next = !v;
-                    track("starlink_layer_toggled", {
-                      city_slug: citySlug,
-                      enabled: next,
-                    });
-                    return next;
-                  })
-                }
-                className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${
-                  showStarlink
-                    ? "bg-teal text-white"
-                    : "bg-white text-umber border border-dune"
-                }`}
-              >
-                Starlink fallback
-              </button>
-            </div>
-          </div>
-          {showStarlink && (
-            <div className="rounded-xl border border-dune bg-white/95 px-3 py-2 shadow-sm backdrop-blur-sm">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-umber">
-                Backup signal
-              </p>
-              <p className="mt-1 text-xs font-medium text-bark">
-                {starlinkLabelText ?? starlinkLabel(starlinkStatus)}
-              </p>
-            </div>
-          )}
-        </div>
-
         {/* ── "Tap zone" hint (Layer 1, zones exist) ─────────────────────── */}
         {!activeZone && hasZones && !shouldAutoDrillSingleZone && (
           <div className="absolute top-3 left-3 rounded-lg bg-white/90 backdrop-blur-sm border border-dune px-2.5 py-1.5">
@@ -1129,37 +1071,86 @@ export function CityMap({
           </div>
         )}
 
-        {/* Connectivity detail panel */}
-        {showConnectivity && selectedConnectivity && (
-          <div className="absolute right-3 top-24 z-10 w-[280px] rounded-xl border border-dune bg-white/95 p-3 shadow-md backdrop-blur-sm">
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-sm font-semibold text-bark">
-                Connectivity score {selectedConnectivity.score}/100
-              </p>
-              <button
-                type="button"
-                onClick={() => setSelectedConnectivity(null)}
-                className="rounded-md border border-dune px-2 py-0.5 text-[10px] font-semibold text-umber hover:text-bark"
-              >
-                Close
-              </button>
-            </div>
-            <p className="mt-1 text-xs font-medium text-umber">
-              {CONNECTIVITY_BUCKET_META[selectedConnectivity.bucket].label}
-            </p>
-            <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-bark">
-              <span>Download</span><span>{selectedConnectivity.median_download_mbps ?? "—"} Mbps</span>
-              <span>Upload</span><span>{selectedConnectivity.median_upload_mbps ?? "—"} Mbps</span>
-              <span>Latency</span><span>{selectedConnectivity.median_latency_ms ?? "—"} ms</span>
-              <span>Confidence</span><span className="capitalize">{selectedConnectivity.confidence}</span>
-              <span>Freshness</span><span>{selectedConnectivity.freshness_days ?? "—"} days</span>
-            </div>
-            <p className="mt-2 text-[11px] text-umber">
-              {selectedConnectivity.summary_short}
-            </p>
-          </div>
+      </div>
+
+      {/* Connectivity controls moved outside map so they never overlap mapbox nav controls */}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() =>
+            setShowConnectivity((v) => {
+              const next = !v;
+              track("connectivity_layer_toggled", {
+                city_slug: citySlug,
+                enabled: next,
+              });
+              return next;
+            })
+          }
+          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+            showConnectivity
+              ? "bg-bark text-white"
+              : "bg-white text-umber border border-dune"
+          }`}
+        >
+          Connectivity
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            setShowStarlink((v) => {
+              const next = !v;
+              track("starlink_layer_toggled", {
+                city_slug: citySlug,
+                enabled: next,
+              });
+              return next;
+            })
+          }
+          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+            showStarlink
+              ? "bg-teal text-white"
+              : "bg-white text-umber border border-dune"
+          }`}
+        >
+          Starlink fallback
+        </button>
+        {showStarlink && (
+          <span className="text-xs text-umber">
+            {starlinkLabelText ?? starlinkLabel(starlinkStatus)}
+          </span>
         )}
       </div>
+
+      {showConnectivity && selectedConnectivity && (
+        <div className="mt-2 w-full rounded-xl border border-dune bg-white p-3">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-semibold text-bark">
+              Connectivity score {selectedConnectivity.score}/100
+            </p>
+            <button
+              type="button"
+              onClick={() => setSelectedConnectivity(null)}
+              className="rounded-md border border-dune px-2 py-0.5 text-[10px] font-semibold text-umber hover:text-bark"
+            >
+              Close
+            </button>
+          </div>
+          <p className="mt-1 text-xs font-medium text-umber">
+            {CONNECTIVITY_BUCKET_META[selectedConnectivity.bucket].label}
+          </p>
+          <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-bark">
+            <span>Download</span><span>{selectedConnectivity.median_download_mbps ?? "—"} Mbps</span>
+            <span>Upload</span><span>{selectedConnectivity.median_upload_mbps ?? "—"} Mbps</span>
+            <span>Latency</span><span>{selectedConnectivity.median_latency_ms ?? "—"} ms</span>
+            <span>Confidence</span><span className="capitalize">{selectedConnectivity.confidence}</span>
+            <span>Freshness</span><span>{selectedConnectivity.freshness_days ?? "—"} days</span>
+          </div>
+          <p className="mt-2 text-[11px] text-umber">
+            {selectedConnectivity.summary_short}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

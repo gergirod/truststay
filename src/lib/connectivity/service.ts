@@ -137,6 +137,39 @@ function distanceSq(aLat: number, aLon: number, bLat: number, bLon: number): num
   return (aLat - bLat) ** 2 + (aLon - bLon) ** 2;
 }
 
+function haversineKm(aLat: number, aLon: number, bLat: number, bLon: number): number {
+  const R = 6371;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLon = ((bLon - aLon) * Math.PI) / 180;
+  const aa =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((aLat * Math.PI) / 180) *
+      Math.cos((bLat * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
+}
+
+function isInsideAnyMicroArea(
+  lat: number,
+  lon: number,
+  areas: Array<{ centerLat: number; centerLon: number; radiusKm: number }>,
+): boolean {
+  if (areas.length === 0) return true;
+  return areas.some((a) =>
+    haversineKm(lat, lon, a.centerLat, a.centerLon) <= Math.max(0.4, a.radiusKm * 1.15),
+  );
+}
+
+function isNearAnyPlaceAnchor(
+  lat: number,
+  lon: number,
+  anchors: Array<{ lat: number; lon: number }>,
+  maxKm: number,
+): boolean {
+  if (anchors.length === 0) return true;
+  return anchors.some((p) => haversineKm(lat, lon, p.lat, p.lon) <= maxKm);
+}
+
 export async function ensureConnectivityPrecomputedForCitySlug(
   citySlug: string,
   options?: { forceRecompute?: boolean },
@@ -145,6 +178,7 @@ export async function ensureConnectivityPrecomputedForCitySlug(
   const destination = await canonicalRepository.getDestinationBySlug(citySlug);
   if (!destination) return { ok: false, cellCount: 0 };
   const areas = await canonicalRepository.listMicroAreasForDestination(destination.id);
+  const placeAnchors = await canonicalRepository.listPlaceAnchorsForDestination(destination.id);
 
   const existingCount = await connectivityRepository.countCellsForDestination(destination.id);
   if (!forceRecompute && existingCount > 0) return { ok: true, cellCount: existingCount };
@@ -188,7 +222,7 @@ export async function ensureConnectivityPrecomputedForCitySlug(
     observations = await connectivityRepository.listObservationsForDestination(destination.id);
   }
 
-  const computed = computeConnectivityCells(
+  const computedRaw = computeConnectivityCells(
     observations.map((o) => ({
       destinationId: o.destinationId,
       microAreaId: o.microAreaId,
@@ -202,6 +236,10 @@ export async function ensureConnectivityPrecomputedForCitySlug(
       sourceName: o.sourceName,
       sourceVersion: o.sourceVersion,
     })),
+  );
+  const computed = computedRaw.filter((cell) =>
+    isInsideAnyMicroArea(cell.centroid.lat, cell.centroid.lon, areas) &&
+    isNearAnyPlaceAnchor(cell.centroid.lat, cell.centroid.lon, placeAnchors, 2.8),
   );
 
   const savedCells = [];

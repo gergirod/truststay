@@ -83,6 +83,26 @@ export class CanonicalRepository {
       .orderBy(microAreas.canonicalName);
   }
 
+  async listPlaceAnchorsForDestination(
+    destinationId: string,
+  ): Promise<Array<{ lat: number; lon: number }>> {
+    const db = getDb();
+    if (!db) return [];
+    const rows = await db
+      .select({ lat: places.lat, lon: places.lon })
+      .from(places)
+      .where(eq(places.destinationId, destinationId));
+    return rows
+      .filter(
+        (r): r is { lat: number; lon: number } =>
+          typeof r.lat === "number" &&
+          Number.isFinite(r.lat) &&
+          typeof r.lon === "number" &&
+          Number.isFinite(r.lon),
+      )
+      .map((r) => ({ lat: r.lat, lon: r.lon }));
+  }
+
   async upsertMicroArea(input: NewMicroArea): Promise<MicroArea | null> {
     const db = getDb();
     if (!db) return null;

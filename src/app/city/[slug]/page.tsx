@@ -1106,16 +1106,23 @@ async function CityContent({
   let stayFitNarrative: StayFitNarrative | null = null;
   let microAreaNarratives: MicroAreaNarrative[] | null = null;
   if (stayFit) {
-    const enrichedResult = await getOrGenerateEnrichedNarrative(
-      city.slug, city.name, city.country, stayFit, places
-    ).catch(() => null);
-
-    if (enrichedResult) {
-      stayFitNarrative = enrichedResult.narrative;
-      microAreaNarratives = enrichedResult.microAreaNarratives;
+    if (isUnlocked) {
+      const enrichedResult = await getOrGenerateEnrichedNarrative(
+        city.slug, city.name, city.country, stayFit, places
+      ).catch(() => null);
+      if (enrichedResult) {
+        stayFitNarrative = enrichedResult.narrative;
+        microAreaNarratives = enrichedResult.microAreaNarratives;
+      }
+    } else {
+      // Locked users get the light narrative path only; full enriched stack is
+      // generated when unlocked to avoid unnecessary cost and cache pollution.
+      stayFitNarrative = await getOrGenerateStayFitNarrative(
+        stayFit, city.slug, city.name, city.country
+      ).catch(() => null);
     }
 
-    // Fall back to basic narrative if enrichment failed
+    // Final fallback if either path failed.
     if (!stayFitNarrative) {
       stayFitNarrative = await getOrGenerateStayFitNarrative(
         stayFit, city.slug, city.name, city.country

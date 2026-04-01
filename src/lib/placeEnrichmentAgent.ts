@@ -966,7 +966,16 @@ function readLocalSetupCache(key: string): EnrichedNarrativeResult | null | unde
     localSetupCache.delete(key);
     return undefined;
   }
-  return entry.result;
+  // Ignore incomplete local cache entries so unlocked users can recover full
+  // micro-area stacks after transient generation/backfill failures.
+  const result = entry.result;
+  if (
+    result &&
+    (!result.microAreaNarratives || result.microAreaNarratives.length === 0)
+  ) {
+    return undefined;
+  }
+  return result;
 }
 
 function writeLocalSetupCache(
@@ -1148,12 +1157,8 @@ export async function getOrGenerateEnrichedNarrative(
       console.warn(
         `[enrichmentAgent] failed to recover micro-area narratives from cached entry city=${citySlug}: ${formatError(err)}`,
       );
-      const result = {
-        narrative: cachedNarrative,
-        microAreaNarratives: null,
-      };
-      writeLocalSetupCache(setupCacheKey, result);
-      return result;
+      // Do not return an incomplete cached payload. Continue to regenerate so
+      // unlocked users can still receive full micro-area output.
     }
   }
 
