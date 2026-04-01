@@ -26,9 +26,6 @@ on:
         required: false
         default: "30"
         type: string
-  schedule:
-    - cron: "20 */12 * * *"
-
 jobs:
   refresh:
     runs-on: ubuntu-latest
@@ -46,7 +43,6 @@ jobs:
       - run: npm ci
 
       - name: Refresh connectivity (manual)
-        if: github.event_name == 'workflow_dispatch'
         run: |
           CMD="npm run refresh:connectivity --"
           if [ -n "${{ github.event.inputs.city }}" ]; then
@@ -59,8 +55,3 @@ jobs:
           fi
           echo "Running: $CMD"
           eval "$CMD"
-
-      - name: Refresh connectivity (scheduled surf batch)
-        if: github.event_name == 'schedule'
-        run: |
-          npm run refresh:connectivity -- --activity surf --limit 30
