@@ -9,6 +9,7 @@ function distanceSq(aLat: number, aLon: number, bLat: number, bLon: number): num
 
 export async function GET(req: NextRequest) {
   const citySlug = req.nextUrl.searchParams.get("citySlug")?.trim();
+  const force = req.nextUrl.searchParams.get("force") === "1";
   const lat = Number(req.nextUrl.searchParams.get("lat"));
   const lon = Number(req.nextUrl.searchParams.get("lng") ?? req.nextUrl.searchParams.get("lon"));
   if (!citySlug || !Number.isFinite(lat) || !Number.isFinite(lon)) {
@@ -18,7 +19,9 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  await ensureConnectivityPrecomputedForCitySlug(citySlug);
+  await ensureConnectivityPrecomputedForCitySlug(citySlug, {
+    forceRecompute: force,
+  });
   const destination = await connectivityRepository.getDestinationBySlug(citySlug);
   if (!destination) return NextResponse.json({ summary: null });
 

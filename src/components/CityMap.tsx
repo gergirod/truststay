@@ -10,6 +10,7 @@ import {
   createLockedMarker,
   createDailyLifeMarker,
 } from "@/lib/mapMarkers";
+import { track } from "@/lib/analytics";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -352,7 +353,7 @@ export function CityMap({
   const onZoneClickRef = useRef<((zone: MicroAreaZone) => void) | null>(null);
 
   const [activeZone, setActiveZone] = useState<MicroAreaZone | null>(null);
-  const [showConnectivity, setShowConnectivity] = useState(true);
+  const [showConnectivity, setShowConnectivity] = useState(false);
   const [showStarlink, setShowStarlink] = useState(false);
   const [hoveredConnectivity, setHoveredConnectivity] = useState<ConnectivityCellData | null>(null);
   const [selectedConnectivity, setSelectedConnectivity] = useState<ConnectivityCellData | null>(null);
@@ -739,7 +740,7 @@ export function CityMap({
                 "okay", CONNECTIVITY_BUCKET_META.okay.fill,
                 CONNECTIVITY_BUCKET_META.risky.fill,
               ],
-              "fill-opacity": 0.2,
+              "fill-opacity": 0.12,
             },
           });
 
@@ -756,8 +757,8 @@ export function CityMap({
                 "okay", CONNECTIVITY_BUCKET_META.okay.line,
                 CONNECTIVITY_BUCKET_META.risky.line,
               ],
-              "line-width": 1.3,
-              "line-opacity": 0.68,
+              "line-width": 1.15,
+              "line-opacity": 0.42,
             },
           });
 
@@ -804,6 +805,14 @@ export function CityMap({
             map.getCanvas().style.cursor = "pointer";
             const parsed = parseFeature(event.features?.[0]);
             setHoveredConnectivity(parsed);
+            if (parsed) {
+              track("connectivity_cell_hovered", {
+                city_slug: citySlug,
+                cell_id: parsed.id,
+                bucket: parsed.bucket,
+                score: parsed.score,
+              });
+            }
           });
 
           map.on("mouseleave", CONNECTIVITY_FILL_ID, () => {
@@ -816,7 +825,15 @@ export function CityMap({
             features?: any[];
           }) => {
             const parsed = parseFeature(event.features?.[0]);
-            if (parsed) setSelectedConnectivity(parsed);
+            if (parsed) {
+              setSelectedConnectivity(parsed);
+              track("connectivity_cell_opened", {
+                city_slug: citySlug,
+                cell_id: parsed.id,
+                bucket: parsed.bucket,
+                score: parsed.score,
+              });
+            }
           });
         }
 
@@ -971,7 +988,16 @@ export function CityMap({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setShowConnectivity((v) => !v)}
+                onClick={() =>
+                  setShowConnectivity((v) => {
+                    const next = !v;
+                    track("connectivity_layer_toggled", {
+                      city_slug: citySlug,
+                      enabled: next,
+                    });
+                    return next;
+                  })
+                }
                 className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${
                   showConnectivity
                     ? "bg-bark text-white"
@@ -982,7 +1008,16 @@ export function CityMap({
               </button>
               <button
                 type="button"
-                onClick={() => setShowStarlink((v) => !v)}
+                onClick={() =>
+                  setShowStarlink((v) => {
+                    const next = !v;
+                    track("starlink_layer_toggled", {
+                      city_slug: citySlug,
+                      enabled: next,
+                    });
+                    return next;
+                  })
+                }
                 className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${
                   showStarlink
                     ? "bg-teal text-white"

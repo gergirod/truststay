@@ -1,0 +1,66 @@
+name: Refresh Connectivity
+
+on:
+  workflow_dispatch:
+    inputs:
+      city:
+        description: "City slug (optional; empty = batch)"
+        required: false
+        type: string
+      activity:
+        description: "Batch activity when city is empty"
+        required: true
+        default: surf
+        type: choice
+        options:
+          - surf
+          - dive
+          - hike
+          - yoga
+          - kite
+          - work_first
+          - exploring
+          - all
+      limit:
+        description: "Max destinations in batch mode"
+        required: false
+        default: "30"
+        type: string
+  schedule:
+    - cron: "20 */12 * * *"
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      CONNECTIVITY_ALLOW_SEEDED: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+
+      - name: Refresh connectivity (manual)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          CMD="npm run refresh:connectivity --"
+          if [ -n "${{ github.event.inputs.city }}" ]; then
+            CMD="$CMD --city ${{ github.event.inputs.city }}"
+          else
+            CMD="$CMD --activity ${{ github.event.inputs.activity }}"
+            if [ -n "${{ github.event.inputs.limit }}" ]; then
+              CMD="$CMD --limit ${{ github.event.inputs.limit }}"
+            fi
+          fi
+          echo "Running: $CMD"
+          eval "$CMD"
+
+      - name: Refresh connectivity (scheduled surf batch)
+        if: github.event_name == 'schedule'
+        run: |
+          npm run refresh:connectivity -- --activity surf --limit 30

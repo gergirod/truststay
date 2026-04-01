@@ -12,6 +12,7 @@
     "db:studio": "drizzle-kit studio",
     "refresh:activity": "node -r ./scripts/preload.cjs scripts/manual-refresh-by-activity.ts",
     "refresh:destination": "node -r ./scripts/preload.cjs scripts/refresh-destination.ts",
+    "refresh:connectivity": "node -r ./scripts/preload.cjs scripts/refresh-connectivity.ts",
     "backfill:activity": "node -r ./scripts/preload.cjs scripts/backfill-activity-destinations.ts",
     "repair:destinations": "node -r ./scripts/preload.cjs scripts/repair-canonical-destinations.ts",
     "test:enrichment": "node -r ./scripts/preload.cjs scripts/test-enrichment.ts",

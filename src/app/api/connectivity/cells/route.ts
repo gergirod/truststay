@@ -12,11 +12,14 @@ function parseBbox(raw: string | null) {
 
 export async function GET(req: NextRequest) {
   const citySlug = req.nextUrl.searchParams.get("citySlug")?.trim();
+  const force = req.nextUrl.searchParams.get("force") === "1";
   if (!citySlug) {
     return NextResponse.json({ error: "citySlug is required" }, { status: 400 });
   }
 
-  await ensureConnectivityPrecomputedForCitySlug(citySlug);
+  await ensureConnectivityPrecomputedForCitySlug(citySlug, {
+    forceRecompute: force,
+  });
   const destination = await connectivityRepository.getDestinationBySlug(citySlug);
   if (!destination) {
     return NextResponse.json({ type: "FeatureCollection", features: [] });

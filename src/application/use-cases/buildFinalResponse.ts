@@ -28,6 +28,10 @@ import { discoverMicroAreas } from "./discoverMicroAreas";
 import type { MicroAreaDef } from "./discoverMicroAreas";
 import { gatherEvidenceForMicroArea } from "@/infrastructure/providers/gatherEvidence";
 import { canonicalRepository } from "@/db/repositories";
+import { connectivityRepository } from "@/db/repositories";
+import { ensureConnectivityPrecomputedForCitySlug } from "@/lib/connectivity/service";
+import { buildConnectivitySummary } from "@/lib/connectivity/scoring";
+import type { ConnectivitySummary, StarlinkFallback } from "@/lib/connectivity/types";
 
 const MAX_ZONE_DISTANCE_FROM_ANCHOR_KM = 22;
 const MIN_ACCEPTED_EVIDENCE_SCORE = 2.5;
@@ -108,6 +112,12 @@ export async function buildFinalResponse(
     return { ...card, micro_area_name: ma?.name ?? ep.micro_area_id };
   });
 
+  const connectivityByArea = await resolveConnectivityByMicroArea(
+    citySlug,
+    acceptedMicroAreas,
+  );
+  applyConnectivityToScoreCards(scoreCards, weights, connectivityByArea);
+
   // Collect unknowns from thin evidence
   for (const card of scoreCards) {
     if (card.confidence < 0.5) {
@@ -125,6 +135,7 @@ export async function buildFinalResponse(
     evidencePacks,
     userProfile
   );
+  enrichRecommendationWithConnectivity(recommendation, rankingResult.top_pick, connectivityByArea);
   console.log(
     `[buildFinalResponse] ranking city=${citySlug} top=${recommendation.top_pick} top_score=${rankingResult.rankings[0]?.final_score?.toFixed(2) ?? "n/a"} top_has_breakers=${rankingResult.rankings[0]?.has_constraint_breakers ?? false}`,
   );
@@ -175,6 +186,191 @@ export async function buildFinalResponse(
     `[buildFinalResponse] done city=${citySlug} candidate_micro_areas=${output.candidate_micro_areas.length} warnings=${output.recommendation.warnings.length}`,
   );
   return FinalOutputSchema.parse(output);
+}
+
+type ConnectivityByArea = Map<
+  string,
+  {
+    summary: ConnectivitySummary;
+    starlinkFallback: StarlinkFallback | null;
+  }
+>;
+
+async function resolveConnectivityByMicroArea(
+  citySlug: string,
+  microAreas: MicroAreaDef[],
+): Promise<ConnectivityByArea> {
+  const map: ConnectivityByArea = new Map();
+  if (microAreas.length === 0) return map;
+
+  await ensureConnectivityPrecomputedForCitySlug(citySlug).catch(() => null);
+  const destination = await connectivityRepository.getDestinationBySlug(citySlug);
+  if (!destination) return map;
+
+  const cells = await connectivityRepository.listCellsForDestination(destination.id);
+  if (!cells.length) return map;
+
+  const byId = new Map(cells.map((c) => [c.id, c]));
+  for (const area of microAreas) {
+    let profile = await connectivityRepository.getAreaProfile(destination.id, area.id);
+
+    if (!profile) {
+      const nearest = cells
+        .slice()
+        .sort(
+          (a, b) =>
+            haversineKm(a.centroidLat, a.centroidLon, area.center.lat, area.center.lon) -
+            haversineKm(b.centroidLat, b.centroidLon, area.center.lat, area.center.lon),
+        )[0];
+      if (nearest) {
+        profile = {
+          id: `synthetic-${area.id}`,
+          destinationId: destination.id,
+          areaId: area.id,
+          bestCellId: nearest.id,
+          summary: buildConnectivitySummary({
+            score: nearest.remoteWorkScore,
+            bucket: nearest.remoteWorkBucket,
+            median_download_mbps: nearest.medianDownloadMbps,
+            median_upload_mbps: nearest.medianUploadMbps,
+            median_latency_ms: nearest.medianLatencyMs,
+            confidence: nearest.confidenceBucket,
+            freshness_days: nearest.freshnessDays,
+          }),
+          starlinkFallback: null,
+          computedAt: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+      }
+    }
+
+    if (!profile) continue;
+    let summary: ConnectivitySummary | null = null;
+    if (profile.summary && typeof profile.summary === "object") {
+      const s = profile.summary as Partial<ConnectivitySummary>;
+      if (typeof s.score === "number" && typeof s.bucket === "string") {
+        summary = {
+          score: s.score,
+          bucket: s.bucket,
+          median_download_mbps: s.median_download_mbps ?? null,
+          median_upload_mbps: s.median_upload_mbps ?? null,
+          median_latency_ms: s.median_latency_ms ?? null,
+          confidence: s.confidence ?? "low",
+          freshness_days: s.freshness_days ?? null,
+          summary_short: s.summary_short ?? "",
+          summary_long: s.summary_long ?? "",
+          warnings: Array.isArray(s.warnings) ? s.warnings : [],
+        };
+      }
+    }
+    if (!summary && profile.bestCellId) {
+      const cell = byId.get(profile.bestCellId);
+      if (cell) {
+        summary = buildConnectivitySummary({
+          score: cell.remoteWorkScore,
+          bucket: cell.remoteWorkBucket,
+          median_download_mbps: cell.medianDownloadMbps,
+          median_upload_mbps: cell.medianUploadMbps,
+          median_latency_ms: cell.medianLatencyMs,
+          confidence: cell.confidenceBucket,
+          freshness_days: cell.freshnessDays,
+        });
+      }
+    }
+    if (!summary) continue;
+    if (profile.id.startsWith("synthetic-")) {
+      summary.warnings = [
+        ...summary.warnings,
+        "Used nearest-cell fallback for this area due to sparse local connectivity data.",
+      ];
+    }
+    map.set(area.id, {
+      summary,
+      starlinkFallback:
+        profile.starlinkFallback && typeof profile.starlinkFallback === "object"
+          ? (profile.starlinkFallback as StarlinkFallback)
+          : null,
+    });
+  }
+  return map;
+}
+
+function applyConnectivityToScoreCards(
+  cards: ScoreCard[],
+  weights: ReturnType<typeof adjustWeights>,
+  connectivityByArea: ConnectivityByArea,
+): void {
+  if (connectivityByArea.size === 0) return;
+  for (const card of cards) {
+    const context = connectivityByArea.get(card.micro_area_id);
+    if (!context) continue;
+    const connectivityInternetScore = Math.max(
+      0,
+      Math.min(10, Number((context.summary.score / 10).toFixed(1))),
+    );
+    const blendedInternetScore = Number(
+      (card.scores.internet_reliability * 0.65 + connectivityInternetScore * 0.35).toFixed(1),
+    );
+    const delta = blendedInternetScore - card.scores.internet_reliability;
+    card.scores.internet_reliability = blendedInternetScore;
+    card.scores.weighted_total = Math.max(
+      0,
+      Math.min(10, Number((card.scores.weighted_total + delta * weights.internet_reliability).toFixed(1))),
+    );
+    card.final_score = Math.max(
+      0,
+      Math.min(10, Number((card.final_score + delta * weights.internet_reliability).toFixed(1))),
+    );
+
+    if (context.summary.bucket === "excellent" || context.summary.bucket === "good") {
+      card.strengths = [
+        `Connectivity: ${context.summary.bucket} (${context.summary.score}/100)`,
+        ...card.strengths,
+      ].slice(0, 4);
+    } else if (context.summary.bucket === "risky") {
+      card.weaknesses = [
+        `Connectivity risk (${context.summary.score}/100)`,
+        ...card.weaknesses,
+      ].slice(0, 4);
+    }
+  }
+}
+
+function enrichRecommendationWithConnectivity(
+  recommendation: FinalOutput["recommendation"],
+  topPickId: string,
+  connectivityByArea: ConnectivityByArea,
+): void {
+  const top = connectivityByArea.get(topPickId);
+  if (!top) return;
+
+  const topSummary = top.summary;
+  if (topSummary.bucket === "excellent" || topSummary.bucket === "good") {
+    recommendation.why_it_wins = [
+      `Connectivity is ${topSummary.bucket} (${topSummary.score}/100), likely good for calls and deep work.`,
+      ...recommendation.why_it_wins,
+    ].slice(0, 4);
+  } else if (topSummary.bucket === "okay") {
+    recommendation.main_tradeoffs = [
+      "Connectivity is workable for async work, but heavy call schedules may be inconsistent.",
+      ...recommendation.main_tradeoffs,
+    ].slice(0, 4);
+  } else {
+    recommendation.main_tradeoffs = [
+      "Connectivity is risky in this area, so internet-reliant workflows need extra caution.",
+      ...recommendation.main_tradeoffs,
+    ].slice(0, 4);
+  }
+
+  if (top.starlinkFallback?.display_label) {
+    recommendation.warnings = [
+      ...recommendation.warnings,
+      `${top.starlinkFallback.display_label}. Do not assume backup solves neighborhood internet quality by itself.`,
+    ];
+  }
+
+  recommendation.warnings = [...new Set(recommendation.warnings)];
 }
 
 // ── Provider resolution (fully dynamic) ───────────────────────────────────────

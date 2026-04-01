@@ -139,13 +139,15 @@ function distanceSq(aLat: number, aLon: number, bLat: number, bLon: number): num
 
 export async function ensureConnectivityPrecomputedForCitySlug(
   citySlug: string,
+  options?: { forceRecompute?: boolean },
 ): Promise<{ ok: boolean; cellCount: number }> {
+  const forceRecompute = options?.forceRecompute === true;
   const destination = await canonicalRepository.getDestinationBySlug(citySlug);
   if (!destination) return { ok: false, cellCount: 0 };
   const areas = await canonicalRepository.listMicroAreasForDestination(destination.id);
 
   const existingCount = await connectivityRepository.countCellsForDestination(destination.id);
-  if (existingCount > 0) return { ok: true, cellCount: existingCount };
+  if (!forceRecompute && existingCount > 0) return { ok: true, cellCount: existingCount };
 
   let observations = await connectivityRepository.listObservationsForDestination(destination.id);
   if (!observations.length) {
