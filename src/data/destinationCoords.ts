@@ -126,6 +126,7 @@ export const DESTINATION_PINS: DestinationPin[] = [
   { slug: "alto-paraiso",        label: "Alto Paraíso",        category: "Hike",             lat: -14.133, lon: -47.517  },
   { slug: "bariloche",           label: "Bariloche",           category: "Hike",             lat: -41.133, lon: -71.317  },
   { slug: "el-chalten",          label: "El Chaltén",          category: "Hike",             lat: -49.333, lon: -72.883  },
+  { slug: "el-bolson",           label: "El Bolsón",           category: "Hike",             lat: -41.964, lon: -71.533  },
   { slug: "puerto-natales",      label: "Puerto Natales",      category: "Hike",             lat: -51.733, lon: -72.500  },
   { slug: "pucon",               label: "Pucón",               category: "Hike",             lat: -39.267, lon: -71.983  },
   { slug: "san-pedro-de-atacama",label: "San Pedro de Atacama",category: "Hike",             lat: -22.908, lon: -68.200  },

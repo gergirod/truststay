@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { geocodeCity, reverseGeocodeArea, toSlug } from "@/lib/geocode";
+import { DESTINATION_PINS } from "@/data/destinationCoords";
 import { sortByDistance, haversineKm } from "@/lib/overpass";
 import { getPlacesWithCache, saveEnrichedPlaces, getDailyLifeWithCache } from "@/lib/placesCache";
 import { computeCitySummary, computeBaseCentroid, computeStayFitScore, appendDailyLifeSignals } from "@/lib/scoring";
@@ -258,6 +259,10 @@ function getString(sp: SearchParams, key: string): string | undefined {
   const val = sp[key];
   return typeof val === "string" ? val : undefined;
 }
+
+const CURATED_COORDS_BY_SLUG = new Map(
+  DESTINATION_PINS.map((pin) => [pin.slug, { lat: pin.lat, lon: pin.lon }]),
+);
 
 async function resolveCity(
   slug: string,
@@ -621,11 +626,14 @@ async function resolveCity(
   if (!city) return null;
 
   const override = DISPLAY_NAME_OVERRIDES[slug];
+  const curatedCoords = CURATED_COORDS_BY_SLUG.get(slug);
   return {
     ...city,
     slug,
     name: override?.name ?? city.name,
     country: override?.country ?? city.country,
+    lat: curatedCoords?.lat ?? city.lat,
+    lon: curatedCoords?.lon ?? city.lon,
   };
 }
 
