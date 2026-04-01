@@ -48,50 +48,121 @@ const HOW_IT_WORKS = [
   {
     n: "01",
     title: "Tell us where you're going and how you work",
-    body: "Enter your destination and shape your stay — surf + light work, focused remote, whatever your rhythm is. No account required.",
+    body: "Choose your destination and stay style — focused remote work, light work + surf, or a more balanced rhythm.",
   },
   {
     n: "02",
-    title: "Get your base recommendation",
-    body: "TrustStay finds the best area for your kind of stay — with honest signals on work infrastructure, daily life, and what to plan around before you arrive.",
+    title: "Get your best base area",
+    body: "TrustStay recommends the area that best fits your work setup, daily routine, and the tradeoffs you're okay with.",
   },
   {
     n: "03",
-    title: "Arrive knowing your setup",
-    body: "Every work spot, café, and grocery ranked by distance from your base. No guessing, no day-one scrambling, no wasted first week.",
+    title: "Arrive with your setup already mapped",
+    body: "See work cafés, groceries, training options, and practical tradeoffs before arrival — not after a bad booking.",
   },
 ];
 
-const WHY_TRUSTAY = [
+const WHY_TRUSTSTAY = [
   {
     accent: "teal" as const,
-    title: "Decision support, not discovery clutter",
-    body: "We answer one question: where should you base yourself — and why that area fits your kind of stay.",
+    title: "Neighborhood-first, not city-first",
+    body: "Most guides tell you where to go. TrustStay tells you where to base yourself inside the place you already chose.",
   },
   {
     accent: "teal" as const,
-    title: "Honest signals, not fake certainty",
-    body: "Wi-Fi and noise ratings are labeled as verified, likely, or unknown — never guaranteed.",
+    title: "Built for routine, not tourism",
+    body: "We focus on what remote workers need to function fast: work spots, food, groceries, movement, and daily logistics.",
   },
   {
     accent: "coral" as const,
-    title: "Built for preparation, not tourism",
-    body: "Work spots, groceries, and daily essentials — everything you need to know before you arrive.",
+    title: "Honest signals, not fake guarantees",
+    body: "Wi-Fi and noise are labeled as verified, likely, or unknown. We avoid fake certainty.",
+  },
+  {
+    accent: "coral" as const,
+    title: "Faster than doing it manually",
+    body: "Instead of bouncing between Maps, Airbnb reviews, blogs, and Reddit, you get one structured base decision before arrival.",
+  },
+];
+
+const PAIN_CHIPS = [
+  "Wi-Fi confidence",
+  "Noise signals",
+  "Work cafés nearby",
+  "Gym / training options",
+  "Groceries & essentials",
+  "Walkability",
+];
+
+const PAIN_CARDS = [
+  {
+    title: "Bad work setup",
+    body: "Weak Wi-Fi, poor cafés, and no comfortable fallback when your Airbnb setup fails.",
+  },
+  {
+    title: "Routine friction",
+    body: "Groceries, food, gym, and work spots too far from where you stay.",
+  },
+  {
+    title: "Wasted first week",
+    body: "You land, realize the area is wrong, and lose days rebuilding your setup.",
   },
 ];
 
 const FREE_FEATURES = [
-  "Recommended base area for your destination",
-  "Stay infrastructure score and coverage summary",
-  "One work spot, café, and training option near your base",
+  "Best recommended base area",
+  "Coverage snapshot",
+  "1 work spot",
+  "1 café",
+  "1 training option",
 ];
 
 const PASS_FEATURES = [
-  "Your full base recommendation — why it fits, what to plan around",
-  "All ranked micro-areas for your destination (not just the top base)",
-  "Every work spot, café, and wellbeing option sorted by distance",
-  "Hours, ratings, and Maps links for each place",
-  "Honest wifi, noise, and work-fit signals per place",
+  "Why this base fits your stay",
+  "All ranked micro-areas",
+  "All cafés, work spots, and wellbeing options by distance",
+  "Maps links, hours, ratings",
+  "Wi-Fi confidence, noise, and work-fit signals",
+  "Lifetime access for that area",
+];
+
+const MANUAL_RESEARCH_STEPS = [
+  "Scanning Airbnb reviews for Wi-Fi clues",
+  "Checking random cafés on Maps",
+  "Guessing if an area is noisy",
+  "Trying to find gym and groceries nearby",
+  "Reading scattered Reddit threads",
+  "Hoping it all works when you arrive",
+];
+
+const TRUST_CHECKLIST = [
+  "Base-area fit",
+  "Work cafés nearby",
+  "Coworking / laptop-friendly spots",
+  "Groceries / essentials",
+  "Training / movement options",
+  "Wi-Fi confidence",
+  "Noise confidence",
+  "Distance from your base",
+];
+
+const FAQS = [
+  {
+    q: "Is TrustStay for booking accommodation?",
+    a: "No. TrustStay helps you decide which neighborhood or base area fits your stay before you book.",
+  },
+  {
+    q: "Does TrustStay guarantee Wi-Fi or noise?",
+    a: "No. Signals are labeled honestly as verified, likely, or unknown.",
+  },
+  {
+    q: "Who is TrustStay for?",
+    a: "Remote workers staying for multiple days or weeks who care about workability, routine, and daily setup.",
+  },
+  {
+    q: "Why not just use Google Maps and Airbnb reviews?",
+    a: "You can, but it's slow and still leaves gaps. TrustStay gives you one structured neighborhood decision before arrival.",
+  },
 ];
 
 function slugToDisplayName(slug: string): string {
@@ -214,19 +285,17 @@ export default async function HomePage() {
                 <div className="inline-flex items-center gap-2 rounded-full border border-dune bg-white/70 px-3 py-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-teal" />
                   <span className="text-xs font-medium text-umber">
-                    For remote workers who travel with a purpose
+                    For remote workers booking multi-week stays
                   </span>
                 </div>
 
                 <h1 className="mt-6 text-4xl font-bold leading-[1.1] tracking-tight text-bark sm:text-5xl lg:text-[52px]">
-                  Know where to base yourself{" "}
-                  <span className="text-coral">before you land.</span>
+                  Choose the right neighborhood{" "}
+                  <span className="text-coral">before you book the wrong one.</span>
                 </h1>
 
                 <p className="mt-5 max-w-md text-base leading-7 text-umber">
-                  You already chose the place. TrustStay helps you find
-                  your best base, understand daily life, and know what to
-                  plan around — before you arrive.
+                  TrustStay helps remote workers find the best base area for their stay with honest signals on Wi-Fi, noise, daily logistics, and routine fit before arrival.
                 </p>
 
                 <div className="mt-8">
@@ -234,13 +303,44 @@ export default async function HomePage() {
                 </div>
 
                 <p className="mt-5 text-xs text-umber">
-                  Free preview · No account required
+                  Find my best base · Free preview · No account required
                 </p>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {PAIN_CHIPS.map((chip) => (
+                    <span
+                      key={chip}
+                      className="rounded-full border border-dune bg-white/80 px-2.5 py-1 text-[11px] text-umber"
+                    >
+                      {chip}
+                    </span>
+                  ))}
+                </div>
 
               </div>
             </div>
           </div>
 
+        </section>
+
+        {/* ── Pain-first block ─────────────────────────────────── */}
+        <section className="border-b border-dune bg-white">
+          <div className="mx-auto max-w-4xl px-6 py-16">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
+              Why picking the wrong area hurts
+            </p>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-umber">
+              The city may be right. The neighborhood may be wrong. A bad base can mean unreliable Wi-Fi, noisy surroundings, weak work fallback options, long daily logistics, and a first week spent fixing your life instead of working.
+            </p>
+            <div className="mt-8 grid gap-4 sm:grid-cols-3">
+              {PAIN_CARDS.map((card) => (
+                <div key={card.title} className="rounded-2xl border border-dune bg-sand p-5">
+                  <h3 className="text-sm font-semibold text-bark">{card.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-umber">{card.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
 
         {/* ── How it works ── white ───────────────────────────── */}
@@ -316,10 +416,10 @@ export default async function HomePage() {
         <section className="border-b border-dune bg-sand">
           <div className="mx-auto max-w-4xl px-6 py-20">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
-              Why Truststay
+              Why TrustStay is better than guessing
             </p>
-            <div className="mt-12 grid gap-4 sm:grid-cols-3">
-              {WHY_TRUSTAY.map(({ accent, title, body }) => (
+            <div className="mt-12 grid gap-4 sm:grid-cols-2">
+              {WHY_TRUSTSTAY.map(({ accent, title, body }) => (
                 <div
                   key={title}
                   className="rounded-2xl border border-dune bg-white p-5"
@@ -334,6 +434,45 @@ export default async function HomePage() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* ── Manual research contrast ─────────────────────────── */}
+        <section className="border-b border-dune bg-white">
+          <div className="mx-auto max-w-4xl px-6 py-16">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
+              Most people do this the hard way
+            </p>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-umber">
+              Choosing where to stay often means stitching together Airbnb comments, Maps checks, and random threads. TrustStay turns that into one decision: where should I base myself, and why?
+            </p>
+            <div className="mt-6 grid gap-2 sm:grid-cols-2">
+              {MANUAL_RESEARCH_STEPS.map((item) => (
+                <div key={item} className="flex items-start gap-2 text-sm text-umber">
+                  <span className="mt-[7px] h-1.5 w-1.5 rounded-full bg-coral" />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Trust checklist ──────────────────────────────────── */}
+        <section className="border-b border-dune bg-sand">
+          <div className="mx-auto max-w-4xl px-6 py-16">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
+              What TrustStay evaluates before you arrive
+            </p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              {TRUST_CHECKLIST.map((item) => (
+                <div key={item} className="rounded-xl border border-dune bg-white px-4 py-3 text-sm text-bark">
+                  {item}
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-xs text-umber">
+              Signals are shown as verified, likely, or unknown where applicable.
+            </p>
           </div>
         </section>
 
@@ -369,11 +508,11 @@ export default async function HomePage() {
                 </ul>
               </div>
 
-              {/* Stay Setup */}
+              {/* Unlock Full Setup */}
               <div className="flex flex-col rounded-2xl bg-bark p-6 shadow-md">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/60">
-                    Stay Setup
+                    Unlock Full Setup
                   </p>
                   <span className="rounded-full bg-teal px-2.5 py-0.5 text-xs font-semibold text-white">
                     Popular
@@ -399,8 +538,25 @@ export default async function HomePage() {
             </div>
 
             <p className="mt-6 text-sm text-umber">
-              No account required. No subscription. Pay once, access forever.
+              Pay once for this area. No subscription.
             </p>
+          </div>
+        </section>
+
+        {/* ── FAQ ──────────────────────────────────────────────── */}
+        <section className="bg-white">
+          <div className="mx-auto max-w-4xl px-6 py-16">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-umber">
+              FAQ
+            </p>
+            <div className="mt-6 space-y-3">
+              {FAQS.map((faq) => (
+                <div key={faq.q} className="rounded-2xl border border-dune bg-sand p-5">
+                  <h3 className="text-sm font-semibold text-bark">{faq.q}</h3>
+                  <p className="mt-2 text-sm leading-6 text-umber">{faq.a}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       </main>

@@ -44,6 +44,8 @@ import type { CachedMicroAreaNarrative } from "@/lib/kv";
 import { buildFinalResponse } from "@/application/use-cases/buildFinalResponse";
 import type { FinalOutput } from "@/schemas/zod/finalOutput.schema";
 import { haversineKm } from "@/lib/overpass";
+import { connectivityRepository } from "@/db/repositories";
+import { ensureConnectivityPrecomputedForCitySlug } from "@/lib/connectivity/service";
 
 function formatError(err: unknown): string {
   if (err instanceof Error) {
@@ -728,6 +730,16 @@ interface ZonePlaceEvidence {
   essentials: string[];
 }
 
+interface ConnectivityPromptSnapshot {
+  score: number;
+  bucket: "excellent" | "good" | "okay" | "risky";
+  median_download_mbps: number | null;
+  median_upload_mbps: number | null;
+  median_latency_ms: number | null;
+  confidence: "low" | "medium" | "high";
+  freshness_days: number | null;
+}
+
 function toReadinessLevel(score: number): "strong" | "moderate" | "limited" {
   if (score >= 7) return "strong";
   if (score >= 4.5) return "moderate";
@@ -790,6 +802,7 @@ function summarizePlacesForZone(
  * Returns a ranked array — winner first, constraint-broken areas last.
  */
 export async function generateAllMicroAreaNarratives(
+  citySlug: string,
   cityName: string,
   country: string,
   decisionOutput: FinalOutput,
@@ -803,6 +816,11 @@ export async function generateAllMicroAreaNarratives(
     .map((r) => `#${r.rank} ${r.micro_area} — ${r.final_score.toFixed(1)}/10${r.has_constraint_breakers ? " [CONSTRAINT BREAKER]" : ""}`)
     .join("\n");
 
+  const connectivityByAreaName = await resolveConnectivityPromptSnapshots(
+    citySlug,
+    decisionOutput,
+  );
+
   const areasBlock = decisionOutput.candidate_micro_areas.map((m) => {
     const rankEntry = decisionOutput.ranking.find((r) => r.micro_area === m.name);
     const zonePlaces = summarizePlacesForZone(places, m.center, m.radius_km);
@@ -810,6 +828,22 @@ export async function generateAllMicroAreaNarratives(
       .filter(([k]) => k !== "weighted_total")
       .map(([k, v]) => `    ${k}: ${(v as number).toFixed(1)}`)
       .join("\n");
+    const connectivity = connectivityByAreaName.get(m.name);
+    const connectivityBlock = connectivity
+      ? `Connectivity snapshot (explicit values):
+  remote_work_score: ${connectivity.score}/100 (${connectivity.bucket})
+  median_download_mbps: ${connectivity.median_download_mbps ?? "unknown"}
+  median_upload_mbps: ${connectivity.median_upload_mbps ?? "unknown"}
+  median_latency_ms: ${connectivity.median_latency_ms ?? "unknown"}
+  confidence: ${connectivity.confidence}
+  freshness_days: ${connectivity.freshness_days ?? "unknown"}`
+      : `Connectivity snapshot (explicit values):
+  remote_work_score: unknown
+  median_download_mbps: unknown
+  median_upload_mbps: unknown
+  median_latency_ms: unknown
+  confidence: low
+  freshness_days: unknown`;
     return `
 ZONE: ${m.name}
 Rank: #${rankEntry?.rank ?? "?"} (${rankEntry?.final_score?.toFixed(1) ?? "?"}/10)
@@ -819,6 +853,7 @@ Strengths: ${m.strengths.join("; ")}
 Weaknesses: ${m.weaknesses.join("; ")}
 Constraint breakers: ${m.constraint_breakers.length ? m.constraint_breakers.join("; ") : "none"}
 Best for: ${m.best_for.join(", ")}
+${connectivityBlock}
 Zone place evidence:
   total places in/near zone: ${zonePlaces.total}
   coworking: ${zonePlaces.coworking.join(", ") || "none"}
@@ -846,6 +881,8 @@ TRADEOFFS: ${decisionOutput.recommendation.main_tradeoffs.join("; ")}
 WARNINGS: ${decisionOutput.recommendation.warnings.join("; ")}
 
 Write one BestBaseCard narrative per zone. Be specific and honest — use the scoring data and zone place evidence above.
+You MUST use connectivity metrics explicitly in your reasoning: download/upload/latency/confidence/freshness.
+If connectivity fields are unknown, say that uncertainty clearly and avoid confident claims.
 Reference concrete places from the same zone whenever available.
 For CONSTRAINT BREAKER zones: still write the narrative but make planAround honest about WHY it doesn't work for this profile.
 Keep each field to 1-2 sentences max — these are card snippets, not essays.
@@ -931,6 +968,47 @@ Return ONLY this JSON array (one object per zone, in rank order):
       };
     });
   }
+}
+
+async function resolveConnectivityPromptSnapshots(
+  citySlug: string,
+  decisionOutput: FinalOutput,
+): Promise<Map<string, ConnectivityPromptSnapshot>> {
+  const snapshots = new Map<string, ConnectivityPromptSnapshot>();
+  try {
+    await ensureConnectivityPrecomputedForCitySlug(citySlug).catch(() => null);
+    const destination = await connectivityRepository.getDestinationBySlug(citySlug);
+    if (!destination) return snapshots;
+    const cells = await connectivityRepository.listCellsForDestination(destination.id);
+    if (!cells.length) return snapshots;
+
+    for (const area of decisionOutput.candidate_micro_areas) {
+      const center = area.center;
+      if (!center) continue;
+      const nearest = cells
+        .slice()
+        .sort(
+          (a, b) =>
+            haversineKm(a.centroidLat, a.centroidLon, center.lat, center.lon) -
+            haversineKm(b.centroidLat, b.centroidLon, center.lat, center.lon),
+        )[0];
+      if (!nearest) continue;
+      snapshots.set(area.name, {
+        score: nearest.remoteWorkScore,
+        bucket: nearest.remoteWorkBucket,
+        median_download_mbps: nearest.medianDownloadMbps,
+        median_upload_mbps: nearest.medianUploadMbps,
+        median_latency_ms: nearest.medianLatencyMs,
+        confidence: nearest.confidenceBucket,
+        freshness_days: nearest.freshnessDays,
+      });
+    }
+  } catch (err) {
+    console.warn(
+      `[enrichmentAgent] connectivity prompt snapshots unavailable for ${citySlug}: ${formatError(err)}`,
+    );
+  }
+  return snapshots;
 }
 
 // ── Main entry point ─────────────────────────────────────────────────────────
@@ -1233,6 +1311,7 @@ export async function getOrGenerateEnrichedNarrative(
     let fallbackAreas: MicroAreaNarrative[] | null = null;
     try {
       fallbackAreas = await generateAllMicroAreaNarratives(
+        citySlug,
         cityName,
         country,
         decisionOutput,
@@ -1288,6 +1367,7 @@ export async function getOrGenerateEnrichedNarrative(
   let microAreaNarratives: MicroAreaNarrative[] | null = null;
   if (decisionOutput) {
     microAreaNarratives = await generateAllMicroAreaNarratives(
+      citySlug,
       cityName,
       country,
       decisionOutput,

@@ -194,7 +194,6 @@ const WORK_LABELS: Record<string, string> = {
 
 type ConnectivityBucket = "excellent" | "good" | "okay" | "risky";
 type ConfidenceBucket = "low" | "medium" | "high";
-type StarlinkStatus = "available" | "capacity_constrained" | "unknown" | "not_available";
 
 interface ConnectivityCellData {
   id: string;
@@ -235,20 +234,6 @@ function recommendationForBucket(bucket: ConnectivityBucket): string {
   if (bucket === "good") return "Good for everyday remote work.";
   if (bucket === "okay") return "Fine for lighter work, but calls may vary.";
   return "Can be unreliable for call-heavy schedules.";
-}
-
-function estimatedStarlinkStatus(lat: number): StarlinkStatus {
-  const absLat = Math.abs(lat);
-  if (absLat > 55) return "capacity_constrained";
-  if (absLat < 50) return "available";
-  return "unknown";
-}
-
-function starlinkLabel(status: StarlinkStatus): string {
-  if (status === "available") return "Satellite backup likely available";
-  if (status === "capacity_constrained") return "Satellite backup may be limited";
-  if (status === "not_available") return "Satellite backup not available";
-  return "Satellite backup status unknown";
 }
 
 function sourceExplanation(sourceName?: string | null): string {
@@ -369,12 +354,12 @@ export function CityMap({
 
   const [activeZone, setActiveZone] = useState<MicroAreaZone | null>(null);
   const [showConnectivity, setShowConnectivity] = useState(false);
-  const [showStarlink, setShowStarlink] = useState(false);
   const [hoveredConnectivity, setHoveredConnectivity] = useState<ConnectivityCellData | null>(null);
   const [selectedConnectivity, setSelectedConnectivity] = useState<ConnectivityCellData | null>(null);
   const [connectivityGeojson, setConnectivityGeojson] = useState<GeoJSON.FeatureCollection<GeoJSON.Polygon> | null>(null);
   const [zoneConnectivity, setZoneConnectivity] = useState<Record<string, ConnectivityCellData>>({});
-  const [starlinkLabelText, setStarlinkLabelText] = useState<string | null>(null);
+  const [zoneConnectivityLoadState, setZoneConnectivityLoadState] = useState<"idle" | "loading" | "ready" | "empty">("idle");
+  const [zoneConnectivityCoveredCount, setZoneConnectivityCoveredCount] = useState(0);
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   const freeSet = new Set(freePlaceIds);
   const hasZones = microAreas && microAreas.length > 0;
@@ -382,7 +367,7 @@ export function CityMap({
   const interactiveZones = hasZones
     ? microAreas.filter((z) => !z.hasConstraintBreakers)
     : [];
-  const shouldAutoDrillSingleZone = interactiveZones.length === 1;
+  const shouldAutoDrillSingleZone = interactiveZones.length === 1 && !showConnectivity;
   const mapFocusCenter = useMemo(() => {
     if (activeZone) return { lat: activeZone.center.lat, lon: activeZone.center.lon };
     if (hasZones && microAreas && microAreas[0]) {
@@ -390,10 +375,6 @@ export function CityMap({
     }
     return { lat: baseLat ?? places[0]?.lat ?? 0, lon: baseLon ?? places[0]?.lon ?? 0 };
   }, [activeZone, hasZones, microAreas, baseLat, baseLon, places]);
-  const starlinkStatus = useMemo(
-    () => estimatedStarlinkStatus(mapFocusCenter.lat),
-    [mapFocusCenter.lat],
-  );
   const connectivityBounds = useMemo<ConnectivityCoverageBounds>(() => {
     if (activeZone) {
       const latR = activeZone.radius_km / 110.57;
@@ -472,6 +453,8 @@ export function CityMap({
   useEffect(() => {
     if (!showConnectivity || !hasZones || !microAreas?.length) return;
     let cancelled = false;
+    setZoneConnectivityLoadState("loading");
+    setZoneConnectivityCoveredCount(0);
     Promise.all(
       microAreas.map(async (zone) => {
         const res = await fetch(
@@ -512,10 +495,15 @@ export function CityMap({
           next[row[0]] = row[1];
         }
         setZoneConnectivity(next);
+        const covered = Object.keys(next).length;
+        setZoneConnectivityCoveredCount(covered);
+        setZoneConnectivityLoadState(covered > 0 ? "ready" : "empty");
       })
       .catch(() => {
         if (cancelled) return;
         setZoneConnectivity({});
+        setZoneConnectivityCoveredCount(0);
+        setZoneConnectivityLoadState("empty");
       });
     return () => {
       cancelled = true;
@@ -523,27 +511,10 @@ export function CityMap({
   }, [showConnectivity, hasZones, microAreas, citySlug]);
 
   useEffect(() => {
-    if (!showStarlink) return;
-    let cancelled = false;
-    fetch(
-      `/api/connectivity/starlink?lat=${encodeURIComponent(String(mapFocusCenter.lat))}&lng=${encodeURIComponent(String(mapFocusCenter.lon))}`,
-    )
-      .then((r) => r.json())
-      .then((json) => {
-        if (cancelled) return;
-        const label = typeof json?.fallback?.display_label === "string"
-          ? (json.fallback.display_label as string)
-          : starlinkLabel(starlinkStatus);
-        setStarlinkLabelText(label);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setStarlinkLabelText(starlinkLabel(starlinkStatus));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [showStarlink, mapFocusCenter.lat, mapFocusCenter.lon, starlinkStatus]);
+    if (showConnectivity) return;
+    setZoneConnectivityLoadState("idle");
+    setZoneConnectivityCoveredCount(0);
+  }, [showConnectivity]);
 
   // ── Fly back to zone overview ───────────────────────────────────────────────
   const flyToOverview = useCallback(() => {
@@ -573,9 +544,33 @@ export function CityMap({
     if (microAreas && hasZones) {
       microAreas.forEach((zone) => {
         const style = getZoneStyle(zone);
+        const zoneInternet = showConnectivity ? zoneConnectivity[zone.id] : undefined;
         try {
-          map.setPaintProperty(`zone-fill-${zone.id}`, "fill-opacity", style.fillOpacity);
-          map.setPaintProperty(`zone-line-${zone.id}`, "line-opacity", style.borderOpacity);
+          map.setPaintProperty(
+            `zone-fill-${zone.id}`,
+            "fill-opacity",
+            zoneInternet ? 0.26 : style.fillOpacity,
+          );
+          map.setPaintProperty(
+            `zone-line-${zone.id}`,
+            "line-opacity",
+            zoneInternet ? 0.72 : style.borderOpacity,
+          );
+          if (zoneInternet) {
+            map.setPaintProperty(
+              `zone-fill-${zone.id}`,
+              "fill-color",
+              CONNECTIVITY_BUCKET_META[zoneInternet.bucket].fill,
+            );
+            map.setPaintProperty(
+              `zone-line-${zone.id}`,
+              "line-color",
+              CONNECTIVITY_BUCKET_META[zoneInternet.bucket].line,
+            );
+          } else {
+            map.setPaintProperty(`zone-fill-${zone.id}`, "fill-color", style.fill);
+            map.setPaintProperty(`zone-line-${zone.id}`, "line-color", style.border);
+          }
         } catch { /* layer may not exist */ }
       });
     }
@@ -592,7 +587,7 @@ export function CityMap({
     setActiveZone(null);
     setSelectedConnectivity(null);
     setHoveredConnectivity(null);
-  }, [microAreas, hasZones]);
+  }, [microAreas, hasZones, showConnectivity, zoneConnectivity]);
 
   // ── Fly into a zone (layer 2) ───────────────────────────────────────────────
   const flyToZone = useCallback((zone: MicroAreaZone) => {
@@ -608,8 +603,13 @@ export function CityMap({
       microAreas.forEach((z) => {
         const isSelected = z.id === zone.id;
         try {
-          map.setPaintProperty(`zone-fill-${z.id}`, "fill-opacity", isSelected ? 0.08 : 0.02);
-          map.setPaintProperty(`zone-line-${z.id}`, "line-opacity", isSelected ? 0.6 : 0.15);
+          if (showConnectivity) {
+            map.setPaintProperty(`zone-fill-${z.id}`, "fill-opacity", isSelected ? 0.24 : 0.08);
+            map.setPaintProperty(`zone-line-${z.id}`, "line-opacity", isSelected ? 0.8 : 0.35);
+          } else {
+            map.setPaintProperty(`zone-fill-${z.id}`, "fill-opacity", isSelected ? 0.08 : 0.02);
+            map.setPaintProperty(`zone-line-${z.id}`, "line-opacity", isSelected ? 0.6 : 0.15);
+          }
         } catch { /* ignore */ }
       });
     }
@@ -662,7 +662,7 @@ export function CityMap({
     });
 
     void hasVisiblePlaces; // suppress unused warning
-  }, [microAreas, hasZones, places, dailyLifePlaces]);
+  }, [microAreas, hasZones, places, dailyLifePlaces, showConnectivity]);
 
   // Keep the click handler ref fresh without triggering map re-init
   useEffect(() => {
@@ -728,8 +728,8 @@ export function CityMap({
             const zoneLineColor = zoneInternet
               ? CONNECTIVITY_BUCKET_META[zoneInternet.bucket].line
               : style.border;
-            const zoneFillOpacity = zoneInternet ? 0.16 : style.fillOpacity;
-            const zoneLineOpacity = zoneInternet ? 0.5 : style.borderOpacity;
+            const zoneFillOpacity = zoneInternet ? 0.26 : style.fillOpacity;
+            const zoneLineOpacity = zoneInternet ? 0.72 : style.borderOpacity;
             const sourceId = `zone-${zone.id}`;
             const fillId = `zone-fill-${zone.id}`;
             const lineId = `zone-line-${zone.id}`;
@@ -1044,12 +1044,7 @@ export function CityMap({
             onClick={() => {
               const next = !showConnectivity;
               setShowConnectivity(next);
-              setShowStarlink(next);
               track("connectivity_layer_toggled", {
-                city_slug: citySlug,
-                enabled: next,
-              });
-              track("starlink_layer_toggled", {
                 city_slug: citySlug,
                 enabled: next,
               });
@@ -1080,6 +1075,26 @@ export function CityMap({
           Color map for likely internet quality in each area. Green is usually more reliable for calls.
         </p>
       )}
+      {showConnectivity && hasZones && zoneConnectivityLoadState === "loading" && (
+        <p className="mb-2 text-xs text-umber">
+          Loading internet layer for this area...
+        </p>
+      )}
+      {showConnectivity && hasZones && zoneConnectivityLoadState === "empty" && (
+        <p className="mb-2 text-xs text-umber">
+          Internet layer data is not available yet for these micro-areas.
+        </p>
+      )}
+      {showConnectivity &&
+        hasZones &&
+        zoneConnectivityLoadState === "ready" &&
+        microAreas &&
+        zoneConnectivityCoveredCount > 0 &&
+        zoneConnectivityCoveredCount < microAreas.length && (
+          <p className="mb-2 text-xs text-umber">
+            Internet layer coverage is partial ({zoneConnectivityCoveredCount}/{microAreas.length} micro-areas).
+          </p>
+        )}
 
       {/* Map container */}
       <div className="relative rounded-2xl overflow-hidden border border-dune">
@@ -1193,12 +1208,6 @@ export function CityMap({
         )}
 
       </div>
-      {showStarlink && (
-        <p className="mt-2 text-xs text-umber">
-          Backup internet: {starlinkLabelText ?? starlinkLabel(starlinkStatus)}
-        </p>
-      )}
-
       {showConnectivity && selectedConnectivity && (
         <div className="mt-2 w-full rounded-xl border border-dune bg-white p-3">
           <div className="flex items-start justify-between gap-2">
@@ -1229,11 +1238,6 @@ export function CityMap({
           <p className="mt-1 text-[11px] text-umber">
             {sourceExplanation(selectedConnectivity.source_name)}
           </p>
-          {showStarlink && (
-            <p className="mt-1 text-[11px] text-umber">
-              Backup option: {starlinkLabelText ?? starlinkLabel(starlinkStatus)}.
-            </p>
-          )}
         </div>
       )}
     </div>
