@@ -38,10 +38,10 @@ function confidenceBucket(score: number): ConnectivityConfidence {
 }
 
 function recommendationShort(bucket: ConnectivityBucket): string {
-  if (bucket === "excellent") return "Great for video calls and remote work.";
-  if (bucket === "good") return "Good for normal work, light uploads.";
-  if (bucket === "okay") return "Okay for async work, not ideal for heavy calls.";
-  return "Risky if internet is mission-critical.";
+  if (bucket === "excellent") return "Strong for calls, deep work, and uploads.";
+  if (bucket === "good") return "Good for day-to-day remote work.";
+  if (bucket === "okay") return "Fine for lighter work, but calls may be less stable.";
+  return "Can be unreliable for work that depends on stable internet.";
 }
 
 function recommendationLong(
@@ -50,15 +50,15 @@ function recommendationLong(
 ): string {
   const base =
     bucket === "excellent"
-      ? "Strong remote-work connectivity with good call quality and solid download speeds."
+      ? "Internet here looks strong for daily remote work, including calls and bigger file transfers."
       : bucket === "good"
-      ? "Workable for most remote-work routines, though heavy uploads may be slower at peak times."
+      ? "Internet here should work well for most routines, with occasional slower periods."
       : bucket === "okay"
-      ? "Connectivity is workable for async workflows but may be inconsistent for frequent video-heavy days."
-      : "Connectivity looks inconsistent; choose accommodation with verified internet before committing.";
+      ? "Internet here is workable for lighter async days, but can be inconsistent for frequent calls."
+      : "Internet here looks inconsistent, so confirm actual speed with your accommodation before booking.";
   if (confidence === "high") return base;
-  if (confidence === "medium") return `${base} Data confidence is moderate, so validate before long stays.`;
-  return `${base} Data confidence is limited, so treat this as directional only.`;
+  if (confidence === "medium") return `${base} We have a moderate amount of data, so it's best to double-check before longer stays.`;
+  return `${base} We have limited data for this area, so treat this as an early estimate.`;
 }
 
 export function buildConnectivitySummary(input: {
@@ -71,15 +71,15 @@ export function buildConnectivitySummary(input: {
   freshness_days: number | null;
 }): ConnectivitySummary {
   const warnings: string[] = [];
-  if (input.confidence !== "high") warnings.push("Data confidence is limited.");
+  if (input.confidence !== "high") warnings.push("This is an estimate, not a guarantee.");
   if (typeof input.freshness_days === "number" && input.freshness_days > 30) {
-    warnings.push("Connectivity observations are relatively old.");
+    warnings.push("Some of the internet data is older than usual.");
   }
   if (
     typeof input.median_latency_ms === "number" &&
     input.median_latency_ms > 95
   ) {
-    warnings.push("Latency may impact call quality.");
+    warnings.push("Call quality may drop during busy hours.");
   }
 
   return {

@@ -1107,9 +1107,26 @@ async function CityContent({
   let microAreaNarratives: MicroAreaNarrative[] | null = null;
   if (stayFit) {
     if (isUnlocked) {
-      const enrichedResult = await getOrGenerateEnrichedNarrative(
+      let enrichedResult = await getOrGenerateEnrichedNarrative(
         city.slug, city.name, city.country, stayFit, places
       ).catch(() => null);
+
+      // Unlocked users should always see the full ranked micro-area stack.
+      // If an old/incomplete cache entry exists, force one regeneration pass
+      // and persist it so subsequent loads are stable.
+      if (!enrichedResult?.microAreaNarratives?.length) {
+        console.warn(
+          `[stay-fit] missing micro-area narratives for unlocked user city=${city.slug}; forcing regeneration`,
+        );
+        enrichedResult = await getOrGenerateEnrichedNarrative(
+          city.slug,
+          city.name,
+          city.country,
+          stayFit,
+          places,
+          { forceRefresh: true },
+        ).catch(() => null);
+      }
       if (enrichedResult) {
         stayFitNarrative = enrichedResult.narrative;
         microAreaNarratives = enrichedResult.microAreaNarratives;

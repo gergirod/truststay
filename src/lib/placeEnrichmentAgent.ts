@@ -1073,22 +1073,28 @@ export async function getOrGenerateEnrichedNarrative(
   cityName: string,
   country: string,
   stayFit: StayFitResult,
-  places: Place[]
+  places: Place[],
+  options?: { forceRefresh?: boolean },
 ): Promise<EnrichedNarrativeResult | null> {
+  const forceRefresh = options?.forceRefresh === true;
   const { purpose, workStyle, dailyBalance } = stayFit.narrativeInputs;
   const balance = dailyBalance ?? "balanced";
   const setupCacheKey = buildSetupCacheKey(citySlug, purpose, workStyle, balance);
 
   // Fast local fallback cache, especially useful when Redis is not configured.
-  const localCached = readLocalSetupCache(setupCacheKey);
-  if (localCached !== undefined) {
-    console.log(`[enrichmentAgent] local setup cache hit: ${setupCacheKey}`);
-    return localCached;
+  if (!forceRefresh) {
+    const localCached = readLocalSetupCache(setupCacheKey);
+    if (localCached !== undefined) {
+      console.log(`[enrichmentAgent] local setup cache hit: ${setupCacheKey}`);
+      return localCached;
+    }
   }
 
   // 1. KV hit with enriched flag.
   // Newer cache entries include microAreaNarratives; older ones may not.
-  const cached = await getStayFitNarrative(citySlug, purpose, workStyle, balance);
+  const cached = forceRefresh
+    ? null
+    : await getStayFitNarrative(citySlug, purpose, workStyle, balance);
   if (cached?.enriched) {
     console.log(`[enrichmentAgent] enriched narrative KV hit: ${citySlug}:${purpose}:${workStyle}:${balance}`);
     const cachedNarrative = {

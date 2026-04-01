@@ -206,16 +206,17 @@ interface ConnectivityCellData {
   confidence: ConfidenceBucket;
   freshness_days: number | null;
   summary_short: string;
+  source_name?: string | null;
 }
 
 const CONNECTIVITY_BUCKET_META: Record<
   ConnectivityBucket,
   { label: string; fill: string; line: string }
 > = {
-  excellent: { label: "Excellent", fill: "#0F766E", line: "#0A5A54" },
-  good: { label: "Good", fill: "#14B8A6", line: "#0F766E" },
-  okay: { label: "Okay", fill: "#D4956A", line: "#B6784F" },
-  risky: { label: "Risky", fill: "#F97360", line: "#D95A48" },
+  excellent: { label: "Great for calls", fill: "#0F766E", line: "#0A5A54" },
+  good: { label: "Good for work", fill: "#14B8A6", line: "#0F766E" },
+  okay: { label: "Mixed quality", fill: "#D4956A", line: "#B6784F" },
+  risky: { label: "Can be unstable", fill: "#F97360", line: "#D95A48" },
 };
 
 const CONNECTIVITY_SOURCE_ID = "connectivity-cells";
@@ -230,10 +231,10 @@ function scoreToBucket(score: number): ConnectivityBucket {
 }
 
 function recommendationForBucket(bucket: ConnectivityBucket): string {
-  if (bucket === "excellent") return "Great for video calls and remote work.";
-  if (bucket === "good") return "Good for normal work and light uploads.";
-  if (bucket === "okay") return "Okay for async work, not ideal for heavy calls.";
-  return "Risky if internet is mission-critical.";
+  if (bucket === "excellent") return "Strong for calls, deep work, and uploads.";
+  if (bucket === "good") return "Good for everyday remote work.";
+  if (bucket === "okay") return "Fine for lighter work, but calls may vary.";
+  return "Can be unreliable for call-heavy schedules.";
 }
 
 function estimatedStarlinkStatus(lat: number): StarlinkStatus {
@@ -244,10 +245,24 @@ function estimatedStarlinkStatus(lat: number): StarlinkStatus {
 }
 
 function starlinkLabel(status: StarlinkStatus): string {
-  if (status === "available") return "Starlink fallback available";
-  if (status === "capacity_constrained") return "Starlink capacity constrained";
-  if (status === "not_available") return "Starlink not available";
-  return "Starlink status unknown";
+  if (status === "available") return "Satellite backup likely available";
+  if (status === "capacity_constrained") return "Satellite backup may be limited";
+  if (status === "not_available") return "Satellite backup not available";
+  return "Satellite backup status unknown";
+}
+
+function sourceExplanation(sourceName?: string | null): string {
+  if (!sourceName) return "Based on internet readings from this area.";
+  if (sourceName.startsWith("seeded_")) {
+    return "Early estimate while we gather more local internet readings.";
+  }
+  return "Based on internet readings from this area.";
+}
+
+function confidenceLabel(confidence: ConfidenceBucket): string {
+  if (confidence === "high") return "High";
+  if (confidence === "medium") return "Medium";
+  return "Low";
 }
 
 function intentLabel(intent: StayIntent): string {
@@ -795,6 +810,7 @@ export function CityMap({
               confidence,
               freshness_days: asNumOrNull(props.freshness_days),
               summary_short: String(props.summary_short ?? recommendationForBucket(bucketRaw)),
+              source_name: typeof props.source_name === "string" ? props.source_name : null,
             };
           };
 
@@ -947,6 +963,29 @@ export function CityMap({
             : hasZones ? "Area comparison" : intent ? "Your base map" : "Routine map"}
         </p>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const next = !showConnectivity;
+              setShowConnectivity(next);
+              setShowStarlink(next);
+              track("connectivity_layer_toggled", {
+                city_slug: citySlug,
+                enabled: next,
+              });
+              track("starlink_layer_toggled", {
+                city_slug: citySlug,
+                enabled: next,
+              });
+            }}
+            className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+              showConnectivity
+                ? "bg-bark text-white"
+                : "bg-white text-umber border border-dune"
+            }`}
+          >
+            {showConnectivity ? "Internet map on" : "Show internet map"}
+          </button>
           {!activeZone && hasScores && (
             <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
               {microAreas!.filter((z) => !z.hasConstraintBreakers).length} viable area{microAreas!.filter((z) => !z.hasConstraintBreakers).length !== 1 ? "s" : ""}
@@ -960,6 +999,11 @@ export function CityMap({
           )}
         </div>
       </div>
+      {showConnectivity && (
+        <p className="mb-2 text-xs text-umber">
+          Color map for likely internet quality in each area. Green is usually more reliable for calls.
+        </p>
+      )}
 
       {/* Map container */}
       <div className="relative rounded-2xl overflow-hidden border border-dune">
@@ -997,7 +1041,7 @@ export function CityMap({
         {showConnectivity && hoveredConnectivity && (
           <div className="pointer-events-none absolute left-3 top-16 z-10 rounded-lg border border-dune bg-white/95 px-2.5 py-1.5 shadow-sm">
             <p className="text-[11px] font-semibold text-bark">
-              Connectivity {hoveredConnectivity.score}/100
+              Internet quality {hoveredConnectivity.score}/100
             </p>
             <p className="mt-0.5 text-[10px] text-umber">
               {CONNECTIVITY_BUCKET_META[hoveredConnectivity.bucket].label} · {hoveredConnectivity.median_download_mbps ?? "—"}↓ / {hoveredConnectivity.median_upload_mbps ?? "—"}↑ Mbps · {hoveredConnectivity.median_latency_ms ?? "—"} ms
@@ -1060,7 +1104,7 @@ export function CityMap({
         {showConnectivity && (
           <div className="absolute bottom-3 right-3 z-10 rounded-xl border border-dune bg-white/90 px-3 py-2 backdrop-blur-sm">
             <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-umber">
-              Connectivity
+              Internet quality
             </p>
             <div className="mt-1.5 flex items-center gap-2.5">
               <ConnectivityLegendDot bucket="excellent" />
@@ -1068,65 +1112,22 @@ export function CityMap({
               <ConnectivityLegendDot bucket="okay" />
               <ConnectivityLegendDot bucket="risky" />
             </div>
+            <p className="mt-1 text-[10px] text-umber">Cellular layer: coming soon</p>
           </div>
         )}
 
       </div>
-
-      {/* Connectivity controls moved outside map so they never overlap mapbox nav controls */}
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() =>
-            setShowConnectivity((v) => {
-              const next = !v;
-              track("connectivity_layer_toggled", {
-                city_slug: citySlug,
-                enabled: next,
-              });
-              return next;
-            })
-          }
-          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-            showConnectivity
-              ? "bg-bark text-white"
-              : "bg-white text-umber border border-dune"
-          }`}
-        >
-          Connectivity
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            setShowStarlink((v) => {
-              const next = !v;
-              track("starlink_layer_toggled", {
-                city_slug: citySlug,
-                enabled: next,
-              });
-              return next;
-            })
-          }
-          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-            showStarlink
-              ? "bg-teal text-white"
-              : "bg-white text-umber border border-dune"
-          }`}
-        >
-          Starlink fallback
-        </button>
-        {showStarlink && (
-          <span className="text-xs text-umber">
-            {starlinkLabelText ?? starlinkLabel(starlinkStatus)}
-          </span>
-        )}
-      </div>
+      {showStarlink && (
+        <p className="mt-2 text-xs text-umber">
+          Backup internet: {starlinkLabelText ?? starlinkLabel(starlinkStatus)}
+        </p>
+      )}
 
       {showConnectivity && selectedConnectivity && (
         <div className="mt-2 w-full rounded-xl border border-dune bg-white p-3">
           <div className="flex items-start justify-between gap-2">
             <p className="text-sm font-semibold text-bark">
-              Connectivity score {selectedConnectivity.score}/100
+              Internet quality score {selectedConnectivity.score}/100
             </p>
             <button
               type="button"
@@ -1140,15 +1141,23 @@ export function CityMap({
             {CONNECTIVITY_BUCKET_META[selectedConnectivity.bucket].label}
           </p>
           <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-bark">
-            <span>Download</span><span>{selectedConnectivity.median_download_mbps ?? "—"} Mbps</span>
-            <span>Upload</span><span>{selectedConnectivity.median_upload_mbps ?? "—"} Mbps</span>
-            <span>Latency</span><span>{selectedConnectivity.median_latency_ms ?? "—"} ms</span>
-            <span>Confidence</span><span className="capitalize">{selectedConnectivity.confidence}</span>
-            <span>Freshness</span><span>{selectedConnectivity.freshness_days ?? "—"} days</span>
+            <span>Typical download</span><span>{selectedConnectivity.median_download_mbps ?? "—"} Mbps</span>
+            <span>Typical upload</span><span>{selectedConnectivity.median_upload_mbps ?? "—"} Mbps</span>
+            <span>Typical latency</span><span>{selectedConnectivity.median_latency_ms ?? "—"} ms</span>
+            <span>Estimate confidence</span><span>{confidenceLabel(selectedConnectivity.confidence)}</span>
+            <span>Data age</span><span>{selectedConnectivity.freshness_days ?? "—"} days</span>
           </div>
           <p className="mt-2 text-[11px] text-umber">
             {selectedConnectivity.summary_short}
           </p>
+          <p className="mt-1 text-[11px] text-umber">
+            {sourceExplanation(selectedConnectivity.source_name)}
+          </p>
+          {showStarlink && (
+            <p className="mt-1 text-[11px] text-umber">
+              Backup option: {starlinkLabelText ?? starlinkLabel(starlinkStatus)}.
+            </p>
+          )}
         </div>
       )}
     </div>
