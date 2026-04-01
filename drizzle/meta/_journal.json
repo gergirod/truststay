@@ -15,6 +15,13 @@
       "when": 1774974252286,
       "tag": "0001_awesome_snowbird",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775126400000,
+      "tag": "0002_connectivity_layer",
+      "breakpoints": true
     }
   ]
 }

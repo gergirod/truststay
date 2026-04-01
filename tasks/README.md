@@ -70,3 +70,4 @@ Copy for each task:
 ## Current UX/UI Sprint (SDD)
 - [Task 28 - SDD UX Utility Sprint](./28-sdd-ux-utility-sprint.md)
 - [Task 29 - SDD Unlock Recovery Without Auth](./29-sdd-unlock-recovery-without-auth.md)
+- [Task 30 - SDD Connectivity Layer + Starlink Fallback](./30-sdd-connectivity-layer-starlink-fallback.md)

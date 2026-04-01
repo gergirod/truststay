@@ -64,6 +64,32 @@ export const refreshJobStatusEnum = pgEnum("refresh_job_status", [
   "failed",
 ]);
 
+export const connectivityBucketEnum = pgEnum("connectivity_bucket", [
+  "excellent",
+  "good",
+  "okay",
+  "risky",
+]);
+
+export const confidenceBucketEnum = pgEnum("confidence_bucket", [
+  "low",
+  "medium",
+  "high",
+]);
+
+export const starlinkStatusEnum = pgEnum("starlink_status", [
+  "available",
+  "capacity_constrained",
+  "unknown",
+  "not_available",
+]);
+
+export const sourceConfidenceEnum = pgEnum("source_confidence", [
+  "official",
+  "derived",
+  "unknown",
+]);
+
 export const destinations = pgTable(
   "destinations",
   {
@@ -263,6 +289,127 @@ export const refreshJobs = pgTable(
   }),
 );
 
+export const connectivityObservations = pgTable(
+  "connectivity_observations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    destinationId: uuid("destination_id")
+      .notNull()
+      .references(() => destinations.id, { onDelete: "cascade" }),
+    microAreaId: uuid("micro_area_id").references(() => microAreas.id, {
+      onDelete: "set null",
+    }),
+    cellKey: text("cell_key").notNull(),
+    lat: doublePrecision("lat").notNull(),
+    lon: doublePrecision("lon").notNull(),
+    downloadMbps: doublePrecision("download_mbps"),
+    uploadMbps: doublePrecision("upload_mbps"),
+    latencyMs: doublePrecision("latency_ms"),
+    sourceName: text("source_name").notNull(),
+    sourceVersion: text("source_version"),
+    observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    destinationObservedIdx: index("connectivity_observations_destination_observed_idx").on(
+      table.destinationId,
+      table.observedAt,
+    ),
+    destinationCellIdx: index("connectivity_observations_destination_cell_idx").on(
+      table.destinationId,
+      table.cellKey,
+    ),
+  }),
+);
+
+export const connectivityCells = pgTable(
+  "connectivity_cells",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    destinationId: uuid("destination_id")
+      .notNull()
+      .references(() => destinations.id, { onDelete: "cascade" }),
+    microAreaId: uuid("micro_area_id").references(() => microAreas.id, {
+      onDelete: "set null",
+    }),
+    cellKey: text("cell_key").notNull(),
+    geojson: jsonb("geojson").notNull(),
+    centroidLat: doublePrecision("centroid_lat").notNull(),
+    centroidLon: doublePrecision("centroid_lon").notNull(),
+    medianDownloadMbps: doublePrecision("median_download_mbps"),
+    medianUploadMbps: doublePrecision("median_upload_mbps"),
+    medianLatencyMs: doublePrecision("median_latency_ms"),
+    sampleCount: integer("sample_count").notNull().default(0),
+    freshnessDays: integer("freshness_days"),
+    confidenceScore: integer("confidence_score").notNull().default(0),
+    confidenceBucket: confidenceBucketEnum("confidence_bucket").notNull().default("low"),
+    remoteWorkScore: integer("remote_work_score").notNull().default(0),
+    remoteWorkBucket: connectivityBucketEnum("remote_work_bucket").notNull().default("risky"),
+    sourceName: text("source_name").notNull(),
+    sourceVersion: text("source_version"),
+    computedAt: timestamp("computed_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    destinationCellUnique: uniqueIndex("connectivity_cells_destination_cell_unique").on(
+      table.destinationId,
+      table.cellKey,
+    ),
+    destinationBucketIdx: index("connectivity_cells_destination_bucket_idx").on(
+      table.destinationId,
+      table.remoteWorkBucket,
+    ),
+    destinationCentroidIdx: index("connectivity_cells_destination_centroid_idx").on(
+      table.destinationId,
+      table.centroidLat,
+      table.centroidLon,
+    ),
+  }),
+);
+
+export const areaConnectivityProfiles = pgTable(
+  "area_connectivity_profiles",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    destinationId: uuid("destination_id")
+      .notNull()
+      .references(() => destinations.id, { onDelete: "cascade" }),
+    areaId: text("area_id").notNull(),
+    bestCellId: uuid("best_cell_id").references(() => connectivityCells.id, {
+      onDelete: "set null",
+    }),
+    summary: jsonb("summary").notNull(),
+    starlinkFallback: jsonb("starlink_fallback"),
+    computedAt: timestamp("computed_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    destinationAreaUnique: uniqueIndex("area_connectivity_profiles_destination_area_unique").on(
+      table.destinationId,
+      table.areaId,
+    ),
+    destinationIdx: index("area_connectivity_profiles_destination_idx").on(
+      table.destinationId,
+    ),
+  }),
+);
+
 export const unlockEntitlements = pgTable(
   "unlock_entitlements",
   {
@@ -374,6 +521,45 @@ export const refreshJobsRelations = relations(refreshJobs, ({ one }) => ({
   }),
 }));
 
+export const connectivityObservationsRelations = relations(
+  connectivityObservations,
+  ({ one }) => ({
+    destination: one(destinations, {
+      fields: [connectivityObservations.destinationId],
+      references: [destinations.id],
+    }),
+    microArea: one(microAreas, {
+      fields: [connectivityObservations.microAreaId],
+      references: [microAreas.id],
+    }),
+  }),
+);
+
+export const connectivityCellsRelations = relations(connectivityCells, ({ one }) => ({
+  destination: one(destinations, {
+    fields: [connectivityCells.destinationId],
+    references: [destinations.id],
+  }),
+  microArea: one(microAreas, {
+    fields: [connectivityCells.microAreaId],
+    references: [microAreas.id],
+  }),
+}));
+
+export const areaConnectivityProfilesRelations = relations(
+  areaConnectivityProfiles,
+  ({ one }) => ({
+    destination: one(destinations, {
+      fields: [areaConnectivityProfiles.destinationId],
+      references: [destinations.id],
+    }),
+    bestCell: one(connectivityCells, {
+      fields: [areaConnectivityProfiles.bestCellId],
+      references: [connectivityCells.id],
+    }),
+  }),
+);
+
 export type Destination = typeof destinations.$inferSelect;
 export type NewDestination = typeof destinations.$inferInsert;
 export type MicroArea = typeof microAreas.$inferSelect;
@@ -388,6 +574,12 @@ export type MicroAreaSnapshot = typeof microAreaSnapshots.$inferSelect;
 export type NewMicroAreaSnapshot = typeof microAreaSnapshots.$inferInsert;
 export type RefreshJob = typeof refreshJobs.$inferSelect;
 export type NewRefreshJob = typeof refreshJobs.$inferInsert;
+export type ConnectivityObservation = typeof connectivityObservations.$inferSelect;
+export type NewConnectivityObservation = typeof connectivityObservations.$inferInsert;
+export type ConnectivityCell = typeof connectivityCells.$inferSelect;
+export type NewConnectivityCell = typeof connectivityCells.$inferInsert;
+export type AreaConnectivityProfile = typeof areaConnectivityProfiles.$inferSelect;
+export type NewAreaConnectivityProfile = typeof areaConnectivityProfiles.$inferInsert;
 export type UnlockEntitlement = typeof unlockEntitlements.$inferSelect;
 export type NewUnlockEntitlement = typeof unlockEntitlements.$inferInsert;
 export type UnlockRestoreToken = typeof unlockRestoreTokens.$inferSelect;

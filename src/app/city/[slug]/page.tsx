@@ -1290,6 +1290,7 @@ async function CityContent({
       {/* Routine map — first thing the user sees; locked places as grey dots */}
       {(baseCentroid || places.length > 0) && (
         <CityMap
+          citySlug={city.slug}
           places={[...workPlaces, ...coffeeMealsPlaces, ...wellbeingPlaces]}
           baseLat={baseCentroid?.lat}
           baseLon={baseCentroid?.lon}

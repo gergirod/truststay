@@ -1,7 +1,7 @@
 "use client";
 
 import "mapbox-gl/dist/mapbox-gl.css";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import type { Place, DailyLifePlace, StayIntent } from "@/types";
 import {
   MAP_COLORS,
@@ -26,6 +26,7 @@ export interface MicroAreaZone {
 }
 
 interface CityMapProps {
+  citySlug: string;
   places: Place[];
   baseLat?: number;
   baseLon?: number;
@@ -190,14 +191,131 @@ const WORK_LABELS: Record<string, string> = {
   light: "light work", balanced: "balanced work", heavy: "intensive work",
 };
 
+type ConnectivityBucket = "excellent" | "good" | "okay" | "risky";
+type ConfidenceBucket = "low" | "medium" | "high";
+type StarlinkStatus = "available" | "capacity_constrained" | "unknown" | "not_available";
+
+interface ConnectivityCellData {
+  id: string;
+  score: number;
+  bucket: ConnectivityBucket;
+  median_download_mbps: number | null;
+  median_upload_mbps: number | null;
+  median_latency_ms: number | null;
+  confidence: ConfidenceBucket;
+  freshness_days: number | null;
+  summary_short: string;
+}
+
+const CONNECTIVITY_BUCKET_META: Record<
+  ConnectivityBucket,
+  { label: string; fill: string; line: string }
+> = {
+  excellent: { label: "Excellent", fill: "#22c55e", line: "#15803d" },
+  good: { label: "Good", fill: "#84cc16", line: "#4d7c0f" },
+  okay: { label: "Okay", fill: "#f59e0b", line: "#b45309" },
+  risky: { label: "Risky", fill: "#ef4444", line: "#b91c1c" },
+};
+
+const CONNECTIVITY_SOURCE_ID = "connectivity-cells";
+const CONNECTIVITY_FILL_ID = "connectivity-cells-fill";
+const CONNECTIVITY_LINE_ID = "connectivity-cells-line";
+
+function scoreToBucket(score: number): ConnectivityBucket {
+  if (score >= 85) return "excellent";
+  if (score >= 70) return "good";
+  if (score >= 50) return "okay";
+  return "risky";
+}
+
+function recommendationForBucket(bucket: ConnectivityBucket): string {
+  if (bucket === "excellent") return "Great for video calls and remote work.";
+  if (bucket === "good") return "Good for normal work and light uploads.";
+  if (bucket === "okay") return "Okay for async work, not ideal for heavy calls.";
+  return "Risky if internet is mission-critical.";
+}
+
+function estimatedStarlinkStatus(lat: number): StarlinkStatus {
+  const absLat = Math.abs(lat);
+  if (absLat > 55) return "capacity_constrained";
+  if (absLat < 50) return "available";
+  return "unknown";
+}
+
+function starlinkLabel(status: StarlinkStatus): string {
+  if (status === "available") return "Starlink fallback available";
+  if (status === "capacity_constrained") return "Starlink capacity constrained";
+  if (status === "not_available") return "Starlink not available";
+  return "Starlink status unknown";
+}
+
 function intentLabel(intent: StayIntent): string {
   if (intent.purpose === "work_first") return "focused remote work";
   return `${PURPOSE_LABELS[intent.purpose] ?? intent.purpose} + ${WORK_LABELS[intent.workStyle] ?? intent.workStyle}`;
 }
 
+function buildConnectivityMockCells(
+  centerLat: number,
+  centerLon: number,
+): GeoJSON.FeatureCollection<GeoJSON.Polygon> {
+  const latStep = 0.012;
+  const lonStep = 0.012 / Math.max(0.4, Math.cos((centerLat * Math.PI) / 180));
+  const features: GeoJSON.Feature<GeoJSON.Polygon>[] = [];
+  let idx = 0;
+
+  for (const y of [-1, 0, 1]) {
+    for (const x of [-1, 0, 1]) {
+      const cLat = centerLat + y * latStep;
+      const cLon = centerLon + x * lonStep;
+      const halfLat = latStep * 0.45;
+      const halfLon = lonStep * 0.45;
+      const scoreBase = 88 - Math.abs(x) * 11 - Math.abs(y) * 9 - (idx % 3) * 5;
+      const score = Math.max(34, Math.min(96, scoreBase));
+      const bucket = scoreToBucket(score);
+      const confidence: ConfidenceBucket =
+        score > 80 ? "high" : score > 60 ? "medium" : "low";
+      const download = Math.max(8, Math.round(score * 1.8));
+      const upload = Math.max(3, Math.round(score * 0.55));
+      const latency = Math.max(22, Math.round(130 - score));
+
+      features.push({
+        type: "Feature",
+        geometry: {
+          type: "Polygon",
+          coordinates: [[
+            [cLon - halfLon, cLat - halfLat],
+            [cLon + halfLon, cLat - halfLat],
+            [cLon + halfLon, cLat + halfLat],
+            [cLon - halfLon, cLat + halfLat],
+            [cLon - halfLon, cLat - halfLat],
+          ]],
+        },
+        properties: {
+          id: `cell-${idx}`,
+          score,
+          bucket,
+          median_download_mbps: download,
+          median_upload_mbps: upload,
+          median_latency_ms: latency,
+          confidence,
+          freshness_days: 4 + (idx % 8),
+          summary_short: recommendationForBucket(bucket),
+        },
+      });
+      idx += 1;
+    }
+  }
+
+  return {
+    type: "FeatureCollection",
+    features,
+  };
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function CityMap({
+  citySlug,
   places,
   baseLat,
   baseLon,
@@ -220,6 +338,12 @@ export function CityMap({
   const onZoneClickRef = useRef<((zone: MicroAreaZone) => void) | null>(null);
 
   const [activeZone, setActiveZone] = useState<MicroAreaZone | null>(null);
+  const [showConnectivity, setShowConnectivity] = useState(true);
+  const [showStarlink, setShowStarlink] = useState(false);
+  const [hoveredConnectivity, setHoveredConnectivity] = useState<ConnectivityCellData | null>(null);
+  const [selectedConnectivity, setSelectedConnectivity] = useState<ConnectivityCellData | null>(null);
+  const [connectivityGeojson, setConnectivityGeojson] = useState<GeoJSON.FeatureCollection<GeoJSON.Polygon> | null>(null);
+  const [starlinkLabelText, setStarlinkLabelText] = useState<string | null>(null);
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   const freeSet = new Set(freePlaceIds);
   const hasZones = microAreas && microAreas.length > 0;
@@ -228,6 +352,66 @@ export function CityMap({
     ? microAreas.filter((z) => !z.hasConstraintBreakers)
     : [];
   const shouldAutoDrillSingleZone = interactiveZones.length === 1;
+  const mapFocusCenter = useMemo(() => {
+    if (activeZone) return { lat: activeZone.center.lat, lon: activeZone.center.lon };
+    if (hasZones && microAreas && microAreas[0]) {
+      return { lat: microAreas[0].center.lat, lon: microAreas[0].center.lon };
+    }
+    return { lat: baseLat ?? places[0]?.lat ?? 0, lon: baseLon ?? places[0]?.lon ?? 0 };
+  }, [activeZone, hasZones, microAreas, baseLat, baseLon, places]);
+  const starlinkStatus = useMemo(
+    () => estimatedStarlinkStatus(mapFocusCenter.lat),
+    [mapFocusCenter.lat],
+  );
+
+  useEffect(() => {
+    if (!showConnectivity) return;
+    let cancelled = false;
+    fetch(`/api/connectivity/cells?citySlug=${encodeURIComponent(citySlug)}`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (cancelled) return;
+        if (json?.type === "FeatureCollection" && Array.isArray(json.features)) {
+          setConnectivityGeojson(json as GeoJSON.FeatureCollection<GeoJSON.Polygon>);
+          return;
+        }
+        setConnectivityGeojson(
+          buildConnectivityMockCells(mapFocusCenter.lat, mapFocusCenter.lon),
+        );
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setConnectivityGeojson(
+          buildConnectivityMockCells(mapFocusCenter.lat, mapFocusCenter.lon),
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [citySlug, mapFocusCenter.lat, mapFocusCenter.lon, showConnectivity]);
+
+  useEffect(() => {
+    if (!showStarlink) return;
+    let cancelled = false;
+    fetch(
+      `/api/connectivity/starlink?lat=${encodeURIComponent(String(mapFocusCenter.lat))}&lng=${encodeURIComponent(String(mapFocusCenter.lon))}`,
+    )
+      .then((r) => r.json())
+      .then((json) => {
+        if (cancelled) return;
+        const label = typeof json?.fallback?.display_label === "string"
+          ? (json.fallback.display_label as string)
+          : starlinkLabel(starlinkStatus);
+        setStarlinkLabelText(label);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setStarlinkLabelText(starlinkLabel(starlinkStatus));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showStarlink, mapFocusCenter.lat, mapFocusCenter.lon, starlinkStatus]);
 
   // ── Fly back to zone overview ───────────────────────────────────────────────
   const flyToOverview = useCallback(() => {
@@ -274,6 +458,8 @@ export function CityMap({
     }
 
     setActiveZone(null);
+    setSelectedConnectivity(null);
+    setHoveredConnectivity(null);
   }, [microAreas, hasZones]);
 
   // ── Fly into a zone (layer 2) ───────────────────────────────────────────────
@@ -283,6 +469,7 @@ export function CityMap({
     if (!map || !mapboxgl) return;
 
     setActiveZone(zone);
+    setSelectedConnectivity(null);
 
     // Dim non-selected zones
     if (microAreas && hasZones) {
@@ -349,6 +536,12 @@ export function CityMap({
   useEffect(() => {
     onZoneClickRef.current = flyToZone;
   }, [flyToZone]);
+
+  useEffect(() => {
+    if (showConnectivity) return;
+    setHoveredConnectivity(null);
+    setSelectedConnectivity(null);
+  }, [showConnectivity]);
 
   // ── Map initialization ────────────────────────────────────────────────────
   useEffect(() => {
@@ -460,6 +653,111 @@ export function CityMap({
           coreCount++;
         }
 
+        // ── Connectivity layer (v1 scaffold) ────────────────────────────────
+        if (showConnectivity) {
+          const connectivityLayerData =
+            connectivityGeojson ??
+            buildConnectivityMockCells(mapFocusCenter.lat, mapFocusCenter.lon);
+
+          map.addSource(CONNECTIVITY_SOURCE_ID, {
+            type: "geojson",
+            data: connectivityLayerData,
+          });
+
+          map.addLayer({
+            id: CONNECTIVITY_FILL_ID,
+            type: "fill",
+            source: CONNECTIVITY_SOURCE_ID,
+            paint: {
+              "fill-color": [
+                "match",
+                ["get", "bucket"],
+                "excellent", CONNECTIVITY_BUCKET_META.excellent.fill,
+                "good", CONNECTIVITY_BUCKET_META.good.fill,
+                "okay", CONNECTIVITY_BUCKET_META.okay.fill,
+                CONNECTIVITY_BUCKET_META.risky.fill,
+              ],
+              "fill-opacity": 0.2,
+            },
+          });
+
+          map.addLayer({
+            id: CONNECTIVITY_LINE_ID,
+            type: "line",
+            source: CONNECTIVITY_SOURCE_ID,
+            paint: {
+              "line-color": [
+                "match",
+                ["get", "bucket"],
+                "excellent", CONNECTIVITY_BUCKET_META.excellent.line,
+                "good", CONNECTIVITY_BUCKET_META.good.line,
+                "okay", CONNECTIVITY_BUCKET_META.okay.line,
+                CONNECTIVITY_BUCKET_META.risky.line,
+              ],
+              "line-width": 1.3,
+              "line-opacity": 0.68,
+            },
+          });
+
+          const parseFeature = (
+            feature: GeoJSON.Feature<GeoJSON.Geometry, GeoJSON.GeoJsonProperties> | undefined,
+          ): ConnectivityCellData | null => {
+            const props = feature?.properties;
+            if (!props) return null;
+            const score = Number(props.score);
+            const bucketRaw = String(props.bucket ?? "");
+            if (!Number.isFinite(score)) return null;
+            if (
+              bucketRaw !== "excellent" &&
+              bucketRaw !== "good" &&
+              bucketRaw !== "okay" &&
+              bucketRaw !== "risky"
+            ) return null;
+            const confidenceRaw = String(props.confidence ?? "low");
+            const confidence: ConfidenceBucket =
+              confidenceRaw === "high" || confidenceRaw === "medium" || confidenceRaw === "low"
+                ? confidenceRaw
+                : "low";
+            const asNumOrNull = (value: unknown): number | null => {
+              const n = Number(value);
+              return Number.isFinite(n) ? n : null;
+            };
+            return {
+              id: String(props.id ?? "unknown-cell"),
+              score,
+              bucket: bucketRaw,
+              median_download_mbps: asNumOrNull(props.median_download_mbps),
+              median_upload_mbps: asNumOrNull(props.median_upload_mbps),
+              median_latency_ms: asNumOrNull(props.median_latency_ms),
+              confidence,
+              freshness_days: asNumOrNull(props.freshness_days),
+              summary_short: String(props.summary_short ?? recommendationForBucket(bucketRaw)),
+            };
+          };
+
+          map.on("mousemove", CONNECTIVITY_FILL_ID, (event: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            features?: any[];
+          }) => {
+            map.getCanvas().style.cursor = "pointer";
+            const parsed = parseFeature(event.features?.[0]);
+            setHoveredConnectivity(parsed);
+          });
+
+          map.on("mouseleave", CONNECTIVITY_FILL_ID, () => {
+            map.getCanvas().style.cursor = "";
+            setHoveredConnectivity(null);
+          });
+
+          map.on("click", CONNECTIVITY_FILL_ID, (event: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            features?: any[];
+          }) => {
+            const parsed = parseFeature(event.features?.[0]);
+            if (parsed) setSelectedConnectivity(parsed);
+          });
+        }
+
         // ── Layer 2: Place markers (hidden initially when zones exist) ──────
         for (const place of places) {
           const showDetail = isUnlocked || freeSet.has(place.id);
@@ -544,7 +842,16 @@ export function CityMap({
       map?.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, baseLat, baseLon, isUnlocked, microAreas]);
+  }, [
+    token,
+    baseLat,
+    baseLon,
+    isUnlocked,
+    microAreas,
+    showConnectivity,
+    mapFocusCenter,
+    connectivityGeojson,
+  ]);
 
   if (!token) return null;
 
@@ -595,6 +902,46 @@ export function CityMap({
           </button>
         )}
 
+        {/* Connectivity controls */}
+        <div className="absolute top-3 right-3 z-10 flex flex-col gap-2">
+          <div className="rounded-xl border border-dune bg-white/95 px-2.5 py-2 shadow-sm backdrop-blur-sm">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowConnectivity((v) => !v)}
+                className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${
+                  showConnectivity
+                    ? "bg-bark text-white"
+                    : "bg-white text-umber border border-dune"
+                }`}
+              >
+                Connectivity
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowStarlink((v) => !v)}
+                className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${
+                  showStarlink
+                    ? "bg-teal text-white"
+                    : "bg-white text-umber border border-dune"
+                }`}
+              >
+                Starlink fallback
+              </button>
+            </div>
+          </div>
+          {showStarlink && (
+            <div className="rounded-xl border border-dune bg-white/95 px-3 py-2 shadow-sm backdrop-blur-sm">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-umber">
+                Backup signal
+              </p>
+              <p className="mt-1 text-xs font-medium text-bark">
+                {starlinkLabelText ?? starlinkLabel(starlinkStatus)}
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* ── "Tap zone" hint (Layer 1, zones exist) ─────────────────────── */}
         {!activeZone && hasZones && !shouldAutoDrillSingleZone && (
           <div className="absolute top-3 left-3 rounded-lg bg-white/90 backdrop-blur-sm border border-dune px-2.5 py-1.5">
@@ -602,6 +949,18 @@ export function CityMap({
               <span className="hidden sm:inline">Click</span>
               <span className="sm:hidden">Tap</span>
               {" "}a zone to explore places inside it
+            </p>
+          </div>
+        )}
+
+        {/* Connectivity hover chip */}
+        {showConnectivity && hoveredConnectivity && (
+          <div className="pointer-events-none absolute left-3 top-16 z-10 rounded-lg border border-dune bg-white/95 px-2.5 py-1.5 shadow-sm">
+            <p className="text-[11px] font-semibold text-bark">
+              Connectivity {hoveredConnectivity.score}/100
+            </p>
+            <p className="mt-0.5 text-[10px] text-umber">
+              {CONNECTIVITY_BUCKET_META[hoveredConnectivity.bucket].label} · {hoveredConnectivity.median_download_mbps ?? "—"}↓ / {hoveredConnectivity.median_upload_mbps ?? "—"}↑ Mbps · {hoveredConnectivity.median_latency_ms ?? "—"} ms
             </p>
           </div>
         )}
@@ -656,6 +1015,52 @@ export function CityMap({
             )}
           </div>
         )}
+
+        {/* Connectivity legend */}
+        {showConnectivity && (
+          <div className="absolute bottom-3 right-3 z-10 rounded-xl border border-dune bg-white/90 px-3 py-2 backdrop-blur-sm">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-umber">
+              Connectivity
+            </p>
+            <div className="mt-1.5 flex items-center gap-2.5">
+              <ConnectivityLegendDot bucket="excellent" />
+              <ConnectivityLegendDot bucket="good" />
+              <ConnectivityLegendDot bucket="okay" />
+              <ConnectivityLegendDot bucket="risky" />
+            </div>
+          </div>
+        )}
+
+        {/* Connectivity detail panel */}
+        {showConnectivity && selectedConnectivity && (
+          <div className="absolute right-3 top-24 z-10 w-[280px] rounded-xl border border-dune bg-white/95 p-3 shadow-md backdrop-blur-sm">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm font-semibold text-bark">
+                Connectivity score {selectedConnectivity.score}/100
+              </p>
+              <button
+                type="button"
+                onClick={() => setSelectedConnectivity(null)}
+                className="rounded-md border border-dune px-2 py-0.5 text-[10px] font-semibold text-umber hover:text-bark"
+              >
+                Close
+              </button>
+            </div>
+            <p className="mt-1 text-xs font-medium text-umber">
+              {CONNECTIVITY_BUCKET_META[selectedConnectivity.bucket].label}
+            </p>
+            <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-bark">
+              <span>Download</span><span>{selectedConnectivity.median_download_mbps ?? "—"} Mbps</span>
+              <span>Upload</span><span>{selectedConnectivity.median_upload_mbps ?? "—"} Mbps</span>
+              <span>Latency</span><span>{selectedConnectivity.median_latency_ms ?? "—"} ms</span>
+              <span>Confidence</span><span className="capitalize">{selectedConnectivity.confidence}</span>
+              <span>Freshness</span><span>{selectedConnectivity.freshness_days ?? "—"} days</span>
+            </div>
+            <p className="mt-2 text-[11px] text-umber">
+              {selectedConnectivity.summary_short}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -685,6 +1090,19 @@ function ZoneLegendDot({ color, label, dashed }: { color: string; label: string;
         />
       </svg>
       <span className="text-[10px] leading-none text-umber">{label}</span>
+    </div>
+  );
+}
+
+function ConnectivityLegendDot({ bucket }: { bucket: ConnectivityBucket }) {
+  const meta = CONNECTIVITY_BUCKET_META[bucket];
+  return (
+    <div className="flex items-center gap-1">
+      <span
+        className="inline-block h-2.5 w-2.5 rounded-[3px]"
+        style={{ background: meta.fill }}
+      />
+      <span className="text-[10px] text-umber">{meta.label}</span>
     </div>
   );
 }
