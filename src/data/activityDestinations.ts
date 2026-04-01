@@ -185,7 +185,41 @@ export const ACTIVITY_DESTINATIONS_BY_COUNTRY: Record<
       { slug: "cafayate", name: "Cafayate" },
       { slug: "el-bolson", name: "El Bolson" },
     ],
-    Guatemala: [{ slug: "lago-atitlan", name: "Lago Atitlan" }],
+    Chile: [
+      { slug: "puerto-natales", name: "Puerto Natales" },
+      { slug: "cochamo", name: "Cochamo" },
+      { slug: "san-pedro-de-atacama", name: "San Pedro de Atacama" },
+      { slug: "pucon", name: "Pucon" },
+    ],
+    Peru: [
+      { slug: "huaraz", name: "Huaraz" },
+      { slug: "cusco", name: "Cusco" },
+      { slug: "ollantaytambo", name: "Ollantaytambo" },
+      { slug: "chachapoyas", name: "Chachapoyas" },
+    ],
+    Ecuador: [
+      { slug: "quilotoa", name: "Quilotoa" },
+      { slug: "banos", name: "Banos" },
+    ],
+    Colombia: [
+      { slug: "salento", name: "Salento" },
+      { slug: "minca", name: "Minca" },
+      { slug: "tayrona", name: "Tayrona" },
+    ],
+    Guatemala: [
+      { slug: "lago-atitlan", name: "Lago Atitlan" },
+      { slug: "acatenango", name: "Acatenango" },
+      // Popular hike base town for Acatenango overnight logistics.
+      { slug: "antigua-guatemala", name: "Antigua Guatemala" },
+    ],
+    Nicaragua: [{ slug: "ometepe", name: "Ometepe" }],
+    "Costa Rica": [
+      { slug: "monteverde", name: "Monteverde" },
+      { slug: "arenal", name: "Arenal" },
+    ],
+    Panama: [{ slug: "boquete", name: "Boquete" }],
+    Dominica: [{ slug: "dominica", name: "Dominica" }],
+    "Puerto Rico": [{ slug: "san-juan-puerto-rico", name: "San Juan" }],
   },
 
   yoga: {
