@@ -23,12 +23,15 @@ import { getPlaceConfirmations } from "@/lib/confirmations";
 import { CITY_INTROS } from "@/data/cityIntros";
 import { CityIntro } from "@/components/CityIntro";
 import {
+  getEmailStaySetup,
   getLastEnrichedSetupForCity,
   getNarrative,
   getUserStaySetup,
+  saveEmailStaySetup,
   saveLastEnrichedSetupForCity,
   saveUserStaySetup,
   TRUSTSTAY_USER_COOKIE,
+  TRUSTSTAY_USER_EMAIL_COOKIE,
 } from "@/lib/kv";
 import { EmailCapture } from "@/components/EmailCapture";
 import { ShareButton } from "@/components/ShareButton";
@@ -631,6 +634,7 @@ export default async function CityPage({ params, searchParams }: Props) {
   const sp = await searchParams;
   const cookieStore = await cookies();
   const userId = cookieStore.get(TRUSTSTAY_USER_COOKIE)?.value ?? null;
+  const userEmailNormalized = cookieStore.get(TRUSTSTAY_USER_EMAIL_COOKIE)?.value ?? null;
 
   const hasParentCityParam =
     typeof sp.parentCity === "string" && sp.parentCity.trim().length > 0;
@@ -657,15 +661,19 @@ export default async function CityPage({ params, searchParams }: Props) {
   ]);
 
   const shouldUseSavedSetup = !urlIntent && !hasAnyIntentParam && Boolean(userId);
-  const [savedSetup, cityLastEnrichedSetup] = await Promise.all([
+  const [savedSetup, savedEmailSetup, cityLastEnrichedSetup] = await Promise.all([
     shouldUseSavedSetup && userId
       ? getUserStaySetup(userId, slug).catch(() => null)
+      : Promise.resolve(null),
+    !urlIntent && !hasAnyIntentParam && userEmailNormalized
+      ? getEmailStaySetup(userEmailNormalized, slug).catch(() => null)
       : Promise.resolve(null),
     !urlIntent && !hasAnyIntentParam && unlocked
       ? getLastEnrichedSetupForCity(slug).catch(() => null)
       : Promise.resolve(null),
   ]);
   const savedIntent = parseSavedSetupIntent(savedSetup);
+  const savedEmailIntent = parseSavedSetupIntent(savedEmailSetup);
   const cityLastEnrichedIntent = parseSavedSetupIntent(
     cityLastEnrichedSetup
       ? {
@@ -675,10 +683,11 @@ export default async function CityPage({ params, searchParams }: Props) {
         }
       : null,
   );
-  const intent: StayIntent | null = urlIntent ?? savedIntent ?? cityLastEnrichedIntent;
+  const intent: StayIntent | null = urlIntent ?? savedIntent ?? savedEmailIntent ?? cityLastEnrichedIntent;
   const intentSource =
     urlIntent ? "url" :
     savedIntent ? "user_saved" :
+    savedEmailIntent ? "email_saved" :
     cityLastEnrichedIntent ? "city_last_enriched" :
     "none";
   console.log(
@@ -702,6 +711,23 @@ export default async function CityPage({ params, searchParams }: Props) {
     }
   }
 
+  if (urlIntent && userEmailNormalized) {
+    try {
+      const saved = await saveEmailStaySetup({
+        emailNormalized: userEmailNormalized,
+        citySlug: slug,
+        purpose: urlIntent.purpose,
+        workStyle: urlIntent.workStyle,
+        dailyBalance: urlIntent.dailyBalance,
+      });
+      if (!saved) {
+        console.warn("[intent] email setup save returned false");
+      }
+    } catch (err) {
+      console.warn("[intent] failed to save email setup:", err);
+    }
+  }
+
   if (!urlIntent && intent && userId && intentSource === "city_last_enriched") {
     try {
       const saved = await saveUserStaySetup({
@@ -716,6 +742,28 @@ export default async function CityPage({ params, searchParams }: Props) {
       }
     } catch (err) {
       console.warn("[intent] failed to backfill user setup from city fallback:", err);
+    }
+  }
+
+  if (
+    !urlIntent &&
+    intent &&
+    userEmailNormalized &&
+    (intentSource === "city_last_enriched" || intentSource === "user_saved")
+  ) {
+    try {
+      const saved = await saveEmailStaySetup({
+        emailNormalized: userEmailNormalized,
+        citySlug: slug,
+        purpose: intent.purpose,
+        workStyle: intent.workStyle,
+        dailyBalance: intent.dailyBalance,
+      });
+      if (!saved) {
+        console.warn("[intent] email setup backfill returned false");
+      }
+    } catch (err) {
+      console.warn("[intent] failed to backfill email setup:", err);
     }
   }
   // Extracted even when intent is null — lets IntentPrompt pre-select purpose

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/lib/env";
 import { BUNDLE_COOKIE, UNLOCK_COOKIE, parseSlugs, serializeSlugs } from "@/lib/unlock";
+import { TRUSTSTAY_USER_EMAIL_COOKIE } from "@/lib/kv";
 import {
   consumeUnlockRestoreToken,
   getRestorableUnlocksByEmail,
@@ -63,6 +64,7 @@ export async function GET(req: NextRequest) {
   if (mergedBundles.length > 0) {
     response.cookies.set(BUNDLE_COOKIE, serializeSlugs(mergedBundles), cookieOpts);
   }
+  response.cookies.set(TRUSTSTAY_USER_EMAIL_COOKIE, emailNormalized, cookieOpts);
 
   return response;
 }

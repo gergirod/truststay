@@ -8,8 +8,14 @@ import {
 } from "@/lib/unlock";
 import { env } from "@/lib/env";
 import { persistUnlockEntitlementFromStripeSession } from "@/lib/unlockEntitlements";
+import { normalizeEmail } from "@/lib/unlockEntitlements";
 import { sendUnlockConfirmationEmail } from "@/lib/transactionalEmails";
-import { saveUserStaySetup, TRUSTSTAY_USER_COOKIE } from "@/lib/kv";
+import {
+  saveEmailStaySetup,
+  saveUserStaySetup,
+  TRUSTSTAY_USER_COOKIE,
+  TRUSTSTAY_USER_EMAIL_COOKIE,
+} from "@/lib/kv";
 
 // Route Handler — the only correct place to set cookies while also redirecting.
 // cookies().set() is forbidden in Server Component render context, so the
@@ -58,6 +64,11 @@ export async function GET(req: NextRequest) {
   const purpose = session.metadata?.purpose;
   const workStyle = session.metadata?.workStyle;
   const dailyBalance = session.metadata?.dailyBalance;
+  const emailNormalized = (
+    session.customer_details?.email?.trim() ??
+    session.customer_email?.trim() ??
+    null
+  );
 
   if (!citySlug) {
     console.error("[finalize] citySlug missing from session metadata:", sessionId);
@@ -99,6 +110,9 @@ export async function GET(req: NextRequest) {
       new URL(`/city/${bundleCitySlug}?${intentParams.toString()}`, origin)
     );
     response.cookies.set(TRUSTSTAY_USER_COOKIE, userId, cookieOpts);
+    if (emailNormalized) {
+      response.cookies.set(TRUSTSTAY_USER_EMAIL_COOKIE, normalizeEmail(emailNormalized), cookieOpts);
+    }
     response.cookies.set(BUNDLE_COOKIE, serializeSlugs(current), cookieOpts);
     return response;
   }
@@ -115,6 +129,9 @@ export async function GET(req: NextRequest) {
     new URL(`/city/${citySlug}?${intentParams.toString()}`, origin)
   );
   response.cookies.set(TRUSTSTAY_USER_COOKIE, userId, cookieOpts);
+  if (emailNormalized) {
+    response.cookies.set(TRUSTSTAY_USER_EMAIL_COOKIE, normalizeEmail(emailNormalized), cookieOpts);
+  }
   response.cookies.set(UNLOCK_COOKIE, serializeSlugs(current), cookieOpts);
   if (hasFullIntent) {
     try {
@@ -127,6 +144,18 @@ export async function GET(req: NextRequest) {
       });
       if (!saved) {
         console.warn("[finalize] user stay setup save returned false");
+      }
+      if (emailNormalized) {
+        const savedByEmail = await saveEmailStaySetup({
+          emailNormalized: normalizeEmail(emailNormalized),
+          citySlug,
+          purpose: purpose!,
+          workStyle: workStyle!,
+          ...(dailyBalance ? { dailyBalance } : {}),
+        });
+        if (!savedByEmail) {
+          console.warn("[finalize] email stay setup save returned false");
+        }
       }
     } catch (err) {
       console.warn("[finalize] failed to save user stay setup:", err);

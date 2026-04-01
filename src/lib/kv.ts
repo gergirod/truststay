@@ -1,7 +1,12 @@
 import { Redis } from "@upstash/redis";
 import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { stayFitNarrativeCache } from "@/db/schema";
+import {
+  cityLastEnrichedSetups,
+  emailStaySetups,
+  stayFitNarrativeCache,
+  userStaySetups,
+} from "@/db/schema";
 import type { Place, DailyLifePlace } from "@/types";
 import type { PlaceReview } from "@/lib/googlePlaces";
 
@@ -388,9 +393,19 @@ export interface CachedMicroAreaNarrative {
 }
 
 export const TRUSTSTAY_USER_COOKIE = "ts_uid";
+export const TRUSTSTAY_USER_EMAIL_COOKIE = "ts_uem";
 
 export interface SavedUserStaySetup {
   userId: string;
+  citySlug: string;
+  purpose: string;
+  workStyle: string;
+  dailyBalance?: string;
+  updatedAt: string;
+}
+
+export interface SavedEmailStaySetup {
+  emailNormalized: string;
   citySlug: string;
   purpose: string;
   workStyle: string;
@@ -408,10 +423,13 @@ export interface CityLastEnrichedSetup {
 
 const USER_STAY_SETUP_KEY = (userId: string, citySlug: string) =>
   `user-stay-setup:${userId}:${citySlug}`;
+const EMAIL_STAY_SETUP_KEY = (emailNormalized: string, citySlug: string) =>
+  `email-stay-setup:${emailNormalized}:${citySlug}`;
 const CITY_LAST_ENRICHED_SETUP_KEY = (citySlug: string) =>
   `city-last-enriched-setup:${citySlug}`;
 /** 180 days — keeps each user's city setup sticky across visits. */
 const USER_STAY_SETUP_TTL_SECONDS = 180 * 24 * 60 * 60;
+const EMAIL_STAY_SETUP_TTL_SECONDS = 180 * 24 * 60 * 60;
 const CITY_LAST_ENRICHED_SETUP_TTL_SECONDS = 180 * 24 * 60 * 60;
 
 const STAY_FIT_KEY = (
@@ -646,6 +664,20 @@ export async function getUserStaySetup(
   userId: string,
   citySlug: string,
 ): Promise<SavedUserStaySetup | null> {
+  const dbCached = await getUserStaySetupFromDb(userId, citySlug);
+  if (dbCached) {
+    if (redis) {
+      try {
+        await redis.set(USER_STAY_SETUP_KEY(userId, citySlug), JSON.stringify(dbCached), {
+          ex: USER_STAY_SETUP_TTL_SECONDS,
+        });
+      } catch {
+        // Ignore Redis cache backfill failures.
+      }
+    }
+    return dbCached;
+  }
+
   if (!redis) return null;
   try {
     const data = await redis.get(USER_STAY_SETUP_KEY(userId, citySlug));
@@ -658,22 +690,240 @@ export async function getUserStaySetup(
   }
 }
 
+export async function getEmailStaySetup(
+  emailNormalized: string,
+  citySlug: string,
+): Promise<SavedEmailStaySetup | null> {
+  const dbCached = await getEmailStaySetupFromDb(emailNormalized, citySlug);
+  if (dbCached) {
+    if (redis) {
+      try {
+        await redis.set(EMAIL_STAY_SETUP_KEY(emailNormalized, citySlug), JSON.stringify(dbCached), {
+          ex: EMAIL_STAY_SETUP_TTL_SECONDS,
+        });
+      } catch {
+        // Ignore Redis cache backfill failures.
+      }
+    }
+    return dbCached;
+  }
+
+  if (!redis) return null;
+  try {
+    const data = await redis.get(EMAIL_STAY_SETUP_KEY(emailNormalized, citySlug));
+    if (!data) return null;
+    return typeof data === "string"
+      ? JSON.parse(data)
+      : (data as SavedEmailStaySetup);
+  } catch {
+    return null;
+  }
+}
+
 export async function saveUserStaySetup(
   setup: Omit<SavedUserStaySetup, "updatedAt">,
 ): Promise<boolean> {
-  if (!redis) return false;
+  const payload: SavedUserStaySetup = {
+    ...setup,
+    updatedAt: new Date().toISOString(),
+  };
+
+  const db = getDb();
+  let dbSaved = false;
+  if (db) {
+    dbSaved = await saveUserStaySetupToDb(payload);
+  }
+
+  let redisSaved = false;
+  if (redis) {
+    try {
+      await redis.set(
+        USER_STAY_SETUP_KEY(setup.userId, setup.citySlug),
+        JSON.stringify(payload),
+        { ex: USER_STAY_SETUP_TTL_SECONDS },
+      );
+      redisSaved = true;
+    } catch {
+      // Ignore Redis cache failures; DB is canonical when available.
+    }
+  }
+
+  if (db) return dbSaved;
+  return redisSaved;
+}
+
+export async function saveEmailStaySetup(
+  setup: Omit<SavedEmailStaySetup, "updatedAt">,
+): Promise<boolean> {
+  const payload: SavedEmailStaySetup = {
+    ...setup,
+    updatedAt: new Date().toISOString(),
+  };
+
+  const db = getDb();
+  let dbSaved = false;
+  if (db) {
+    dbSaved = await saveEmailStaySetupToDb(payload);
+  }
+
+  let redisSaved = false;
+  if (redis) {
+    try {
+      await redis.set(
+        EMAIL_STAY_SETUP_KEY(setup.emailNormalized, setup.citySlug),
+        JSON.stringify(payload),
+        { ex: EMAIL_STAY_SETUP_TTL_SECONDS },
+      );
+      redisSaved = true;
+    } catch {
+      // Ignore Redis cache failures; DB is canonical when available.
+    }
+  }
+
+  if (db) return dbSaved;
+  return redisSaved;
+}
+
+async function getUserStaySetupFromDb(
+  userId: string,
+  citySlug: string,
+): Promise<SavedUserStaySetup | null> {
+  const db = getDb();
+  if (!db) return null;
   try {
-    const payload: SavedUserStaySetup = {
-      ...setup,
-      updatedAt: new Date().toISOString(),
+    const rows = await db
+      .select({
+        userId: userStaySetups.userId,
+        citySlug: userStaySetups.citySlug,
+        purpose: userStaySetups.purpose,
+        workStyle: userStaySetups.workStyle,
+        dailyBalance: userStaySetups.dailyBalance,
+        updatedAt: userStaySetups.updatedAt,
+      })
+      .from(userStaySetups)
+      .where(
+        and(
+          eq(userStaySetups.userId, userId),
+          eq(userStaySetups.citySlug, citySlug),
+        ),
+      )
+      .limit(1);
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      userId: row.userId,
+      citySlug: row.citySlug,
+      purpose: row.purpose,
+      workStyle: row.workStyle,
+      dailyBalance: row.dailyBalance ?? undefined,
+      updatedAt: row.updatedAt.toISOString(),
     };
-    await redis.set(
-      USER_STAY_SETUP_KEY(setup.userId, setup.citySlug),
-      JSON.stringify(payload),
-      { ex: USER_STAY_SETUP_TTL_SECONDS },
-    );
+  } catch (err) {
+    console.warn("[kv] DB read failed for user stay setup:", err);
+    return null;
+  }
+}
+
+async function getEmailStaySetupFromDb(
+  emailNormalized: string,
+  citySlug: string,
+): Promise<SavedEmailStaySetup | null> {
+  const db = getDb();
+  if (!db) return null;
+  try {
+    const rows = await db
+      .select({
+        emailNormalized: emailStaySetups.emailNormalized,
+        citySlug: emailStaySetups.citySlug,
+        purpose: emailStaySetups.purpose,
+        workStyle: emailStaySetups.workStyle,
+        dailyBalance: emailStaySetups.dailyBalance,
+        updatedAt: emailStaySetups.updatedAt,
+      })
+      .from(emailStaySetups)
+      .where(
+        and(
+          eq(emailStaySetups.emailNormalized, emailNormalized),
+          eq(emailStaySetups.citySlug, citySlug),
+        ),
+      )
+      .limit(1);
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      emailNormalized: row.emailNormalized,
+      citySlug: row.citySlug,
+      purpose: row.purpose,
+      workStyle: row.workStyle,
+      dailyBalance: row.dailyBalance ?? undefined,
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  } catch (err) {
+    console.warn("[kv] DB read failed for email stay setup:", err);
+    return null;
+  }
+}
+
+async function saveUserStaySetupToDb(
+  setup: SavedUserStaySetup,
+): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false;
+  try {
+    await db
+      .insert(userStaySetups)
+      .values({
+        userId: setup.userId,
+        citySlug: setup.citySlug,
+        purpose: setup.purpose,
+        workStyle: setup.workStyle,
+        dailyBalance: setup.dailyBalance ?? null,
+        updatedAt: new Date(setup.updatedAt),
+      })
+      .onConflictDoUpdate({
+        target: [userStaySetups.userId, userStaySetups.citySlug],
+        set: {
+          purpose: setup.purpose,
+          workStyle: setup.workStyle,
+          dailyBalance: setup.dailyBalance ?? null,
+          updatedAt: new Date(setup.updatedAt),
+        },
+      });
     return true;
-  } catch {
+  } catch (err) {
+    console.warn("[kv] DB write failed for user stay setup:", err);
+    return false;
+  }
+}
+
+async function saveEmailStaySetupToDb(
+  setup: SavedEmailStaySetup,
+): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false;
+  try {
+    await db
+      .insert(emailStaySetups)
+      .values({
+        emailNormalized: setup.emailNormalized,
+        citySlug: setup.citySlug,
+        purpose: setup.purpose,
+        workStyle: setup.workStyle,
+        dailyBalance: setup.dailyBalance ?? null,
+        updatedAt: new Date(setup.updatedAt),
+      })
+      .onConflictDoUpdate({
+        target: [emailStaySetups.emailNormalized, emailStaySetups.citySlug],
+        set: {
+          purpose: setup.purpose,
+          workStyle: setup.workStyle,
+          dailyBalance: setup.dailyBalance ?? null,
+          updatedAt: new Date(setup.updatedAt),
+        },
+      });
+    return true;
+  } catch (err) {
+    console.warn("[kv] DB write failed for email stay setup:", err);
     return false;
   }
 }
@@ -681,6 +931,20 @@ export async function saveUserStaySetup(
 export async function getLastEnrichedSetupForCity(
   citySlug: string,
 ): Promise<CityLastEnrichedSetup | null> {
+  const dbCached = await getLastEnrichedSetupForCityFromDb(citySlug);
+  if (dbCached) {
+    if (redis) {
+      try {
+        await redis.set(CITY_LAST_ENRICHED_SETUP_KEY(citySlug), JSON.stringify(dbCached), {
+          ex: CITY_LAST_ENRICHED_SETUP_TTL_SECONDS,
+        });
+      } catch {
+        // Ignore Redis cache backfill failures.
+      }
+    }
+    return dbCached;
+  }
+
   if (!redis) return null;
   try {
     const data = await redis.get(CITY_LAST_ENRICHED_SETUP_KEY(citySlug));
@@ -696,19 +960,94 @@ export async function getLastEnrichedSetupForCity(
 export async function saveLastEnrichedSetupForCity(
   setup: Omit<CityLastEnrichedSetup, "updatedAt">,
 ): Promise<boolean> {
-  if (!redis) return false;
+  const payload: CityLastEnrichedSetup = {
+    ...setup,
+    updatedAt: new Date().toISOString(),
+  };
+
+  const db = getDb();
+  let dbSaved = false;
+  if (db) {
+    dbSaved = await saveLastEnrichedSetupForCityToDb(payload);
+  }
+
+  let redisSaved = false;
+  if (redis) {
+    try {
+      await redis.set(
+        CITY_LAST_ENRICHED_SETUP_KEY(setup.citySlug),
+        JSON.stringify(payload),
+        { ex: CITY_LAST_ENRICHED_SETUP_TTL_SECONDS },
+      );
+      redisSaved = true;
+    } catch {
+      // Ignore Redis cache failures; DB is canonical when available.
+    }
+  }
+
+  if (db) return dbSaved;
+  return redisSaved;
+}
+
+async function getLastEnrichedSetupForCityFromDb(
+  citySlug: string,
+): Promise<CityLastEnrichedSetup | null> {
+  const db = getDb();
+  if (!db) return null;
   try {
-    const payload: CityLastEnrichedSetup = {
-      ...setup,
-      updatedAt: new Date().toISOString(),
+    const rows = await db
+      .select({
+        citySlug: cityLastEnrichedSetups.citySlug,
+        purpose: cityLastEnrichedSetups.purpose,
+        workStyle: cityLastEnrichedSetups.workStyle,
+        dailyBalance: cityLastEnrichedSetups.dailyBalance,
+        updatedAt: cityLastEnrichedSetups.updatedAt,
+      })
+      .from(cityLastEnrichedSetups)
+      .where(eq(cityLastEnrichedSetups.citySlug, citySlug))
+      .limit(1);
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      citySlug: row.citySlug,
+      purpose: row.purpose,
+      workStyle: row.workStyle,
+      dailyBalance: row.dailyBalance ?? undefined,
+      updatedAt: row.updatedAt.toISOString(),
     };
-    await redis.set(
-      CITY_LAST_ENRICHED_SETUP_KEY(setup.citySlug),
-      JSON.stringify(payload),
-      { ex: CITY_LAST_ENRICHED_SETUP_TTL_SECONDS },
-    );
+  } catch (err) {
+    console.warn("[kv] DB read failed for city last enriched setup:", err);
+    return null;
+  }
+}
+
+async function saveLastEnrichedSetupForCityToDb(
+  setup: CityLastEnrichedSetup,
+): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false;
+  try {
+    await db
+      .insert(cityLastEnrichedSetups)
+      .values({
+        citySlug: setup.citySlug,
+        purpose: setup.purpose,
+        workStyle: setup.workStyle,
+        dailyBalance: setup.dailyBalance ?? null,
+        updatedAt: new Date(setup.updatedAt),
+      })
+      .onConflictDoUpdate({
+        target: [cityLastEnrichedSetups.citySlug],
+        set: {
+          purpose: setup.purpose,
+          workStyle: setup.workStyle,
+          dailyBalance: setup.dailyBalance ?? null,
+          updatedAt: new Date(setup.updatedAt),
+        },
+      });
     return true;
-  } catch {
+  } catch (err) {
+    console.warn("[kv] DB write failed for city last enriched setup:", err);
     return false;
   }
 }

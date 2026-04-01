@@ -484,6 +484,70 @@ export const stayFitNarrativeCache = pgTable(
   }),
 );
 
+export const userStaySetups = pgTable(
+  "user_stay_setups",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id").notNull(),
+    citySlug: text("city_slug").notNull(),
+    purpose: text("purpose").notNull(),
+    workStyle: text("work_style").notNull(),
+    dailyBalance: text("daily_balance"),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    userCityUnique: uniqueIndex("user_stay_setups_user_city_unique").on(
+      table.userId,
+      table.citySlug,
+    ),
+    cityIdx: index("user_stay_setups_city_idx").on(table.citySlug),
+    updatedAtIdx: index("user_stay_setups_updated_at_idx").on(table.updatedAt),
+  }),
+);
+
+export const cityLastEnrichedSetups = pgTable(
+  "city_last_enriched_setups",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    citySlug: text("city_slug").notNull(),
+    purpose: text("purpose").notNull(),
+    workStyle: text("work_style").notNull(),
+    dailyBalance: text("daily_balance"),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    cityUnique: uniqueIndex("city_last_enriched_setups_city_unique").on(table.citySlug),
+    updatedAtIdx: index("city_last_enriched_setups_updated_at_idx").on(table.updatedAt),
+  }),
+);
+
+export const emailStaySetups = pgTable(
+  "email_stay_setups",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    emailNormalized: text("email_normalized").notNull(),
+    citySlug: text("city_slug").notNull(),
+    purpose: text("purpose").notNull(),
+    workStyle: text("work_style").notNull(),
+    dailyBalance: text("daily_balance"),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    emailCityUnique: uniqueIndex("email_stay_setups_email_city_unique").on(
+      table.emailNormalized,
+      table.citySlug,
+    ),
+    cityIdx: index("email_stay_setups_city_idx").on(table.citySlug),
+    updatedAtIdx: index("email_stay_setups_updated_at_idx").on(table.updatedAt),
+  }),
+);
+
 export const destinationsRelations = relations(destinations, ({ many }) => ({
   microAreas: many(microAreas),
   places: many(places),
@@ -613,4 +677,10 @@ export type UnlockRestoreToken = typeof unlockRestoreTokens.$inferSelect;
 export type NewUnlockRestoreToken = typeof unlockRestoreTokens.$inferInsert;
 export type StayFitNarrativeCache = typeof stayFitNarrativeCache.$inferSelect;
 export type NewStayFitNarrativeCache = typeof stayFitNarrativeCache.$inferInsert;
+export type UserStaySetup = typeof userStaySetups.$inferSelect;
+export type NewUserStaySetup = typeof userStaySetups.$inferInsert;
+export type CityLastEnrichedSetup = typeof cityLastEnrichedSetups.$inferSelect;
+export type NewCityLastEnrichedSetup = typeof cityLastEnrichedSetups.$inferInsert;
+export type EmailStaySetup = typeof emailStaySetups.$inferSelect;
+export type NewEmailStaySetup = typeof emailStaySetups.$inferInsert;
 
