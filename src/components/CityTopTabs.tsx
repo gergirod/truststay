@@ -9,12 +9,40 @@ interface Props {
 
 export function CityTopTabs({ mapContent, listContent }: Props) {
   const [mode, setMode] = useState<"map" | "list">("map");
+  const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
-    if (mode !== "map") return;
+    const mq = window.matchMedia("(min-width: 1280px)");
+    const apply = () => setIsDesktop(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  useEffect(() => {
+    if (!isDesktop && mode !== "map") return;
     const ev = new Event("resize");
     window.setTimeout(() => window.dispatchEvent(ev), 0);
-  }, [mode]);
+  }, [mode, isDesktop]);
+
+  if (isDesktop) {
+    return (
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-umber">
+            Map view
+          </p>
+          {mapContent}
+        </div>
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-umber">
+            List view
+          </p>
+          {listContent}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">

@@ -1101,7 +1101,7 @@ export function CityMap({
       </div>
 
       {sortedMicroAreas.length > 0 && (
-        <div className="mb-2 flex gap-2 overflow-x-auto pb-1">
+        <div className="mb-2 flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 pr-2 [scrollbar-width:none] [-ms-overflow-style:none]">
           {sortedMicroAreas.map((zone) => {
             const zoneInternet = zoneConnectivity[zone.id];
             const isActive = activeZone?.id === zone.id;
@@ -1110,7 +1110,7 @@ export function CityMap({
                 key={zone.id}
                 type="button"
                 onClick={() => openZoneFromUi(zone)}
-                className={`min-w-[150px] rounded-xl border px-3 py-2 text-left transition-colors ${
+                className={`min-w-[132px] snap-start rounded-xl border px-3 py-2 text-left transition-colors sm:min-w-[150px] ${
                   isActive ? "border-bark bg-white" : "border-dune bg-cream hover:bg-white"
                 }`}
               >
