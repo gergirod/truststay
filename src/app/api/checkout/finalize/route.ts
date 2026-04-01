@@ -117,15 +117,20 @@ export async function GET(req: NextRequest) {
   response.cookies.set(TRUSTSTAY_USER_COOKIE, userId, cookieOpts);
   response.cookies.set(UNLOCK_COOKIE, serializeSlugs(current), cookieOpts);
   if (hasFullIntent) {
-    saveUserStaySetup({
-      userId,
-      citySlug,
-      purpose: purpose!,
-      workStyle: workStyle!,
-      ...(dailyBalance ? { dailyBalance } : {}),
-    }).catch((err) => {
+    try {
+      const saved = await saveUserStaySetup({
+        userId,
+        citySlug,
+        purpose: purpose!,
+        workStyle: workStyle!,
+        ...(dailyBalance ? { dailyBalance } : {}),
+      });
+      if (!saved) {
+        console.warn("[finalize] user stay setup save returned false");
+      }
+    } catch (err) {
       console.warn("[finalize] failed to save user stay setup:", err);
-    });
+    }
   }
   return response;
 }
