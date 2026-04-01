@@ -18,9 +18,10 @@ function hashNumber(input: string): number {
 }
 
 function allowSeededConnectivityData(): boolean {
-  if (process.env.CONNECTIVITY_ALLOW_SEEDED === "true") return true;
+  // Default ON so destinations without observed internet samples still get
+  // a usable baseline layer. Can be disabled explicitly via env.
   if (process.env.CONNECTIVITY_ALLOW_SEEDED === "false") return false;
-  return process.env.NODE_ENV !== "production";
+  return true;
 }
 
 interface SeedCoverageBounds {
@@ -189,8 +190,14 @@ export async function ensureConnectivityPrecomputedForCitySlug(
   let observations = await connectivityRepository.listObservationsForDestination(destination.id);
   if (!observations.length) {
     if (!allowSeededConnectivityData()) {
+      console.warn(
+        `[connectivity] seeded disabled city=${citySlug} destination=${destination.id} and no observations found`,
+      );
       return { ok: true, cellCount: 0 };
     }
+    console.log(
+      `[connectivity] seeding observations city=${citySlug} destination=${destination.id}`,
+    );
     const centerLat = destination.anchorLat ?? 0;
     const centerLon = destination.anchorLon ?? 0;
     const bounds = deriveSeedCoverageBounds({

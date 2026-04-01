@@ -332,6 +332,65 @@ function buildConnectivityMockCells(
   };
 }
 
+function buildDiamondConnectivityGeojson(
+  base: GeoJSON.FeatureCollection<GeoJSON.Polygon>,
+): GeoJSON.FeatureCollection<GeoJSON.Polygon> {
+  const features: GeoJSON.Feature<GeoJSON.Polygon>[] = [];
+
+  for (const feature of base.features) {
+    if (feature.geometry.type !== "Polygon") continue;
+    const ring = feature.geometry.coordinates?.[0];
+    if (!ring || ring.length < 4) continue;
+
+    let minLon = Number.POSITIVE_INFINITY;
+    let maxLon = Number.NEGATIVE_INFINITY;
+    let minLat = Number.POSITIVE_INFINITY;
+    let maxLat = Number.NEGATIVE_INFINITY;
+    let sumLon = 0;
+    let sumLat = 0;
+    let count = 0;
+
+    for (const [lon, lat] of ring) {
+      minLon = Math.min(minLon, lon);
+      maxLon = Math.max(maxLon, lon);
+      minLat = Math.min(minLat, lat);
+      maxLat = Math.max(maxLat, lat);
+      sumLon += lon;
+      sumLat += lat;
+      count += 1;
+    }
+
+    if (!Number.isFinite(minLon) || !Number.isFinite(minLat) || count === 0) continue;
+
+    const centerLon = sumLon / count;
+    const centerLat = sumLat / count;
+    const lonSpan = Math.max(0.0011, maxLon - minLon);
+    const latSpan = Math.max(0.0011, maxLat - minLat);
+    const lonHalf = lonSpan * 0.34;
+    const latHalf = latSpan * 0.34;
+
+    features.push({
+      type: "Feature",
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [centerLon, centerLat + latHalf],
+          [centerLon + lonHalf, centerLat],
+          [centerLon, centerLat - latHalf],
+          [centerLon - lonHalf, centerLat],
+          [centerLon, centerLat + latHalf],
+        ]],
+      },
+      properties: feature.properties,
+    });
+  }
+
+  return {
+    type: "FeatureCollection",
+    features,
+  };
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function CityMap({
@@ -426,7 +485,7 @@ export function CityMap({
   }, [activeZone, hasZones, microAreas, mapFocusCenter.lat, mapFocusCenter.lon]);
 
   useEffect(() => {
-    if (!showConnectivity || hasZones) return;
+    if (!showConnectivity) return;
     let cancelled = false;
     const bbox = [
       connectivityBounds.minLon,
@@ -453,7 +512,7 @@ export function CityMap({
     return () => {
       cancelled = true;
     };
-  }, [citySlug, showConnectivity, connectivityBounds, hasZones]);
+  }, [citySlug, showConnectivity, connectivityBounds]);
 
   useEffect(() => {
     if (!showConnectivity || !hasZones || !microAreas?.length) return;
@@ -477,6 +536,12 @@ export function CityMap({
             return null;
           }
           const json = await res.json();
+          if (json?.source?.name === "fallback_unknown") {
+            console.warn(
+              `[internet-map] fallback summary treated as unknown city=${citySlug} zone=${zone.id}`,
+            );
+            return null;
+          }
           const summary = json?.summary;
           if (!summary || typeof summary.score !== "number" || typeof summary.bucket !== "string") {
             console.warn(
@@ -854,11 +919,12 @@ export function CityMap({
           coreCount++;
         }
 
-        // ── Connectivity layer (v1 scaffold) ────────────────────────────────
-        if (showConnectivity && !hasZones) {
-          const connectivityLayerData =
+        // ── Connectivity layer (diamond cells) ──────────────────────────────
+        if (showConnectivity) {
+          const baseConnectivityData =
             connectivityGeojson ??
             buildConnectivityMockCells(connectivityBounds);
+          const connectivityLayerData = buildDiamondConnectivityGeojson(baseConnectivityData);
 
           map.addSource(CONNECTIVITY_SOURCE_ID, {
             type: "geojson",
@@ -878,7 +944,7 @@ export function CityMap({
                 "okay", CONNECTIVITY_BUCKET_META.okay.fill,
                 CONNECTIVITY_BUCKET_META.risky.fill,
               ],
-              "fill-opacity": 0.12,
+              "fill-opacity": 0.2,
             },
           });
 
@@ -895,8 +961,8 @@ export function CityMap({
                 "okay", CONNECTIVITY_BUCKET_META.okay.line,
                 CONNECTIVITY_BUCKET_META.risky.line,
               ],
-              "line-width": 1.15,
-              "line-opacity": 0.42,
+              "line-width": 1.0,
+              "line-opacity": 0.62,
             },
           });
 

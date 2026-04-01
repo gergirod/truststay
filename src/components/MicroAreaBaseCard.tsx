@@ -10,8 +10,8 @@ interface Props {
   intent: string; // e.g. "surf + heavy work"
   citySlug: string;
   internetSummary?: {
-    score: number;
-    bucket: "excellent" | "good" | "okay" | "risky";
+    score: number | null;
+    bucket: "excellent" | "good" | "okay" | "risky" | "unknown";
     median_download_mbps: number | null;
     median_upload_mbps: number | null;
     median_latency_ms: number | null;
@@ -161,7 +161,9 @@ export function MicroAreaBaseCard({
                 Internet signal
               </p>
               <p className="mt-1 text-sm font-medium text-bark">
-                {internetSummary.score}/100 · {internetSummary.bucket}
+                {internetSummary.score == null
+                  ? "Unknown · data not enough yet"
+                  : `${internetSummary.score}/100 · ${internetSummary.bucket}`}
               </p>
               <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-umber">
                 <span>Download</span><span>{internetSummary.median_download_mbps ?? "—"} Mbps</span>

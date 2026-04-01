@@ -13,8 +13,8 @@ interface Props {
 }
 
 type InternetSummary = {
-  score: number;
-  bucket: "excellent" | "good" | "okay" | "risky";
+  score: number | null;
+  bucket: "excellent" | "good" | "okay" | "risky" | "unknown";
   median_download_mbps: number | null;
   median_upload_mbps: number | null;
   median_latency_ms: number | null;
@@ -67,6 +67,18 @@ export function MicroAreaStack({ microAreaNarratives, intent, cityName, citySlug
         );
         if (!res.ok) return null;
         const json = await res.json();
+        if (json?.source?.name === "fallback_unknown") {
+          const unknownParsed: InternetSummary = {
+            score: null,
+            bucket: "unknown",
+            median_download_mbps: null,
+            median_upload_mbps: null,
+            median_latency_ms: null,
+            confidence: "low",
+            freshness_days: null,
+          };
+          return [area.microAreaId, unknownParsed] as const;
+        }
         const summary = json?.summary;
         if (!summary || typeof summary.score !== "number" || typeof summary.bucket !== "string") {
           return null;
