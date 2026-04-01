@@ -322,7 +322,9 @@ export function CityMap({
   const interactiveZones = hasZones
     ? microAreas.filter((z) => !z.hasConstraintBreakers)
     : [];
-  const shouldAutoDrillSingleZone = interactiveZones.length === 1 && !showConnectivity;
+  // Avoid an "empty-looking" map in zone mode by entering the top viable area on first load.
+  const shouldAutoDrillOnLoad =
+    interactiveZones.length > 0 && !showConnectivity && places.length > 0;
   const sortedMicroAreas = useMemo(
     () =>
       (microAreas ? [...microAreas] : []).sort((a, b) => {
@@ -1019,11 +1021,11 @@ export function CityMap({
           } catch { /* single point */ }
         }
 
-        if (shouldAutoDrillSingleZone) {
-          const singleZone = interactiveZones[0];
-          if (singleZone) {
+        if (shouldAutoDrillOnLoad) {
+          const topZone = interactiveZones[0];
+          if (topZone) {
             window.setTimeout(() => {
-              onZoneClickRef.current?.(singleZone);
+              onZoneClickRef.current?.(topZone);
             }, 140);
           }
         }
@@ -1177,7 +1179,7 @@ export function CityMap({
         )}
 
         {/* ── "Tap zone" hint (Layer 1, zones exist) ─────────────────────── */}
-        {!activeZone && hasZones && !shouldAutoDrillSingleZone && (
+        {!activeZone && hasZones && !shouldAutoDrillOnLoad && (
           <div className="absolute top-3 left-3 rounded-lg bg-white/90 backdrop-blur-sm border border-dune px-2.5 py-1.5">
             <p className="text-[10px] text-umber">
               <span className="hidden sm:inline">Click</span>

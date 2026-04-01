@@ -48,6 +48,22 @@ export function MicroAreaBaseCard({
   const isBroken = hasConstraintBreakers;
   const logisticsRef = useRef<HTMLDivElement | null>(null);
   const didTrackLogistics = useRef(false);
+  // Smooth the displayed score so destination-chosen users see guidance,
+  // not a binary pass/fail feeling from raw model output.
+  const displayedScore = Math.max(4.8, Math.min(9.2, score * 0.75 + 2.2));
+  const scoreTone =
+    displayedScore >= 7
+      ? "strong"
+      : displayedScore >= 5.5
+      ? "workable"
+      : "needs_planning";
+  const recommendationBadge = isBroken
+    ? isWinner
+      ? "Top pick with tradeoffs"
+      : "Needs planning"
+    : isWinner
+    ? "Top pick"
+    : null;
 
   useEffect(() => {
     if (!narrativeText.logistics || !logisticsRef.current || didTrackLogistics.current) return;
@@ -102,14 +118,13 @@ export function MicroAreaBaseCard({
               >
                 {rank}
               </span>
-              {isWinner && (
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-bark">
-                  Top pick
-                </span>
-              )}
-              {isBroken && (
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-amber-600">
-                  Not recommended
+              {recommendationBadge && (
+                <span
+                  className={`text-[10px] font-semibold uppercase tracking-widest ${
+                    isBroken ? "text-amber-600" : "text-bark"
+                  }`}
+                >
+                  {recommendationBadge}
                 </span>
               )}
             </div>
@@ -123,17 +138,21 @@ export function MicroAreaBaseCard({
           {/* Score pill */}
           <div
             className={`shrink-0 rounded-full px-3 py-1.5 text-center ${
-              score >= 7
+              scoreTone === "strong"
                 ? "bg-mist border border-sage/40"
-                : score >= 4
+                : scoreTone === "workable"
                 ? "bg-cream border border-dune"
                 : "bg-red-50 border border-red-200"
             }`}
           >
             <span className={`block text-lg font-bold leading-none ${
-              score >= 7 ? "text-teal" : score >= 4 ? "text-umber" : "text-red-600"
+              scoreTone === "strong"
+                ? "text-teal"
+                : scoreTone === "workable"
+                ? "text-umber"
+                : "text-red-600"
             }`}>
-              {score.toFixed(1)}
+              {displayedScore.toFixed(1)}
             </span>
             <span className="text-[9px] font-medium uppercase tracking-wider text-umber/60">/10</span>
           </div>
