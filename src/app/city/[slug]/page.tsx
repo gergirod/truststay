@@ -46,6 +46,7 @@ import { buildFinalResponse } from "@/application/use-cases/buildFinalResponse";
 import { MicroAreaStack } from "@/components/MicroAreaStack";
 import { CityTopTabs } from "@/components/CityTopTabs";
 import type { City, StayIntent, StayPurpose, WorkStyle, VibePreference, DailyBalance } from "@/types";
+import { canonicalRepository } from "@/db/repositories";
 
 // ── Stay intent parsing ───────────────────────────────────────────────────────
 // Intent is resolved from URL params and threaded through as a typed prop.
@@ -147,6 +148,175 @@ function isCafeWorkSection(place: Place): boolean {
 
   // Everything else — no verified work signals → Coffee & meals
   return false;
+}
+
+function categoryFallbackMeta(category: Place["category"]): {
+  bestFor: Place["bestFor"];
+  explanation: string;
+  workFit?: "low" | "medium" | "high";
+  routineFit?: "low" | "medium" | "high";
+} {
+  if (category === "coworking") {
+    return {
+      bestFor: ["deep_work", "calls", "backup_work"],
+      explanation: "Loaded from trusted local place data while map providers refresh.",
+      workFit: "high",
+      routineFit: "medium",
+    };
+  }
+  if (category === "cafe") {
+    return {
+      bestFor: ["short_session", "coffee_break"],
+      explanation: "Loaded from trusted local place data while map providers refresh.",
+      workFit: "medium",
+      routineFit: "medium",
+    };
+  }
+  if (category === "gym") {
+    return {
+      bestFor: ["training", "routine_support"],
+      explanation: "Loaded from trusted local place data while map providers refresh.",
+      workFit: "low",
+      routineFit: "high",
+    };
+  }
+  return {
+    bestFor: ["quick_meal", "quick_stop"],
+    explanation: "Loaded from trusted local place data while map providers refresh.",
+    workFit: "low",
+    routineFit: "medium",
+  };
+}
+
+async function loadCanonicalPlacesFallback(city: City): Promise<Place[]> {
+  const destination = await canonicalRepository.getDestinationBySlug(city.slug);
+  if (!destination) return [];
+  const canonicalPlaces = await canonicalRepository.listPlacesForDestination(destination.id);
+  if (!canonicalPlaces.length) return [];
+
+  return canonicalPlaces
+    .map((place): Place | null => {
+      if (place.category === "other") return null;
+      const category = place.category;
+      const meta = categoryFallbackMeta(category);
+      return {
+        id: `canonical-${place.id}`,
+        name: place.name,
+        category,
+        lat: place.lat,
+        lon: place.lon,
+        rating: place.rating ?? undefined,
+        reviewCount: place.reviewCount ?? undefined,
+        distanceKm: Math.round(haversineKm(city.lat, city.lon, place.lat, place.lon) * 10) / 10,
+        confidence: {
+          workFit: meta.workFit,
+          routineFit: meta.routineFit,
+          convenience: "medium",
+          wifiConfidence: "unknown",
+          laptopFriendly: "unknown",
+          noiseRisk: "unknown",
+        },
+        bestFor: meta.bestFor,
+        explanation: meta.explanation,
+      };
+    })
+    .filter((p): p is Place => Boolean(p));
+}
+
+interface GoogleFallbackPlace {
+  id: string;
+  displayName?: { text?: string };
+  location?: { latitude?: number; longitude?: number };
+  rating?: number;
+  userRatingCount?: number;
+  primaryType?: string;
+}
+
+function mapGooglePrimaryTypeToCategory(type?: string): Place["category"] {
+  if (type === "coworking_space") return "coworking";
+  if (type === "cafe" || type === "coffee_shop" || type === "bakery") return "cafe";
+  if (type === "gym" || type === "fitness_center") return "gym";
+  return "food";
+}
+
+async function searchGooglePlacesByText(
+  city: City,
+  textQuery: string,
+): Promise<GoogleFallbackPlace[]> {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey) return [];
+  try {
+    const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask":
+          "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.primaryType",
+      },
+      body: JSON.stringify({
+        textQuery,
+        maxResultCount: 8,
+        locationBias: {
+          circle: {
+            center: { latitude: city.lat, longitude: city.lon },
+            radius: 18000,
+          },
+        },
+      }),
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { places?: GoogleFallbackPlace[] };
+    return data.places ?? [];
+  } catch {
+    return [];
+  }
+}
+
+async function loadLiveGooglePlacesFallback(city: City): Promise<Place[]> {
+  const queries = [
+    `coworking in ${city.name}`,
+    `cafe in ${city.name}`,
+    `gym in ${city.name}`,
+    `restaurants in ${city.name}`,
+  ];
+  const batches = await Promise.all(queries.map((q) => searchGooglePlacesByText(city, q)));
+  const unique = new Map<string, GoogleFallbackPlace>();
+  for (const place of batches.flat()) {
+    if (!place.id || unique.has(place.id)) continue;
+    unique.set(place.id, place);
+  }
+
+  return [...unique.values()]
+    .map((place): Place | null => {
+      const lat = place.location?.latitude;
+      const lon = place.location?.longitude;
+      if (typeof lat !== "number" || !Number.isFinite(lat)) return null;
+      if (typeof lon !== "number" || !Number.isFinite(lon)) return null;
+      const category = mapGooglePrimaryTypeToCategory(place.primaryType);
+      const meta = categoryFallbackMeta(category);
+      return {
+        id: `google-live-${place.id}`,
+        name: place.displayName?.text ?? "Unknown place",
+        category,
+        lat,
+        lon,
+        rating: place.rating ?? undefined,
+        reviewCount: place.userRatingCount ?? undefined,
+        distanceKm: Math.round(haversineKm(city.lat, city.lon, lat, lon) * 10) / 10,
+        confidence: {
+          workFit: meta.workFit,
+          routineFit: meta.routineFit,
+          convenience: "medium",
+          wifiConfidence: "unknown",
+          laptopFriendly: "unknown",
+          noiseRisk: "unknown",
+        },
+        bestFor: meta.bestFor,
+        explanation: "Loaded from live Google fallback data while OpenStreetMap refreshes.",
+      };
+    })
+    .filter((p): p is Place => Boolean(p));
 }
 
 import { KNOWN_CITY_SLUGS } from "@/data/slugs";
@@ -1055,6 +1225,8 @@ async function CityContent({
   prefillPurpose?: StayPurpose | null;
 }) {
   let allPlaces: Place[];
+  let usedCanonicalPlacesFallback = false;
+  let usedLiveGooglePlacesFallback = false;
   let placesCachedAt: string | undefined;
   let needsEnrichment = true;
   try {
@@ -1062,6 +1234,27 @@ async function CityContent({
     allPlaces = result.places;
     placesCachedAt = result.cachedAt;
     needsEnrichment = result.needsEnrichment;
+    if (allPlaces.length === 0) {
+      const fallbackPlaces = await loadCanonicalPlacesFallback(city);
+      if (fallbackPlaces.length > 0) {
+        allPlaces = fallbackPlaces;
+        usedCanonicalPlacesFallback = true;
+        needsEnrichment = false;
+        console.warn(
+          `[places] canonical fallback city=${city.slug} count=${fallbackPlaces.length} (overpass/cache empty)`,
+        );
+      } else {
+        const liveGoogleFallbackPlaces = await loadLiveGooglePlacesFallback(city);
+        if (liveGoogleFallbackPlaces.length > 0) {
+          allPlaces = liveGoogleFallbackPlaces;
+          usedLiveGooglePlacesFallback = true;
+          needsEnrichment = false;
+          console.warn(
+            `[places] live-google fallback city=${city.slug} count=${liveGoogleFallbackPlaces.length} (overpass/cache/canonical empty)`,
+          );
+        }
+      }
+    }
   } catch (err) {
     const errorType =
       err instanceof Error ? err.message : "upstream_fetch_failed";
@@ -1506,6 +1699,18 @@ async function CityContent({
       {/* Data coverage notice — only shown for partial/limited data */}
       {dataCoverage !== "good" && dataCoverage !== "none" && (
         <CoverageNotice city={city.name} level={dataCoverage} />
+      )}
+      {usedCanonicalPlacesFallback && (
+        <div className="rounded-2xl border border-teal/30 bg-teal/5 px-4 py-3 text-sm text-bark">
+          Micro-zones are available. Place pins are loaded from trusted Google fallback data while
+          OpenStreetMap refreshes.
+        </div>
+      )}
+      {usedLiveGooglePlacesFallback && (
+        <div className="rounded-2xl border border-teal/30 bg-teal/5 px-4 py-3 text-sm text-bark">
+          Micro-zones are available. Place pins are loaded from live Google fallback data while
+          OpenStreetMap refreshes.
+        </div>
       )}
 
       {/* Post-unlock value reveal: make the "what now" path explicit immediately. */}
